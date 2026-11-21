@@ -56,7 +56,7 @@ npm run build    # type-check and production build
 
 - `/dev/staff` (development only) shows the front-desk UI with fixture data, so you can work on screens without signing in. It is not included in production builds.
 - The Supabase URL and publishable key are in `src/lib/supabase.ts`; you can override them with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. The publishable key is designed to be public; access is enforced in the database.
-- The database schema, row-level security and functions are applied as Supabase migrations: `core_schema`, `device_secrets_and_rpcs`, `fix_unaccent_and_schedule_purge`, `cyrillic_name_matching`, `ezee_sync_and_companions` and `tablet_config_retention`.
+- The database schema, row-level security and functions are applied as Supabase migrations: `core_schema`, `device_secrets_and_rpcs`, `fix_unaccent_and_schedule_purge`, `cyrillic_name_matching`, `ezee_sync_and_companions`, `tablet_config_retention`, `partner_app_integration` and `fix_partner_event_trigger`.
 - `npm test` also covers the eZee request and response mapping (`tests/ezee.test.ts`).
 
 ## Deploy
@@ -73,7 +73,17 @@ Guest strings are in `src/translations.ts` (en, ru, tg). The staff app is in Eng
 
 **TODO: review by a native Tajik speaker.** The Tajik translation is a best-effort draft and should be checked before guests use it.
 
-## eZee FrontDesk sync
+## Connecting the owner's front desk app
+
+The hotel's own front desk app, which already talks to eZee, connects to the tablet through the **partner API**, the Supabase Edge Function `supabase/functions/partner-api`:
+
+- **Webhooks:** the tablet sends every check-in (passport details, additional guests, signature), check-out and feedback to the app instantly. Each webhook is signed with HMAC-SHA256 and retried automatically if delivery fails.
+- **API:** the app sends bookings and room numbers to the tablet, approves or sends back tablet check-ins, and can list check-ins, check-outs and feedback.
+- **Setup:** in Settings → **Front desk app connection**, create the API key and signing secret, enter the app's webhook address, then press **Send test event**.
+
+The full guide for the app's developer is [docs/partner-api.md](docs/partner-api.md). When the front desk app is connected this way, leave the direct eZee sync below switched off, because the front desk app already syncs with eZee.
+
+## eZee FrontDesk sync (alternative)
 
 Reception keeps working in eZee FrontDesk. The tablet syncs with it through eZee's kiosk and PMS connectivity APIs, using the Supabase Edge Function `supabase/functions/ezee-sync`.
 

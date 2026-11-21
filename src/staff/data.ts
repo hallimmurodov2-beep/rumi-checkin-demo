@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import type { Checkin, CheckinGuest, Checkout, Device, Feedback, HotelSettings, IntegrationSettings, Profile, Reservation, SyncLogEntry } from '../lib/types'
+import type { Checkin, CheckinGuest, Checkout, Device, Feedback, HotelSettings, IntegrationSettings, PartnerSettings, Profile, Reservation, SyncLogEntry } from '../lib/types'
 
 /** Today's date at the hotel (Dushanbe), as YYYY-MM-DD. */
 export function hotelToday(offsetDays = 0): string {
@@ -77,6 +77,7 @@ export interface StaffData {
   profiles: Profile[]
   guests: CheckinGuest[]
   integration: IntegrationSettings | null
+  partner: PartnerSettings | null
   syncLog: SyncLogEntry[]
   loading: boolean
   error: string | null
@@ -97,6 +98,7 @@ export function useStaffData(isAdmin: boolean): StaffData {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [guests, setGuests] = useState<CheckinGuest[]>([])
   const [integration, setIntegration] = useState<IntegrationSettings | null>(null)
+  const [partner, setPartner] = useState<PartnerSettings | null>(null)
   const [syncLog, setSyncLog] = useState<SyncLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -156,12 +158,14 @@ export function useStaffData(isAdmin: boolean): StaffData {
       setGuests(data as CheckinGuest[])
     },
     integration: async () => {
-      const [a, b] = await Promise.all([
+      const [a, b, c] = await Promise.all([
         supabase.from('integration_settings').select('*').eq('id', 1).maybeSingle(),
         supabase.from('sync_log').select('*').order('created_at', { ascending: false }).limit(40),
+        supabase.from('partner_settings').select('*').eq('id', 1).maybeSingle(),
       ])
       if (a.error) throw a.error
       setIntegration(a.data as IntegrationSettings)
+      setPartner(c.data as PartnerSettings | null)
       setSyncLog((b.data ?? []) as SyncLogEntry[])
     },
     profiles: async () => {
@@ -196,6 +200,7 @@ export function useStaffData(isAdmin: boolean): StaffData {
     }
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'checkin_guests' }, () => reload('guests'))
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'integration_settings' }, () => reload('integration'))
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'partner_settings' }, () => reload('integration'))
     channel.subscribe((status) => alive && setLive(status === 'SUBSCRIBED'))
 
     // Tablet heartbeats update last_seen_at; refresh device status regularly.
@@ -210,7 +215,7 @@ export function useStaffData(isAdmin: boolean): StaffData {
     }
   }, [reload])
 
-  return { reservations, checkins, checkouts, feedback, devices, settings, profiles, guests, integration, syncLog, loading, error, live, reload }
+  return { reservations, checkins, checkouts, feedback, devices, settings, profiles, guests, integration, partner, syncLog, loading, error, live, reload }
 }
 
 export function deviceOnline(d: Device, now = Date.now()) {

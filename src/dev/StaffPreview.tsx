@@ -37,6 +37,7 @@ const data: StaffData = {
   profiles: [{ user_id: 'u1', email: 'admin@example.com', full_name: 'Fixture Admin', role: 'admin', created_at: iso(9000) }],
   guests: [{ id: 'g1', checkin_id: 'c1', created_at: iso(3), doc_source: 'mrz', doc_type: 'P', issuing_country: 'UTO', nationality: 'UTO', surname: 'GUEST', given_names: 'FIXTURE COMPANION', document_number: 'X1234567', birth_date: '1980-01-01', sex: 'M', expiry_date: '2030-01-01', mrz_valid: true, ezee_synced_at: null, ezee_error: null }],
   integration: { id: 1, ezee_enabled: false, push_guest_data: true, auto_checkin: false, push_checkout: true, last_pull_at: null, last_push_at: null, last_error: 'eZee credentials are not set. Add EZEE_HOTEL_CODE and EZEE_AUTH_CODE as Edge Function secrets.', last_error_at: iso(2) },
+  partner: { id: 1, webhook_enabled: false, webhook_url: null, api_key_prefix: null, api_key_created_at: null, webhook_secret_created_at: null, last_delivery_at: null, last_error: null, last_error_at: null },
   syncLog: [],
   loading: false,
   error: null,

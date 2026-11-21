@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ApiError, errorCode, rpc, supabase } from '../../lib/supabase'
-import type { Device, HotelSettings, IntegrationSettings, Profile, Role, SyncLogEntry } from '../../lib/types'
+import type { Device, HotelSettings, IntegrationSettings, PartnerSettings, Profile, Role, SyncLogEntry } from '../../lib/types'
+import { SUPABASE_URL } from '../../lib/supabase'
 import { deviceOnline, fmtDate, fmtTime, timeAgo, type StaffData } from '../data'
 import { Btn, Chip, Empty, Field, Modal, PageHead, Panel, errorText, useToast } from '../kit'
 
@@ -234,6 +235,115 @@ function EzeePanel({ integration: s, log, isAdmin, reload, now }: { integration:
   )
 }
 
+function SecretModal({ title, value, note, onClose }: { title: string; value: string; note: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <Modal title={title} onClose={onClose} footer={<Btn tone="primary" onClick={onClose}>I've saved it</Btn>}>
+      <p className="text-sm text-muted">{note}</p>
+      <div className="mt-4 flex items-center gap-2">
+        <code className="min-w-0 flex-1 break-all rounded-lg border border-line bg-white px-3 py-2.5 font-mono text-sm">{value}</code>
+        <Btn
+          onClick={() => {
+            navigator.clipboard?.writeText(value).then(() => setCopied(true)).catch(() => {})
+          }}
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </Btn>
+      </div>
+      <p className="mt-3 text-xs text-danger">This is shown only once. Send it to your dad privately, not by email or chat.</p>
+    </Modal>
+  )
+}
+
+function PartnerPanel({ partner: p, isAdmin, reload, now }: { partner: PartnerSettings | null; isAdmin: boolean; reload: StaffData['reload']; now: number }) {
+  const toast = useToast()
+  const [url, setUrl] = useState(p?.webhook_url ?? '')
+  const [secret, setSecret] = useState<{ title: string; value: string; note: string } | null>(null)
+  const [confirmKey, setConfirmKey] = useState(false)
+  useEffect(() => setUrl(p?.webhook_url ?? ''), [p?.webhook_url])
+  if (!p) return null
+  const apiBase = `${SUPABASE_URL}/functions/v1/partner-api`
+  const save = async (patch: Partial<PartnerSettings>) => {
+    const { error } = await supabase.from('partner_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', 1)
+    if (error) return toast(error.message.includes('check') ? 'The address must start with https://' : errorText(errorCode(error)), 'error')
+    reload('integration')
+    toast('Saved')
+  }
+  const newKey = async () => {
+    if (p.api_key_prefix && !confirmKey) return setConfirmKey(true)
+    try {
+      const key = await rpc<string>('create_partner_api_key')
+      setConfirmKey(false)
+      setSecret({ title: 'API key for the front desk app', value: key, note: `Your dad's app sends this as "Authorization: Bearer <key>" when calling ${apiBase}. Creating a new key stops the old one working.` })
+      reload('integration')
+    } catch (e) {
+      toast(errorText(e instanceof ApiError ? e.code : 'unknown_error'), 'error')
+    }
+  }
+  const newSecret = async () => {
+    try {
+      const value = await rpc<string>('create_partner_webhook_secret')
+      setSecret({ title: 'Webhook signing secret', value, note: "Your dad's app uses this to check that webhooks really come from the tablet (X-Rumi-Signature header)." })
+      reload('integration')
+    } catch (e) {
+      toast(errorText(e instanceof ApiError ? e.code : 'unknown_error'), 'error')
+    }
+  }
+  const test = async () => {
+    try {
+      await rpc('send_partner_test_event')
+      toast('Test event sent. Check that it arrived in the front desk app.')
+      window.setTimeout(() => reload('integration'), 4000)
+    } catch (e) {
+      toast(errorText(e instanceof ApiError ? e.code : 'unknown_error'), 'error')
+    }
+  }
+  return (
+    <Panel
+      title={
+        <span className="flex items-center gap-2">
+          Front desk app connection
+          <Chip className={p.webhook_enabled && !p.last_error ? 'border-forest/30 bg-forest/10 text-forest' : 'border-line bg-white text-muted'}>
+            {p.webhook_enabled ? (p.last_error ? 'Needs attention' : 'On') : 'Off'}
+          </Chip>
+        </span>
+      }
+    >
+      <div className="space-y-5 p-5">
+        <p className="text-sm text-muted">
+          Connects the tablet to the owner's own front desk app: every tablet check-in, check-out and feedback is sent to it instantly, and it can send bookings
+          and room assignments back. The full guide for the app's developer is in <span className="font-mono">docs/partner-api.md</span>.
+        </p>
+        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+          <Field label="Webhook address of the front desk app" type="url" placeholder="https://..." value={url} disabled={!isAdmin} onChange={(e) => setUrl(e.target.value)} />
+          {isAdmin && <Btn onClick={() => save({ webhook_url: url.trim() || null })} disabled={url.trim() === (p.webhook_url ?? '')}>Save address</Btn>}
+        </div>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3">
+          <input type="checkbox" className="h-5 w-5 accent-forest" checked={p.webhook_enabled} disabled={!isAdmin || !p.webhook_url} onChange={(e) => save({ webhook_enabled: e.target.checked })} />
+          <span className="text-sm font-medium">Send tablet events to the front desk app</span>
+        </label>
+        <dl className="grid gap-2 text-sm md:grid-cols-2">
+          <div className="flex justify-between gap-3 rounded-lg border border-line px-3 py-2"><dt className="text-muted">API key</dt><dd className="font-mono">{p.api_key_prefix ? `${p.api_key_prefix}••••` : 'Not created'}</dd></div>
+          <div className="flex justify-between gap-3 rounded-lg border border-line px-3 py-2"><dt className="text-muted">Signing secret</dt><dd>{p.webhook_secret_created_at ? `Created ${timeAgo(p.webhook_secret_created_at, now)}` : 'Not created'}</dd></div>
+          <div className="flex justify-between gap-3 rounded-lg border border-line px-3 py-2 md:col-span-2"><dt className="text-muted">Last delivery</dt><dd>{p.last_delivery_at ? timeAgo(p.last_delivery_at, now) : 'Never'}</dd></div>
+          {p.last_error && <div className="rounded-lg bg-[#FDF1EC] px-3 py-2 text-danger md:col-span-2">{p.last_error}</div>}
+        </dl>
+        <div className="rounded-lg bg-cream/70 px-3 py-2 text-xs text-muted">
+          API address: <span className="break-all font-mono text-ink">{apiBase}</span>
+        </div>
+        {isAdmin && (
+          <div className="flex flex-wrap gap-2">
+            <Btn onClick={newKey}>{p.api_key_prefix ? (confirmKey ? 'Tap again: old key stops working' : 'Replace API key') : 'Create API key'}</Btn>
+            <Btn onClick={newSecret}>{p.webhook_secret_created_at ? 'Replace signing secret' : 'Create signing secret'}</Btn>
+            <Btn tone="primary" onClick={test} disabled={!p.webhook_enabled}>Send test event</Btn>
+          </div>
+        )}
+      </div>
+      {secret && <SecretModal {...secret} onClose={() => setSecret(null)} />}
+    </Panel>
+  )
+}
+
 function TeamPanel({ profiles, me, reload }: { profiles: Profile[]; me: string; reload: StaffData['reload'] }) {
   const toast = useToast()
   const setRole = async (p: Profile, role: Role) => {
@@ -284,6 +394,7 @@ export function SettingsView({ data, isAdmin, profile, now }: { data: StaffData;
       <PageHead title="Settings" sub={`Signed in as ${profile.full_name || profile.email} (${profile.role}).`} />
       <div className="space-y-6">
         <HotelPanel settings={data.settings} isAdmin={isAdmin} reload={data.reload} />
+        <PartnerPanel partner={data.partner} isAdmin={isAdmin} reload={data.reload} now={now} />
         <EzeePanel integration={data.integration} log={data.syncLog} isAdmin={isAdmin} reload={data.reload} now={now} />
         <TabletsPanel devices={data.devices} isAdmin={isAdmin} reload={data.reload} now={now} />
         {isAdmin && <TeamPanel profiles={data.profiles} me={profile.user_id} reload={data.reload} />}

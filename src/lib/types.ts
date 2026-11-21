@@ -98,6 +98,18 @@ export interface IntegrationSettings {
   last_error_at: string | null
 }
 
+export interface PartnerSettings {
+  id: 1
+  webhook_enabled: boolean
+  webhook_url: string | null
+  api_key_prefix: string | null
+  api_key_created_at: string | null
+  webhook_secret_created_at: string | null
+  last_delivery_at: string | null
+  last_error: string | null
+  last_error_at: string | null
+}
+
 export interface SyncLogEntry {
   id: number
   created_at: string

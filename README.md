@@ -21,8 +21,8 @@ The tablet returns to the welcome screen after 60 seconds without a touch, with 
 ## First-time setup
 
 1. **Supabase Auth URLs (required once).** In the Supabase dashboard, open project `rumi-checkin` → Authentication → URL Configuration:
-   - Site URL: your live address, e.g. `https://rumi-checkin-demo.vercel.app`
-   - Redirect URLs: add `https://<your-domain>/staff`
+   - Site URL: your live address, `https://rumi-checkin.vercel.app`
+   - Redirect URLs: add `https://rumi-checkin.vercel.app/staff`
 
    Without this, sign-up confirmation and password-reset emails link to `localhost`.
 2. **Create the first account.** Open `/staff` → **Create an account**. The first account becomes the **administrator**. Later accounts wait as **Pending** until an admin gives them access under Settings → Team.

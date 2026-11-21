@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { LangContext } from '../i18n'
-import { getDevice, mrzPayload, tablet, type StoredDevice } from '../lib/device'
+import { getDevice, mrzPayload, tablet, type Handoff, type StoredDevice } from '../lib/device'
 import { reconcileNames } from '../lib/mrz'
 import { warmUpOcr } from '../lib/scanner'
 import { ApiError } from '../lib/supabase'
@@ -9,7 +9,7 @@ import type { MrzData, PublicReservation, TabletConfig } from '../lib/types'
 import { translations, type Lang } from '../translations'
 import { Checkout, CheckoutDone, CheckoutFind } from '../tablet/Checkout'
 import { PairTablet, TabletSettings } from '../tablet/Setup'
-import { Confirm, DetailsStep, Done, FindBooking, NeedHelp, OtherGuests, Scan, SignatureStep, emptyDetails, type Details } from '../tablet/Steps'
+import { Confirm, DetailsStep, Done, FindBooking, NeedHelp, OtherGuests, Scan, SignatureStep, WaitForDesk, emptyDetails, type Details } from '../tablet/Steps'
 import { Welcome } from '../tablet/Welcome'
 import { Screensaver } from '../tablet/Screensaver'
 import { SLIDES } from '../tablet/gallery'
@@ -22,6 +22,7 @@ type Step =
   | 'find'
   | 'confirm'
   | 'help'
+  | 'waitDesk'
   | 'guests'
   | 'scanGuest'
   | 'details'
@@ -134,6 +135,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const [guestNotice, setGuestNotice] = useState<string | null>(null)
   const [stay, setStay] = useState<PublicReservation | null>(null)
   const [deskCode, setDeskCode] = useState<string | null>(null)
+  const [handoff, setHandoff] = useState<Handoff | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [saver, setSaver] = useState(false)
   // Reception scans passports with its own scanner unless the admin switched the tablet camera on.
@@ -190,6 +192,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
   }, [step])
 
   const clearGuest = () => {
+    setHandoff(null)
     setDeskCode(null)
     setCompanions([])
     setGuestNotice(null)
@@ -211,6 +214,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
       setCompanions([])
       setGuestNotice(null)
       setDeskCode(null)
+      setHandoff(null)
       setStay(null)
     }, 'back')
     ;(document.activeElement as HTMLElement | null)?.blur?.()
@@ -221,6 +225,55 @@ function Kiosk({ device }: { device: StoredDevice }) {
       clearGuest()
       setStep('welcome')
     }, 'back')
+
+  // Reception scanned a passport and sent the booking to this tablet: open it for the guest.
+  const idleForHandoff = step === 'welcome' || step === 'waitDesk' || step === 'find'
+  useEffect(() => {
+    if (!idleForHandoff || settingsOpen) return
+    let alive = true
+    let busy = false
+    const check = async () => {
+      if (busy) return
+      busy = true
+      try {
+        const h = await tablet.poll()
+        if (!alive || !h) return
+        const p = h.passport
+        setSaver(false)
+        setLang(h.language ?? 'en')
+        setHandoff(h)
+        setReservation(h.reservation)
+        setFindMultiple(false)
+        setMrz(
+          p && p.surname
+            ? {
+                docType: p.doc_type ?? 'P',
+                issuingCountry: p.issuing_country ?? '',
+                surname: p.surname,
+                givenNames: p.given_names ?? '',
+                documentNumber: p.document_number ?? '',
+                nationality: p.nationality ?? '',
+                birthDate: p.birth_date ?? '',
+                sex: (p.sex as 'M' | 'F' | 'X') ?? 'X',
+                expiryDate: p.expiry_date ?? '',
+                valid: true,
+              }
+            : null,
+        )
+        go('confirm')
+      } catch {
+        /* offline: try again on the next tick */
+      } finally {
+        busy = false
+      }
+    }
+    check()
+    const id = window.setInterval(check, 2500)
+    return () => {
+      alive = false
+      window.clearInterval(id)
+    }
+  }, [idleForHandoff, settingsOpen, go])
 
   // Screensaver: hotel photos after a quiet spell on the Welcome screen. A tap brings Welcome back.
   useEffect(() => {
@@ -305,8 +358,9 @@ function Kiosk({ device }: { device: StoredDevice }) {
         consent: details.consent,
         signature_png: signature,
         companions: companions.map((c) => mrzPayload(c)),
+        handoff_id: handoff?.id,
       } as Parameters<typeof tablet.submitCheckin>[1])
-      setDeskCode(deskMode ? res?.desk_code ?? null : null)
+      setDeskCode(deskMode && !handoff ? res?.desk_code ?? null : null)
       go('done')
     } catch (e) {
       if (e instanceof ApiError && e.code === 'reservation_unavailable') go('help')
@@ -328,7 +382,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
             hotelName={config?.hotel_name ?? 'The Rumi Hotel & Residences'}
             onStart={() => {
               setFindMultiple(false)
-              go(deskMode ? 'find' : 'scan')
+              go(deskMode ? 'waitDesk' : 'scan')
             }}
             onCheckout={() => go('coFind')}
             onSettings={() => setSettingsOpen(true)}
@@ -351,7 +405,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
             deskMode={deskMode}
             initialSurname={mrz?.surname ?? ''}
             multiple={findMultiple}
-            onBack={() => (deskMode ? toWelcome() : go('scan', 'back'))}
+            onBack={() => (deskMode ? go('waitDesk', 'back') : go('scan', 'back'))}
             onScan={deskMode ? undefined : () => go('scan', 'back')}
             onHelp={() => go('help')}
             onFound={(r) => {
@@ -365,12 +419,26 @@ function Kiosk({ device }: { device: StoredDevice }) {
           <Confirm
             reservation={reservation}
             mrz={mrz}
-            onBack={() => go(mrz && !findMultiple ? 'scan' : 'find', 'back')}
+            onBack={handoff ? undefined : () => go(mrz && !findMultiple ? 'scan' : 'find', 'back')}
             onYes={() => go(reservation.adults > 1 && !deskMode ? 'guests' : 'details')}
-            onNo={() => go('help')}
+            onNo={() => {
+              if (handoff) tablet.declineHandoff(handoff.id).catch(() => {})
+              go('help')
+            }}
+            greetName={handoff ? titleCase((handoff.passport?.given_names || reservation.guest_name).split(' ')[0]) : undefined}
+            onLang={handoff ? setLang : undefined}
           />
         )}
         {step === 'help' && <NeedHelp onStart={reset} />}
+        {step === 'waitDesk' && (
+          <WaitForDesk
+            onBack={toWelcome}
+            onManual={() => {
+              setFindMultiple(false)
+              go('find')
+            }}
+          />
+        )}
         {step === 'details' && (
           <DetailsStep
             value={details}
@@ -420,6 +488,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
             room={reservation?.room_number ?? null}
             deskCode={deskCode}
             adults={reservation?.adults ?? 1}
+            fromDesk={!!handoff}
           />
         )}
         {step === 'coFind' && (

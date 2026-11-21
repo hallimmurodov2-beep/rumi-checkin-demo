@@ -26,16 +26,47 @@ Keep the key and the secret on your server only (environment variables). Never p
 
 ---
 
-## 2. Passports and the check-in number
+## 2. Reception scans the passport, the tablet shows the booking
 
-By default (tablet Settings → **Passport scanning: At reception**), the tablet does **not** scan passports, because reception already scans them into eZee with its own scanner through your app.
+The tablets stand at the reception desk, so the smoothest flow starts with the passport scanner you already have:
 
-- The guest finds the booking by name or booking number, confirms it, adds contact details and signs.
-- The tablet then shows a short **check-in number**, such as `P17`. The guest brings it to reception with their passport, and with every other adult's passport.
-- `desk_code` is in every `checkin.*` webhook and in `GET /v1/checkins`. Show it in large type in your reception queue, so the receptionist can find the guest at once ("P17, please").
-- `passport_scanned_on_tablet` is `false` in this mode and the `guest.document` fields are empty. Scan the passport as you do today, then call **approve** with the room number.
+1. The guest hands the passport to the receptionist, who scans it in your app as today. Your app finds the booking in eZee.
+2. Your app calls **`POST /v1/handoffs`** with the booking number, which tablet to use, and the passport details. You can include the booking itself in the same call if you haven't sent it yet.
+3. Within about 2 seconds that tablet opens the booking: "Welcome, Anna — is this your booking?" It's shown in the guest's language, picked from the passport nationality (TJK → Tajik, Russian-speaking countries → Russian, otherwise English). The guest can switch languages there.
+4. The guest confirms, adds a phone number, email and shuttle choice, and signs. You receive `checkin.created` with `handoff_id`, the passport details you sent, and the signature. Give the key and call **approve**.
+5. If the guest taps "Not my booking", you receive `handoff.declined`, so reception can check the booking.
 
-If the hotel ever switches the setting to **On the tablet camera**, the tablet reads the passport MRZ itself and fills `guest.document` and `additional_guests`.
+If the guest walks up to the tablet first, it shows "Please hand your passport to the receptionist" and waits for your handoff. A "Find my booking myself" link lets the guest look it up by name or booking number instead. In that case the tablet gives a short `desk_code` (such as `P17`) that the guest shows at reception.
+
+### `POST /v1/handoffs`
+
+```json
+{
+  "booking_ref": "33215-1",
+  "tablet": "Lobby Tablet 1",
+  "passport": {
+    "surname": "ERIKSSON", "given_names": "ANNA MARIA", "nationality": "SWE",
+    "document_number": "L898902C3", "birth_date": "1974-08-12", "sex": "F",
+    "expiry_date": "2031-04-15", "doc_type": "P", "issuing_country": "SWE"
+  },
+  "language": "en",
+  "reservation": { "guest_name": "Anna Maria Eriksson", "arrival_date": "2026-11-22", "departure_date": "2026-11-25", "room_type": "Deluxe Double", "room_number": "305", "adults": 2, "breakfast": true, "source": "Booking.com" }
+}
+```
+
+- `tablet`: the tablet's name or id from `GET /v1/tablets`. You can leave it out when only one tablet is paired.
+- `passport` and `language` are optional. Without `language`, the passport nationality decides.
+- `reservation` is optional. It takes the same fields as `PUT /v1/reservations`, and the booking is created or updated before it's shown.
+- Response `201`: `{ "handoff": { "id", "status": "pending", "expires_at", "tablet", "reservation" } }`. A new handoff replaces any older one on the same tablet. It expires after 10 minutes if the tablet never shows it.
+- Errors:
+  - `404 reservation_not_found`
+  - `409 reservation_not_expected` (already checked in, or cancelled)
+  - `400 tablet_required` (several tablets are paired)
+  - `404 tablet_not_found`
+
+`GET /v1/handoffs/{id}` returns its status: `pending`, `shown`, `completed` (with `checkin_id`), `declined` or `cancelled`. `POST /v1/handoffs/{id}/cancel` takes it off the tablet.
+
+`GET /v1/tablets` returns `{ "tablets": [ { "id", "name", "online" } ] }`.
 
 ## 3. The daily flow
 
@@ -170,6 +201,7 @@ The tablet sends a `POST` to your webhook address for each event:
 | `checkin.updated` | A tablet check-in was approved or sent back (from your app or the tablet admin). |
 | `checkout.created` | A guest checked out on the tablet. |
 | `feedback.created` | A guest rated the stay 1 to 3 and left private feedback. |
+| `handoff.declined` | The guest tapped "Not my booking" on a booking your app sent. Contains `data.handoff`. |
 | `ping` | The admin pressed **Send test event**. |
 
 **Headers:**
@@ -195,6 +227,7 @@ X-Rumi-Signature: sha256=5f2c...
       "created_at": "2026-11-21T09:12:44Z",
       "status": "waiting",
       "desk_code": "P17",
+      "handoff_id": "8c1e…",
       "passport_scanned_on_tablet": true,
       "language": "ru",
       "reservation": {

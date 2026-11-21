@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { errorCode, supabase } from '../../lib/supabase'
+import { ApiError, errorCode, rpc, supabase } from '../../lib/supabase'
 import type { Reservation, StayStatus } from '../../lib/types'
 import { fmtDate, hotelToday, nightsBetween, type StaffData } from '../data'
 import { Btn, Empty, Field, Modal, PageHead, Panel, StatusChip, errorText, useToast } from '../kit'
@@ -330,7 +330,19 @@ export function ArrivalsView({ data }: { data: StaffData }) {
   const [edit, setEdit] = useState<Reservation | 'new' | null>(null)
   const [importing, setImporting] = useState(false)
   const [desk, setDesk] = useState<Reservation | null>(null)
+  const toast = useToast()
   const today = hotelToday()
+  const tablets = data.devices.filter((d) => d.paired_at && !d.revoked)
+  const sendToTablet = async (r: Reservation, deviceId?: string) => {
+    const dev = deviceId ?? (tablets.length === 1 ? tablets[0].id : undefined)
+    if (!dev) return toast(tablets.length ? 'Choose a tablet.' : 'No paired tablet.', 'error')
+    try {
+      await rpc('staff_send_to_tablet', { p_reservation_id: r.id, p_device_id: dev })
+      toast(`${r.guest_name} sent to ${tablets.find((t) => t.id === dev)?.name ?? 'tablet'}`)
+    } catch (e) {
+      toast(errorText(e instanceof ApiError ? e.code : 'unknown_error'), 'error')
+    }
+  }
 
   const list = useMemo(() => {
     const term = q.trim().toLowerCase()
@@ -423,6 +435,23 @@ export function ArrivalsView({ data }: { data: StaffData }) {
                     <td className="px-5 py-3.5"><StatusChip status={r.status} /></td>
                     <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-2">
+                        {r.status === 'expected' && r.arrival_date <= today && tablets.length > 0 && (
+                          tablets.length === 1 ? (
+                            <Btn tone="gold" onClick={() => sendToTablet(r)} title="Shows this booking on the tablet for the guest to confirm and sign">Send to tablet</Btn>
+                          ) : (
+                            <select
+                              aria-label={`Send ${r.guest_name} to a tablet`}
+                              value=""
+                              onChange={(e) => e.target.value && sendToTablet(r, e.target.value)}
+                              className="min-h-11 rounded-lg border border-line bg-gold-light px-2 text-sm font-medium"
+                            >
+                              <option value="">Send to tablet…</option>
+                              {tablets.map((t) => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                              ))}
+                            </select>
+                          )
+                        )}
                         {r.status === 'expected' && r.arrival_date <= today && (
                           <Btn tone="ghost" onClick={() => setDesk(r)}>Check in</Btn>
                         )}

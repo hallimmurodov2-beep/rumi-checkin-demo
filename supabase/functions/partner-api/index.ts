@@ -45,7 +45,7 @@ async function log(action: string, ok: boolean, message: string, booking_ref?: s
 const RES_FIELDS =
   'id, booking_ref, alt_refs, partner_ref, ezee_booking_id, guest_name, source, room_type, room_number, arrival_date, departure_date, adults, breakfast, status'
 const CHECKIN_FIELDS =
-  'id, created_at, status, language, doc_source, doc_type, issuing_country, nationality, surname, given_names, document_number, birth_date, sex, expiry_date, mrz_valid, phone, email, shuttle, consent_at, approved_at, data_purged_at, desk_code'
+  'id, created_at, status, language, doc_source, doc_type, issuing_country, nationality, surname, given_names, document_number, birth_date, sex, expiry_date, mrz_valid, phone, email, shuttle, consent_at, approved_at, data_purged_at, desk_code, handoff_id'
 
 // deno-lint-ignore no-explicit-any
 function shapeCheckin(c: any) {
@@ -56,6 +56,8 @@ function shapeCheckin(c: any) {
     // Short number the guest shows at reception, e.g. "P17" (when passports are scanned at the desk).
     desk_code: c.desk_code,
     passport_scanned_on_tablet: c.doc_source === 'mrz',
+    // Set when your app sent this booking to the tablet (POST /v1/handoffs).
+    handoff_id: c.handoff_id ?? null,
     language: c.language,
     reservation: c.reservations,
     guest: {
@@ -103,6 +105,18 @@ async function loadCheckin(id: string, withSignature: boolean) {
   return data ? shapeCheckin(data) : null
 }
 
+async function loadHandoff(id: string) {
+  const { data } = await db
+    .from('tablet_handoffs')
+    .select(`id, status, created_at, expires_at, language, checkin_id, devices(id, name), reservations(${RES_FIELDS})`)
+    .eq('id', id)
+    .maybeSingle()
+  if (!data) return null
+  // deno-lint-ignore no-explicit-any
+  const d = data as any
+  return { id: d.id, status: d.status, created_at: d.created_at, expires_at: d.expires_at, language: d.language, checkin_id: d.checkin_id, tablet: d.devices, reservation: d.reservations }
+}
+
 /* ---------------------------------------------------------------- webhooks */
 
 async function eventData(event: string, subjectId: string) {
@@ -114,6 +128,10 @@ async function eventData(event: string, subjectId: string) {
   if (event === 'feedback.created') {
     const { data } = await db.from('feedback').select(`id, created_at, rating, comment, reservations(${RES_FIELDS})`).eq('id', subjectId).maybeSingle()
     return data ? { feedback: { id: data.id, created_at: data.created_at, rating: data.rating, comment: data.comment, reservation: data.reservations } } : null
+  }
+  if (event === 'handoff.declined') {
+    const h = await loadHandoff(subjectId)
+    return h ? { handoff: h } : null
   }
   if (event === 'ping') return { message: 'Test event from The Rumi tablet app' }
   return null
@@ -323,6 +341,67 @@ async function api(req: Request, path: string, url: URL) {
     if (!STATUSES.includes(body.status)) return fail(400, 'bad_status', `status must be one of ${STATUSES.join(', ')}`)
     const id = await setStatus(decodeURIComponent(m[1]), body.status, body.room_number ? String(body.room_number).slice(0, 10) : null)
     return id ? json({ ok: true }) : fail(404, 'not_found', 'No reservation with that booking_ref')
+  }
+
+  // GET /v1/tablets
+  if (req.method === 'GET' && path === '/v1/tablets') {
+    const { data } = await db.from('devices').select('id, name, paired_at, last_seen_at, revoked').order('created_at')
+    const now = Date.now()
+    return json({
+      tablets: (data ?? [])
+        .filter((d) => d.paired_at && !d.revoked)
+        .map((d) => ({ id: d.id, name: d.name, online: !!d.last_seen_at && now - new Date(d.last_seen_at).getTime() < 180_000, last_seen_at: d.last_seen_at })),
+    })
+  }
+
+  // POST /v1/handoffs  { booking_ref, tablet?, passport?, language?, reservation? }
+  // Reception scanned the passport: show this booking on a tablet so the guest can confirm and sign.
+  if (req.method === 'POST' && path === '/v1/handoffs') {
+    const body = await req.json().catch(() => null)
+    if (!body || typeof body !== 'object') return fail(400, 'bad_body', 'Send a JSON object.')
+    if (body.reservation) {
+      const r = cleanReservation({ booking_ref: body.booking_ref, ...body.reservation }, 0)
+      if (r.error) return fail(400, 'invalid_reservation', r.error)
+      const { data: ex } = await db.from('reservations').select('status').eq('booking_ref', String(r.row!.booking_ref).toUpperCase().replace(/\s+/g, '')).maybeSingle()
+      if (ex && r.row!.status === 'expected') delete r.row!.status
+      const { error } = await db.from('reservations').upsert(r.row!, { onConflict: 'booking_ref' })
+      if (error) return fail(400, 'save_failed', error.message)
+    }
+    const ref = typeof body.booking_ref === 'string' ? body.booking_ref.trim().toUpperCase().replace(/\s+/g, '') : ''
+    if (!ref) return fail(400, 'booking_ref_required')
+    const { data: res } = await db.from('reservations').select('id, status').eq('booking_ref', ref).maybeSingle()
+    if (!res) return fail(404, 'reservation_not_found', 'Send the booking first (PUT /v1/reservations), or include "reservation" in this request.')
+    if (res.status !== 'expected') return fail(409, 'reservation_not_expected', `Booking status is ${res.status}`)
+    const { data: devs } = await db.from('devices').select('id, name, last_seen_at').not('paired_at', 'is', null).eq('revoked', false)
+    const list = devs ?? []
+    let dev = list.find((d) => d.id === body.tablet || d.name.toLowerCase() === String(body.tablet ?? '').toLowerCase())
+    if (!body.tablet) {
+      if (list.length === 1) dev = list[0]
+      else return fail(400, 'tablet_required', `Several tablets are paired; send "tablet" with one of: ${list.map((d) => d.name).join(', ')}`)
+    }
+    if (!dev) return fail(404, 'tablet_not_found', `Known tablets: ${list.map((d) => d.name).join(', ')}`)
+    let passport: Record<string, string> | null = null
+    if (body.passport && typeof body.passport === 'object') {
+      const pp = body.passport
+      passport = {}
+      for (const [k, max] of [['surname', 80], ['given_names', 120], ['nationality', 3], ['document_number', 20], ['doc_type', 4], ['issuing_country', 3]] as const) {
+        if (pp[k]) passport[k] = String(pp[k]).trim().toUpperCase().slice(0, max)
+      }
+      for (const k of ['birth_date', 'expiry_date'] as const) if (isDate(pp[k])) passport[k] = pp[k]
+      if (['M', 'F', 'X'].includes(pp.sex)) passport.sex = pp.sex
+    }
+    const lang = ['en', 'ru', 'tg'].includes(body.language) ? body.language : null
+    const { data: h, error } = await db.rpc('create_handoff', { p_reservation_id: res.id, p_device_id: dev.id, p_passport: passport, p_language: lang, p_source: 'partner' })
+    if (error) return fail(400, 'handoff_failed', error.message)
+    return json({ handoff: await loadHandoff((h as { id: string }).id) }, 201)
+  }
+
+  // GET /v1/handoffs/:id   and   POST /v1/handoffs/:id/cancel
+  m = path.match(/^\/v1\/handoffs\/([0-9a-f-]{36})(\/cancel)?$/)
+  if (m && ((req.method === 'GET' && !m[2]) || (req.method === 'POST' && m[2]))) {
+    if (m[2]) await db.from('tablet_handoffs').update({ status: 'cancelled' }).eq('id', m[1]).in('status', ['pending', 'shown'])
+    const h = await loadHandoff(m[1])
+    return h ? json({ handoff: h }) : fail(404, 'not_found')
   }
 
   // GET /v1/checkouts?since=   and   GET /v1/feedback?since=

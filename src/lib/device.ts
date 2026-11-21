@@ -57,6 +57,23 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   }
 }
 
+export interface Handoff {
+  id: string
+  language: 'en' | 'ru' | 'tg' | null
+  passport: {
+    surname?: string
+    given_names?: string
+    nationality?: string
+    document_number?: string
+    birth_date?: string
+    sex?: string
+    expiry_date?: string
+    doc_type?: string
+    issuing_country?: string
+  } | null
+  reservation: PublicReservation
+}
+
 type Lookup = { status: 'found'; reservation: PublicReservation } | { status: 'none' | 'multiple' }
 
 export const tablet = {
@@ -68,6 +85,9 @@ export const tablet = {
     return device
   },
   config: () => call<TabletConfig>('tablet_config', {}),
+  /** A booking reception sent to this tablet after scanning the passport (null when none). */
+  poll: () => call<Handoff | null>('tablet_poll', {}),
+  declineHandoff: (id: string) => call<null>('tablet_decline_handoff', { p_handoff_id: id }),
   findByRef: (ref: string, surname: string) => call<Lookup>('find_reservation_by_ref', { p_ref: ref, p_surname: surname }),
   findByName: (surname: string, given: string) => call<Lookup>('find_reservation_by_name', { p_surname: surname, p_given: given }),
   submitCheckin: (reservationId: string, p: CheckinPayload) =>
@@ -96,6 +116,7 @@ export interface CheckinPayload {
   consent: boolean
   signature_png: string
   companions?: Partial<CheckinPayload>[]
+  handoff_id?: string
 }
 
 export function mrzPayload(m: MrzData | null): Partial<CheckinPayload> {

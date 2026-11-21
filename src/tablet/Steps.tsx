@@ -5,7 +5,7 @@ import { tablet } from '../lib/device'
 import { usePassportScanner } from '../lib/scanner'
 import { ApiError } from '../lib/supabase'
 import type { MrzData, PublicReservation, TabletConfig } from '../lib/types'
-import { fmtDay } from '../translations'
+import { fmtDay, LANGS, type Lang } from '../translations'
 import { AnimatedCheck, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, Spinner, WifiIcon } from '../ui'
 import { Shell } from './Shell'
 
@@ -132,6 +132,37 @@ export function Scan({
             </>
           )}
           <p className="mt-6 border-t border-line pt-4 text-sm leading-relaxed text-muted">{t('privacyNote')}</p>
+        </div>
+      </div>
+    </Shell>
+  )
+}
+
+/* -------------------- 1a. Waiting for reception to scan ----------------- */
+
+export function WaitForDesk({ onBack, onManual }: { onBack: () => void; onManual: () => void }) {
+  const t = useT()
+  return (
+    <Shell step={1} onBack={onBack}>
+      <div className="flex flex-1 items-center gap-14">
+        <div className="relative flex h-[300px] w-[38%] shrink-0 items-center justify-center" aria-hidden="true">
+          <span className="ss-ping absolute h-56 w-56 rounded-full bg-gold/15" />
+          <span className="absolute h-56 w-56 rounded-full border-2 border-gold/30" />
+          <div className="handoff-card relative flex h-44 w-32 flex-col items-center justify-between rounded-2xl bg-forest py-5 text-gold-light shadow-[0_24px_50px_-20px_rgb(14_59_46/0.8)]">
+            <span className="text-[10px] font-semibold tracking-[0.3em]">PASSPORT</span>
+            <span className="emblem h-12 w-12" style={{ backgroundColor: 'currentColor' }} />
+            <span className="h-1 w-16 rounded-full bg-gold-light/40" />
+          </div>
+        </div>
+        <div className="flex-1">
+          <h2 className="text-5xl leading-tight text-forest">{t('waitTitle')}</h2>
+          <p className="mt-4 flex items-center gap-3 text-xl text-muted">
+            <Spinner className="h-5 w-5 text-gold" />
+            {t('waitSub')}
+          </p>
+          <Button variant="ghost" className="mt-10" onClick={onManual}>
+            {t('waitManual')}
+          </Button>
         </div>
       </div>
     </Shell>
@@ -288,19 +319,45 @@ export function Confirm({
   onBack,
   onYes,
   onNo,
+  greetName,
+  onLang,
 }: {
   reservation: PublicReservation
   mrz: MrzData | null
-  onBack: () => void
+  onBack?: () => void
   onYes: () => void
   onNo: () => void
+  /** Sent from reception: greet the guest by name and let them change the language. */
+  greetName?: string
+  onLang?: (l: Lang) => void
 }) {
   const t = useT()
   const lang = useLang()
   const expired = mrz?.expiryDate ? mrz.expiryDate < new Date().toISOString().slice(0, 10) : false
   return (
-    <Shell step={1} onBack={onBack}>
+    <Shell step={1} onBack={onBack} hideBack={!onBack}>
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center">
+        {greetName && (
+          <div className="mb-1 flex items-center justify-between gap-4">
+            <p className="rise font-serif text-3xl font-semibold text-label">{t('welcomeName', { name: greetName })}</p>
+            {onLang && (
+              <div className="flex gap-1 rounded-xl border border-line bg-white p-1" role="group" aria-label={t('chooseLanguage')}>
+                {LANGS.map((l) => (
+                  <button
+                    key={l.code}
+                    type="button"
+                    lang={l.code}
+                    aria-pressed={lang === l.code}
+                    onClick={() => onLang(l.code)}
+                    className={`min-h-12 cursor-pointer rounded-lg px-4 text-base font-medium transition ${lang === l.code ? 'bg-forest text-cream' : 'text-muted hover:text-forest'}`}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <h2 className="text-5xl text-forest">{t('confirmTitle')}</h2>
         <div className="card mt-6 overflow-hidden">
           <div className="relative overflow-hidden bg-forest px-8 py-6 text-cream">
@@ -780,6 +837,7 @@ export function Done({
   room,
   deskCode,
   adults = 1,
+  fromDesk = false,
 }: {
   onFinish: () => void
   shuttle: boolean
@@ -789,6 +847,8 @@ export function Done({
   /** Set when passports are scanned at reception: the number the guest shows at the desk. */
   deskCode?: string | null
   adults?: number
+  /** The booking came from reception, which already holds the passport. */
+  fromDesk?: boolean
 }) {
   const t = useT()
   const n = useCountdown(20, onFinish)
@@ -846,8 +906,8 @@ export function Done({
           <AnimatedCheck size="h-24 w-24" />
           <div className="rise min-w-0" style={{ animationDelay: '120ms' }}>
             <h2 className="text-6xl text-forest">{t('doneTitle')}</h2>
-            <p className="mt-1 text-2xl font-medium text-ink">{deskCode ? t('deskSub') : t('doneSub')}</p>
-            <p className="mt-1 text-lg text-muted">{deskCode ? t('deskKey') : t('doneKey')}</p>
+            <p className="mt-1 text-2xl font-medium text-ink">{fromDesk ? t('handoffDoneSub') : deskCode ? t('deskSub') : t('doneSub')}</p>
+            {!fromDesk && <p className="mt-1 text-lg text-muted">{deskCode ? t('deskKey') : t('doneKey')}</p>}
             {deskCode && adults > 1 && <p className="mt-1 text-lg font-medium text-label">{t('deskManyPassports', { n: adults })}</p>}
           </div>
           {deskCode ? (

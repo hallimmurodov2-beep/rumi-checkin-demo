@@ -146,6 +146,10 @@ html[data-dir="back"]::view-transition-new(tablet-main) { animation-name: vt-in-
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.9s linear infinite; }
 
+/* Waiting-for-reception passport card floats gently. */
+@keyframes handoff-float { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-10px) rotate(-2deg); } }
+.handoff-card { animation: handoff-float 3.2s ease-in-out infinite; }
+
 /* ---- Screensaver (hotel photos on an idle tablet) ------------------------ */
 .ss-in { animation: ss-in 1.2s var(--ease-out-soft) both; }
 .ss-out { animation: ss-out 0.45s ease-in both; }
@@ -178,7 +182,7 @@ html[data-dir="back"]::view-transition-new(tablet-main) { animation-name: vt-in-
 @keyframes ss-ping { 0% { transform: scale(1); opacity: 0.8; } 80%, 100% { transform: scale(1.9); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ss-photo, .ss-ping, .ss-caption, .ss-prompt { animation: none !important; }
+  .ss-photo, .ss-ping, .ss-caption, .ss-prompt, .handoff-card { animation: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,21 +3,15 @@ import { Brand } from '../ui'
 import { SLIDES } from './gallery'
 
 const SLIDE_MS = 7500
-const PROMPTS = [
-  { lang: 'en', text: 'Touch the screen to check in' },
-  { lang: 'ru', text: 'Коснитесь экрана, чтобы заселиться' },
-  { lang: 'tg', text: 'Барои сабти ном ба экран даст расонед' },
-]
 
 /**
  * Full-screen photo slideshow shown when the welcome screen has been idle.
  * Slow zoom-and-drift on each photo, cross-fades between them, a trilingual
- * caption, and a "touch to check in" prompt. Any tap returns to Welcome.
+ * caption and the clock. Any tap returns to Welcome.
  */
 export function Screensaver({ onWake }: { onWake: () => void }) {
   const [index, setIndex] = useState(0)
   const [prev, setPrev] = useState<number | null>(null)
-  const [prompt, setPrompt] = useState(0)
   const [leaving, setLeaving] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const woke = useRef(false)
@@ -29,11 +23,9 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
         return (i + 1) % SLIDES.length
       })
     }, SLIDE_MS)
-    const p = window.setInterval(() => setPrompt((x) => (x + 1) % PROMPTS.length), 3500)
     const c = window.setInterval(() => setNow(new Date()), 15_000)
     return () => {
       window.clearInterval(id)
-      window.clearInterval(p)
       window.clearInterval(c)
     }
   }, [])
@@ -104,22 +96,6 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
         </div>
       </div>
 
-      {/* Touch prompt */}
-      <div className="absolute bottom-10 right-10 z-10">
-        <div className="flex items-center gap-4 rounded-full bg-cream/95 py-3 pl-3 pr-7 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.6)]">
-          <span className="relative flex h-12 w-12 items-center justify-center" aria-hidden="true">
-            <span className="ss-ping absolute inset-0 rounded-full bg-gold/40" />
-            <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-forest text-gold-light">
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11V5.5a1.5 1.5 0 013 0V10m0-1.5a1.5 1.5 0 013 0V11m0-1a1.5 1.5 0 013 0v4a6 6 0 01-6 6h-1a6 6 0 01-4.8-2.4L4.6 15a1.5 1.5 0 012.3-1.9L9 15" />
-              </svg>
-            </span>
-          </span>
-          <span key={prompt} lang={PROMPTS[prompt].lang} className="ss-prompt min-w-[300px] text-lg font-semibold text-forest">
-            {PROMPTS[prompt].text}
-          </span>
-        </div>
-      </div>
     </div>
   )
 }

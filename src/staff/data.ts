@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import type { Checkin, Checkout, Device, Feedback, HotelSettings, Profile, Reservation } from '../lib/types'
+import type { Checkin, CheckinGuest, Checkout, Device, Feedback, HotelSettings, IntegrationSettings, Profile, Reservation, SyncLogEntry } from '../lib/types'
 
 /** Today's date at the hotel (Dushanbe), as YYYY-MM-DD. */
 export function hotelToday(offsetDays = 0): string {
@@ -65,7 +65,7 @@ export function useProfile(userId: string | undefined) {
 }
 
 const CHECKIN_LIST_COLUMNS =
-  'id,reservation_id,device_id,created_at,language,doc_source,doc_type,issuing_country,nationality,surname,given_names,document_number,birth_date,sex,expiry_date,mrz_valid,phone,email,shuttle,consent_at,status,approved_at,approved_by,data_purged_at'
+  'id,reservation_id,device_id,created_at,language,doc_source,doc_type,issuing_country,nationality,surname,given_names,document_number,birth_date,sex,expiry_date,mrz_valid,phone,email,shuttle,consent_at,status,approved_at,approved_by,data_purged_at,ezee_synced_at,ezee_error'
 
 export interface StaffData {
   reservations: Reservation[]
@@ -75,13 +75,16 @@ export interface StaffData {
   devices: Device[]
   settings: HotelSettings | null
   profiles: Profile[]
+  guests: CheckinGuest[]
+  integration: IntegrationSettings | null
+  syncLog: SyncLogEntry[]
   loading: boolean
   error: string | null
   live: boolean
   reload: (table?: Table) => void
 }
 
-type Table = 'reservations' | 'checkins' | 'checkouts' | 'feedback' | 'devices' | 'settings' | 'profiles'
+type Table = 'reservations' | 'checkins' | 'checkouts' | 'feedback' | 'devices' | 'settings' | 'profiles' | 'guests' | 'integration'
 
 /** Everything the front desk sees, kept current with Supabase Realtime. */
 export function useStaffData(isAdmin: boolean): StaffData {
@@ -92,6 +95,9 @@ export function useStaffData(isAdmin: boolean): StaffData {
   const [devices, setDevices] = useState<Device[]>([])
   const [settings, setSettings] = useState<HotelSettings | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [guests, setGuests] = useState<CheckinGuest[]>([])
+  const [integration, setIntegration] = useState<IntegrationSettings | null>(null)
+  const [syncLog, setSyncLog] = useState<SyncLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [live, setLive] = useState(false)
@@ -143,6 +149,21 @@ export function useStaffData(isAdmin: boolean): StaffData {
       if (error) throw error
       setSettings(data as HotelSettings)
     },
+    guests: async () => {
+      const since = new Date(Date.now() - 30 * 86_400_000).toISOString()
+      const { data, error } = await supabase.from('checkin_guests').select('*').gte('created_at', since).order('created_at')
+      if (error) throw error
+      setGuests(data as CheckinGuest[])
+    },
+    integration: async () => {
+      const [a, b] = await Promise.all([
+        supabase.from('integration_settings').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('sync_log').select('*').order('created_at', { ascending: false }).limit(40),
+      ])
+      if (a.error) throw a.error
+      setIntegration(a.data as IntegrationSettings)
+      setSyncLog((b.data ?? []) as SyncLogEntry[])
+    },
     profiles: async () => {
       if (!isAdmin) return
       const { data, error } = await supabase.from('profiles').select('*').order('created_at')
@@ -173,6 +194,8 @@ export function useStaffData(isAdmin: boolean): StaffData {
     for (const t of ['reservations', 'checkins', 'checkouts', 'feedback', 'devices'] as const) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => reload(t))
     }
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'checkin_guests' }, () => reload('guests'))
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'integration_settings' }, () => reload('integration'))
     channel.subscribe((status) => alive && setLive(status === 'SUBSCRIBED'))
 
     // Tablet heartbeats update last_seen_at; refresh device status regularly.
@@ -187,7 +210,7 @@ export function useStaffData(isAdmin: boolean): StaffData {
     }
   }, [reload])
 
-  return { reservations, checkins, checkouts, feedback, devices, settings, profiles, loading, error, live, reload }
+  return { reservations, checkins, checkouts, feedback, devices, settings, profiles, guests, integration, syncLog, loading, error, live, reload }
 }
 
 export function deviceOnline(d: Device, now = Date.now()) {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
 import { usePassportScanner } from '../lib/scanner'
@@ -27,16 +28,19 @@ export function Scan({
   onBack,
   onRead,
   onNoPassport,
+  companion,
 }: {
   facing: 'user' | 'environment'
   onBack: () => void
   onRead: (m: MrzData) => void
-  onNoPassport: () => void
+  onNoPassport?: () => void
+  /** Scanning an additional guest on the same booking. */
+  companion?: boolean
 }) {
   const t = useT()
   const video = useRef<HTMLVideoElement>(null)
   const guide = useRef<HTMLDivElement>(null)
-  const { state, result } = usePassportScanner(video, guide, facing, true)
+  const { state, result, almost } = usePassportScanner(video, guide, facing, true)
   const [tip, setTip] = useState(false)
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export function Scan({
   }, [state, result, onRead])
 
   return (
-    <Shell step={0} onBack={onBack}>
+    <Shell step={companion ? 1 : 0} onBack={onBack}>
       <div className="flex min-h-0 flex-1 items-center gap-10">
         <div className="relative aspect-[4/3] w-[56%] shrink-0 overflow-hidden rounded-3xl bg-forest-deep shadow-[0_30px_60px_-30px_rgb(10_42_33/0.8)]">
           <video
@@ -67,7 +71,7 @@ export function Scan({
           <div className="absolute inset-0 flex items-center justify-center">
             <div
               ref={guide}
-              className="relative aspect-[1.42/1] w-[80%] rounded-2xl shadow-[0_0_0_9999px_rgb(10_42_33/0.55)]"
+              className={`relative aspect-[1.42/1] w-[80%] rounded-2xl shadow-[0_0_0_9999px_rgb(10_42_33/0.55)] transition-[outline-color] duration-300 ${almost && state === 'scanning' ? 'outline outline-4 outline-offset-4 outline-gold-light/70' : 'outline-0 outline-transparent'}`}
             >
               <Corner pos="-left-1 -top-1 rounded-tl-2xl border-l-4 border-t-4" />
               <Corner pos="-right-1 -top-1 rounded-tr-2xl border-r-4 border-t-4" />
@@ -102,25 +106,29 @@ export function Scan({
         </div>
 
         <div className="flex-1">
-          <h2 className="text-5xl leading-tight text-forest">{t('passportTitle')}</h2>
+          <h2 className="text-5xl leading-tight text-forest">{companion ? t('scanGuestTitle') : t('passportTitle')}</h2>
           {state === 'unavailable' ? (
             <div className="mt-5">
               <ErrorNote>{t('cameraUnavailable')}</ErrorNote>
-              <Button className="mt-6 w-full" onClick={onNoPassport}>
-                {t('noPassport')}
-              </Button>
+              {onNoPassport && (
+                <Button className="mt-6 w-full" onClick={onNoPassport}>
+                  {t('noPassport')}
+                </Button>
+              )}
             </div>
           ) : (
             <>
               <p className="mt-3 text-xl leading-relaxed text-muted">{t('passportHint')}</p>
               <p className="mt-6 flex min-h-7 items-center gap-3 font-medium text-forest" role="status">
                 {state === 'scanning' && <Spinner className="h-5 w-5 text-gold" />}
-                {state === 'scanning' ? t('scanning') : state === 'found' ? t('passportRead') : ''}
+                {state === 'scanning' ? (almost ? t('scanAlmost') : t('scanning')) : state === 'found' ? t('passportRead') : ''}
               </p>
-              {tip && state === 'scanning' && <p className="fade-in mt-2 text-muted">{t('scanTip')}</p>}
-              <Button variant="ghost" className="mt-6 w-full" onClick={onNoPassport} disabled={state === 'found'}>
-                {t('noPassport')}
-              </Button>
+              {tip && state === 'scanning' && !almost && <p className="fade-in mt-2 text-muted">{t('scanTip')}</p>}
+              {onNoPassport && (
+                <Button variant="ghost" className="mt-6 w-full" onClick={onNoPassport} disabled={state === 'found'}>
+                  {t('noPassport')}
+                </Button>
+              )}
             </>
           )}
           <p className="mt-6 border-t border-line pt-4 text-sm leading-relaxed text-muted">{t('privacyNote')}</p>
@@ -288,8 +296,9 @@ export function Confirm({
             </div>
             <div className="px-8 py-5">
               <dt className="eyebrow">{t('room')}</dt>
-              <dd className="mt-1.5 text-xl font-medium">{r.room_type || '—'}</dd>
+              <dd className="mt-1.5 text-xl font-medium">{r.room_number ? t('roomAssigned', { room: r.room_number }) : r.room_type || '—'}</dd>
               <dd className="text-muted">
+                {r.room_number && r.room_type ? `${r.room_type} · ` : ''}
                 {t('guests')}: {r.adults}
               </dd>
             </div>
@@ -349,6 +358,72 @@ export function NeedHelp({ onBack, onStart, step = 1 }: { onBack?: () => void; o
   )
 }
 
+/* -------------------------- 2b. Other guests ----------------------------- */
+
+export function OtherGuests({
+  lead,
+  companions,
+  adults,
+  notice,
+  onScan,
+  onRemove,
+  onBack,
+  onNext,
+}: {
+  lead: string
+  companions: MrzData[]
+  adults: number
+  notice: string | null
+  onScan: () => void
+  onRemove: (i: number) => void
+  onBack: () => void
+  onNext: () => void
+}) {
+  const t = useT()
+  const done = 1 + companions.length
+  const complete = done >= adults
+  return (
+    <Shell step={1} onBack={onBack} action={<Button onClick={onNext}>{t('continue')}</Button>}>
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center">
+        <h2 className="text-5xl text-forest">{t('guestsTitle')}</h2>
+        <p className="mt-2 text-lg text-muted">{t('guestsText', { n: adults })}</p>
+        <div className="mt-6 flex items-center gap-3">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
+            <div className="h-full rounded-full bg-forest transition-[width] duration-500" style={{ width: `${Math.min(100, (done / adults) * 100)}%` }} />
+          </div>
+          <span className="text-sm font-medium text-forest">{t('guestsCount', { n: done, total: adults })}</span>
+        </div>
+        <ul className="card mt-5 divide-y divide-line">
+          <li className="flex min-h-16 items-center gap-4 px-6 py-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-forest text-gold-light"><CheckIcon className="h-4 w-4" /></span>
+            <span className="flex-1 text-lg font-medium">{lead} <span className="font-normal text-muted">({t('you')})</span></span>
+          </li>
+          {companions.map((c, i) => (
+            <li key={c.documentNumber} className="fade-in flex min-h-16 items-center gap-4 px-6 py-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-forest text-gold-light"><CheckIcon className="h-4 w-4" /></span>
+              <span className="flex-1 text-lg font-medium">
+                {c.givenNames} {c.surname} <span className="font-normal text-muted">· {c.nationality}</span>
+              </span>
+              <Button variant="ghost" className="!min-h-14 !px-4 !text-base" onClick={() => onRemove(i)}>
+                {t('remove')}
+              </Button>
+            </li>
+          ))}
+        </ul>
+        {notice && <div className="mt-4"><ErrorNote>{notice}</ErrorNote></div>}
+        {!complete && (
+          <>
+            <Button variant="secondary" className="mt-6" onClick={onScan}>
+              {t('scanNext')}
+            </Button>
+            <p className="mt-3 text-muted">{t('guestsLater')}</p>
+          </>
+        )}
+      </div>
+    </Shell>
+  )
+}
+
 /* ------------------------------ 3. Details ------------------------------- */
 
 export function DetailsStep({
@@ -356,13 +431,16 @@ export function DetailsStep({
   onChange,
   onBack,
   onNext,
+  retentionDays = 90,
 }: {
   value: Details
   onChange: (d: Details) => void
   onBack: () => void
   onNext: () => void
+  retentionDays?: number
 }) {
   const t = useT()
+  const [privacy, setPrivacy] = useState(false)
   const opt = <span className="font-normal normal-case tracking-normal text-muted"> ({t('optional')})</span>
   const emailBad = value.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email.trim())
   return (
@@ -436,10 +514,36 @@ export function DetailsStep({
             />
             <span className="text-lg leading-snug">{t('consent')}</span>
           </label>
-          <p className="mt-2 min-h-5 text-sm text-muted">{value.consent ? '' : t('consentNeeded')}</p>
+          <div className="mt-2 flex min-h-5 items-center justify-between gap-4">
+            <p className="text-sm text-muted">{value.consent ? '' : t('consentNeeded')}</p>
+            <button type="button" onClick={() => setPrivacy(true)} className="min-h-11 cursor-pointer text-sm font-medium text-forest underline underline-offset-4">
+              {t('privacyLink')}
+            </button>
+          </div>
         </div>
       </div>
+      {privacy && <PrivacySheet days={retentionDays} onClose={() => setPrivacy(false)} />}
     </Shell>
+  )
+}
+
+function PrivacySheet({ days, onClose }: { days: number; onClose: () => void }) {
+  const t = useT()
+  return createPortal(
+    <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-8" role="dialog" aria-modal="true" aria-labelledby="privacy-title" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="pop-in card max-h-full w-full max-w-2xl overflow-y-auto p-8">
+        <h2 id="privacy-title" className="text-4xl text-forest">{t('privacyTitle')}</h2>
+        {t('privacyBody', { days })
+          .split('\n\n')
+          .map((para, i) => (
+            <p key={i} className="mt-4 text-lg leading-relaxed text-ink">{para}</p>
+          ))}
+        <Button className="mt-8 w-full" onClick={onClose}>
+          {t('close')}
+        </Button>
+      </div>
+    </div>,
+    document.querySelector('.kiosk') ?? document.body,
   )
 }
 
@@ -464,11 +568,14 @@ function exportSignature(c: HTMLCanvasElement): string {
 export function SignatureStep({
   onBack,
   onSubmit,
+  signerName,
 }: {
   onBack: () => void
   onSubmit: (signaturePng: string) => Promise<void>
+  signerName: string
 }) {
   const t = useT()
+  const lang = useLang()
   const canvas = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
   const pts = useRef<Pt[]>([])
@@ -606,6 +713,9 @@ export function SignatureStep({
             <span className="h-px flex-1 bg-line" />
             <span className="text-sm">{t('signHere')}</span>
           </div>
+          <p aria-hidden="true" className="pointer-events-none absolute inset-x-10 bottom-4 text-sm text-muted">
+            {t('signedBy', { name: signerName, date: fmtDay(new Date().toISOString().slice(0, 10), lang, true) })}
+          </p>
         </div>
         <div className="mt-2 min-h-6">
           {failed ? (
@@ -642,11 +752,13 @@ export function Done({
   shuttle,
   breakfast,
   config,
+  room,
 }: {
   onFinish: () => void
   shuttle: boolean
   breakfast: boolean
   config: TabletConfig | null
+  room: string | null
 }) {
   const t = useT()
   const n = useCountdown(20, onFinish)
@@ -707,6 +819,12 @@ export function Done({
             <p className="mt-1 text-2xl font-medium text-ink">{t('doneSub')}</p>
             <p className="mt-1 text-lg text-muted">{t('doneKey')}</p>
           </div>
+          {room && (
+            <div className="rise ml-auto rounded-2xl bg-forest px-7 py-4 text-center text-cream" style={{ animationDelay: '200ms' }}>
+              <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</p>
+              <p className="font-serif text-5xl font-semibold">{room}</p>
+            </div>
+          )}
         </div>
         {cards.length > 0 && (
           <div className={`mt-10 grid gap-5 ${cards.length === 3 ? 'grid-cols-3' : cards.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-md'}`}>

@@ -56,7 +56,8 @@ npm run build    # type-check and production build
 
 - `/dev/staff` (development only) shows the front-desk UI with fixture data, so you can work on screens without signing in. It is not included in production builds.
 - The Supabase URL and publishable key are in `src/lib/supabase.ts`; you can override them with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. The publishable key is designed to be public; access is enforced in the database.
-- The database schema, row-level security and functions are applied as Supabase migrations: `core_schema`, `device_secrets_and_rpcs`, `fix_unaccent_and_schedule_purge` and `cyrillic_name_matching`.
+- The database schema, row-level security and functions are applied as Supabase migrations: `core_schema`, `device_secrets_and_rpcs`, `fix_unaccent_and_schedule_purge`, `cyrillic_name_matching`, `ezee_sync_and_companions` and `tablet_config_retention`.
+- `npm test` also covers the eZee request and response mapping (`tests/ezee.test.ts`).
 
 ## Deploy
 
@@ -72,8 +73,37 @@ Guest strings are in `src/translations.ts` (en, ru, tg). The staff app is in Eng
 
 **TODO: review by a native Tajik speaker.** The Tajik translation is a best-effort draft and should be checked before guests use it.
 
-## Known limits and next steps
+## eZee FrontDesk sync
 
-- **eZee FrontDesk:** there is no API connection yet, so bookings come in by hand or by CSV export from eZee. With eZee kiosk API credentials, a Supabase Edge Function can sync today's arrivals and push check-in status back. Keep the credentials in Supabase secrets.
-- **Passport reading:** reading uses Tesseract OCR with check-digit correction. It needs a steady passport and reasonable light; glare is the usual problem. If it can't read the passport, the guest uses the booking number and staff enter the passport details in the check-in drawer.
+Reception keeps working in eZee FrontDesk. The tablet syncs with it through eZee's kiosk and PMS connectivity APIs, using the Supabase Edge Function `supabase/functions/ezee-sync`.
+
+**What flows:**
+
+- **eZee → tablet:** arrivals from yesterday to tomorrow, plus every stay departing in the next 30 days. That includes the room number, rate plan (used to detect breakfast) and status. Guests can type the eZee booking number or their channel voucher number (for example Booking.com).
+- **Tablet → eZee:** when a guest finishes on the tablet, eZee's `UploadDocument` call adds their name, date of birth, phone, email, passport number and expiry, and signature to the booking. Additional guests are added with `AddSharer`.
+- **Check-in on eZee:** off by default. Reception checks the passport and checks the guest in on eZee as usual. When eZee reports the guest as arrived, the tablet check-in is closed automatically. You can turn on "Also check the guest in on eZee" in Settings; it only works when eZee already has a clean room assigned.
+- **Check-out:** a tablet check-out calls `GuestCheckOut`. If the bill isn't settled, eZee refuses and the sync log says so, so reception finishes the check-out at the desk.
+- **Ratings and private feedback** stay in this app, because eZee has no API for them.
+
+**Turning it on:**
+
+1. Ask eZee (integration@ezeetechnosys.com) to enable kiosk connectivity and PMS connectivity for the hotel, and to send the hotel code and auth code. Confirm that the property's eZee FrontDesk is connected to eZee's cloud (live.ipms247.com), because the APIs are cloud APIs.
+2. In Supabase → Edge Functions → Secrets, add `EZEE_HOTEL_CODE` and `EZEE_AUTH_CODE`. Never paste them into chat or into the code.
+3. In the staff app, open Settings → eZee FrontDesk sync, click **Sync now** to test, then turn on **Sync automatically**. After that it runs every 3 minutes and straight after each tablet check-in or check-out. Recent sync activity is listed in the same panel.
+
+The request formats follow eZee's published connectivity docs. Some fields in those docs are inconsistent (field names, error-response shapes), so watch the first live syncs in the activity list.
+
+## Tablet details
+
+- **Passport reading** runs entirely on the tablet. The OCR engine and English model are served from this site (`public/ocr`, copied from npm at build time), so no third-party CDN is involved. While the passport is partly in view, the tablet says "Almost there" and doesn't time out.
+- **Additional guests:** for bookings with more than one adult, the tablet asks for each other adult's passport. Guests can skip this, and the front desk handles the rest.
+- **Privacy notice** in all three languages, linked from the consent box. It shows the retention period from Settings.
+- **Signature** is labelled with the guest's name and the date.
+- **Room number** is shown on the confirmation and done screens when eZee has already assigned one.
+- **Self-updating:** an installed tablet checks for a new version every 30 minutes and reloads while it's on the welcome screen. It also refreshes itself once a night at about 04:00.
+
+## Known limits
+
+- **Passport reading** needs a steady passport and reasonable light; glare is the usual problem. If it can't read the passport, the guest uses the booking number and staff enter the passport details in the check-in drawer.
+- **eZee sync** can't be tested end to end until eZee provides credentials, so check the first live syncs in Settings → eZee FrontDesk sync.
 - **Email:** Supabase's built-in email sender is rate-limited (a few messages per hour). For more staff sign-ups or password resets, add your own SMTP under Authentication → Emails.

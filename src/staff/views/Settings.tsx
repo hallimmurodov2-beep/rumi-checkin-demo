@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ApiError, errorCode, rpc, supabase } from '../../lib/supabase'
-import type { Device, HotelSettings, Profile, Role } from '../../lib/types'
-import { deviceOnline, timeAgo, type StaffData } from '../data'
+import type { Device, HotelSettings, IntegrationSettings, Profile, Role, SyncLogEntry } from '../../lib/types'
+import { deviceOnline, fmtDate, fmtTime, timeAgo, type StaffData } from '../data'
 import { Btn, Chip, Empty, Field, Modal, PageHead, Panel, errorText, useToast } from '../kit'
 
 function HotelPanel({ settings, isAdmin, reload }: { settings: HotelSettings | null; isAdmin: boolean; reload: StaffData['reload'] }) {
@@ -153,6 +153,87 @@ function TabletsPanel({ devices, isAdmin, reload, now }: { devices: Device[]; is
   )
 }
 
+function EzeePanel({ integration: s, log, isAdmin, reload, now }: { integration: IntegrationSettings | null; log: SyncLogEntry[]; isAdmin: boolean; reload: StaffData['reload']; now: number }) {
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  if (!s) return null
+  const set = async (patch: Partial<IntegrationSettings>) => {
+    const { error } = await supabase.from('integration_settings').update(patch).eq('id', 1)
+    if (error) return toast(errorText(errorCode(error)), 'error')
+    reload('integration')
+  }
+  const syncNow = async () => {
+    setBusy(true)
+    const { data: session } = await supabase.auth.getSession()
+    const { data, error } = await supabase.functions.invoke('ezee-sync', {
+      body: { action: 'run' },
+      headers: session.session ? { Authorization: `Bearer ${session.session.access_token}` } : undefined,
+    })
+    setBusy(false)
+    reload('integration')
+    reload('reservations')
+    if (error) return toast('Could not reach the sync service.', 'error')
+    if (!data?.ok) return toast(data?.error ?? 'Sync failed', 'error')
+    toast(`Synced with eZee: ${data.pulled} bookings in, ${data.pushed} updates out`)
+  }
+  const toggle = (k: keyof IntegrationSettings, label: string, hint: string) => (
+    <label className="flex min-h-11 cursor-pointer items-start gap-3">
+      <input type="checkbox" className="mt-1 h-5 w-5 accent-forest" checked={!!s[k]} disabled={!isAdmin} onChange={(e) => set({ [k]: e.target.checked })} />
+      <span>
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="block text-xs text-muted">{hint}</span>
+      </span>
+    </label>
+  )
+  return (
+    <Panel
+      title={
+        <span className="flex items-center gap-2">
+          eZee FrontDesk sync
+          <Chip className={s.ezee_enabled && !s.last_error ? 'border-forest/30 bg-forest/10 text-forest' : 'border-line bg-white text-muted'}>
+            {s.ezee_enabled ? (s.last_error ? 'Needs attention' : 'On') : 'Off'}
+          </Chip>
+        </span>
+      }
+      action={<Btn tone="primary" disabled={busy} onClick={syncNow}>{busy ? 'Syncing...' : 'Sync now'}</Btn>}
+    >
+      <div className="grid gap-5 p-5 md:grid-cols-2">
+        <div className="space-y-3">
+          {toggle('ezee_enabled', 'Sync automatically', 'Every 3 minutes and right after each tablet check-in or check-out.')}
+          {toggle('push_guest_data', 'Send tablet check-ins to eZee', 'Guest details, passport number, signature and extra guests are added to the eZee booking.')}
+          {toggle('auto_checkin', 'Also check the guest in on eZee', 'Only when eZee already has a clean room assigned. Off: reception checks the guest in on eZee after seeing the passport.')}
+          {toggle('push_checkout', 'Send tablet check-outs to eZee', 'If the bill is not settled, eZee refuses and reception finishes it at the desk.')}
+        </div>
+        <dl className="space-y-2 text-sm">
+          <div className="flex justify-between gap-3"><dt className="text-muted">Bookings received</dt><dd>{s.last_pull_at ? timeAgo(s.last_pull_at, now) : 'Never'}</dd></div>
+          <div className="flex justify-between gap-3"><dt className="text-muted">Updates sent</dt><dd>{s.last_push_at ? timeAgo(s.last_push_at, now) : 'Never'}</dd></div>
+          {s.last_error && <div className="rounded-lg bg-[#FDF1EC] px-3 py-2 text-danger">{s.last_error}</div>}
+          <p className="text-xs text-muted">
+            Needs eZee's kiosk and PMS connectivity enabled for the hotel, and the secrets EZEE_HOTEL_CODE and EZEE_AUTH_CODE set in Supabase (Edge Functions → Secrets).
+          </p>
+        </dl>
+      </div>
+      {log.length > 0 && (
+        <details className="border-t border-line px-5 py-3">
+          <summary className="min-h-11 cursor-pointer py-2.5 text-sm font-medium text-forest">Recent sync activity</summary>
+          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-xs">
+            {log.map((l) => (
+              <li key={l.id} className="flex gap-3">
+                <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${l.ok ? 'bg-forest' : 'bg-danger'}`} aria-hidden="true" />
+                <span className="w-24 shrink-0 text-muted">{fmtDate(l.created_at)} {fmtTime(l.created_at)}</span>
+                <span>
+                  <span className="font-medium">{l.action}</span>
+                  {l.booking_ref && <span className="text-muted"> · {l.booking_ref}</span>} — {l.message}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </Panel>
+  )
+}
+
 function TeamPanel({ profiles, me, reload }: { profiles: Profile[]; me: string; reload: StaffData['reload'] }) {
   const toast = useToast()
   const setRole = async (p: Profile, role: Role) => {
@@ -203,6 +284,7 @@ export function SettingsView({ data, isAdmin, profile, now }: { data: StaffData;
       <PageHead title="Settings" sub={`Signed in as ${profile.full_name || profile.email} (${profile.role}).`} />
       <div className="space-y-6">
         <HotelPanel settings={data.settings} isAdmin={isAdmin} reload={data.reload} />
+        <EzeePanel integration={data.integration} log={data.syncLog} isAdmin={isAdmin} reload={data.reload} now={now} />
         <TabletsPanel devices={data.devices} isAdmin={isAdmin} reload={data.reload} now={now} />
         {isAdmin && <TeamPanel profiles={data.profiles} me={profile.user_id} reload={data.reload} />}
       </div>

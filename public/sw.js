@@ -1,8 +1,8 @@
 // Offline support for The Rumi self check-in app.
 // Navigations: network first, fall back to the cached app shell.
-// Same-origin assets, Google Fonts and the OCR engine: serve from cache, refresh in the background.
+// Same-origin assets (including the OCR engine in /ocr) and Google Fonts: serve from cache, refresh in the background.
 // API calls to Supabase are never cached.
-const CACHE = 'rumi-v3'
+const CACHE = 'rumi-v4'
 const SHELL = ['/', '/emblem.svg', '/manifest.webmanifest', '/icons/icon-192.png']
 
 self.addEventListener('install', (e) => {
@@ -38,8 +38,7 @@ self.addEventListener('fetch', (e) => {
   const cacheable =
     url.origin === self.location.origin ||
     url.hostname === 'fonts.googleapis.com' ||
-    url.hostname === 'fonts.gstatic.com' ||
-    url.hostname === 'cdn.jsdelivr.net' // OCR engine for passport reading
+    url.hostname === 'fonts.gstatic.com'
   if (!cacheable) return
 
   e.respondWith(

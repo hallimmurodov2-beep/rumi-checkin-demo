@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { Worker } from 'tesseract.js'
-import { parseMrz } from './mrz'
+import { mrzLines, parseMrz } from './mrz'
 import type { MrzData } from './types'
 
 // Passport reading happens entirely on the tablet: camera frames are cropped
@@ -14,7 +14,12 @@ export function warmUpOcr(): Promise<Worker> {
   if (!workerPromise) {
     workerPromise = (async () => {
       const { createWorker, PSM } = await import('tesseract.js')
-      const worker = await createWorker('eng', 1)
+      // Engine, WebAssembly core and English model are served from our own site (public/ocr).
+      const worker = await createWorker('eng', 1, {
+        workerPath: '/ocr/worker.min.js',
+        corePath: '/ocr',
+        langPath: '/ocr/lang',
+      })
       await worker.setParameters({
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
         tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
@@ -35,7 +40,7 @@ export type ScanState = 'starting' | 'scanning' | 'found' | 'unavailable'
  * Crop the lower part of the on-screen guide frame (where the MRZ sits) out of
  * the current video frame, as a high-contrast greyscale canvas.
  */
-function grabMrzRegion(video: HTMLVideoElement, guide: HTMLElement, mirrored: boolean): HTMLCanvasElement | null {
+function grabMrzRegion(video: HTMLVideoElement, guide: HTMLElement, mirrored: boolean, tall = false): HTMLCanvasElement | null {
   const vw = video.videoWidth
   const vh = video.videoHeight
   if (!vw || !vh) return null
@@ -50,9 +55,10 @@ function grabMrzRegion(video: HTMLVideoElement, guide: HTMLElement, mirrored: bo
   const w = gr.width / scale
   const h = gr.height / scale
   if (mirrored) x = vw - x - w
-  // MRZ lines occupy roughly the bottom 30% of the photo page; take 42% for tolerance.
-  const sy = y + h * 0.58
-  const sh = h * 0.42
+  // MRZ lines occupy roughly the bottom 30% of the photo page; take 42% for tolerance,
+  // and every other frame a taller band in case the passport sits high in the frame.
+  const sy = y + h * (tall ? 0.4 : 0.58)
+  const sh = h * (tall ? 0.6 : 0.42)
   const sx = Math.max(0, x)
   const sw = Math.min(vw - sx, w)
   if (sw <= 0 || sh <= 0) return null
@@ -94,6 +100,7 @@ export function usePassportScanner(
 ) {
   const [state, setState] = useState<ScanState>('starting')
   const [result, setResult] = useState<MrzData | null>(null)
+  const [almost, setAlmost] = useState(false)
   const stopped = useRef(false)
 
   useEffect(() => {
@@ -130,9 +137,10 @@ export function usePassportScanner(
       }
       setState('scanning')
 
+      let frame = 0
       while (!stopped.current) {
         const guide = guideRef.current
-        const canvas = guide && video.readyState >= 2 ? grabMrzRegion(video, guide, facing === 'user') : null
+        const canvas = guide && video.readyState >= 2 ? grabMrzRegion(video, guide, facing === 'user', frame++ % 2 === 1) : null
         if (canvas) {
           try {
             const { data } = await worker.recognize(canvas)
@@ -142,11 +150,16 @@ export function usePassportScanner(
               setState('found')
               break
             }
+            // Two MRZ-looking lines but the check digits do not add up yet: the passport is
+            // in view, so encourage the guest and keep the kiosk from timing out.
+            const seen = mrzLines(data.text).filter((l) => l.length >= 28).length >= 2
+            setAlmost(seen)
+            if (seen) window.dispatchEvent(new Event('rumi-activity'))
           } catch {
             /* keep trying */
           }
         }
-        await new Promise((r) => setTimeout(r, 250))
+        await new Promise((r) => setTimeout(r, 200))
       }
     }
     start()
@@ -157,5 +170,5 @@ export function usePassportScanner(
     }
   }, [active, facing, videoRef, guideRef])
 
-  return { state, result }
+  return { state, result, almost }
 }

@@ -175,7 +175,7 @@ export function DeskUI({ profile, data }: { profile: Profile; data: StaffData })
       <div className="min-w-0 flex-1">
         <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-cream/90 px-4 py-3 backdrop-blur md:px-8">
           <span className="hidden items-center gap-2 rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-muted sm:inline-flex">
-            Bookings: manual / CSV
+            {data.integration?.ezee_enabled ? `eZee sync: ${data.integration.last_error ? 'needs attention' : 'on'}` : 'Bookings: manual / CSV'}
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-muted md:hidden">
             <span className={`h-2 w-2 rounded-full ${data.live ? 'bg-forest' : 'bg-line'}`} aria-hidden="true" /> {online}/{data.devices.length} tablets
@@ -241,6 +241,7 @@ export function DeskUI({ profile, data }: { profile: Profile; data: StaffData })
           key={openCheckinObj.id}
           c={openCheckinObj}
           r={data.reservations.find((r) => r.id === openCheckinObj.reservation_id)}
+          guests={data.guests.filter((g) => g.checkin_id === openCheckinObj.id)}
           onClose={() => setOpenId(null)}
           reload={data.reload}
         />

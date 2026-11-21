@@ -17,6 +17,20 @@ createRoot(document.getElementById('root')!).render(
 // Offline support (production builds only, so the dev server is never cached).
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        // Check for a new version every 30 minutes; the tablet reloads itself when idle.
+        window.setInterval(() => reg.update().catch(() => {}), 30 * 60_000)
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing
+          sw?.addEventListener('statechange', () => {
+            if (sw.state === 'activated' && navigator.serviceWorker.controller) {
+              ;(window as Window & { __rumiUpdateReady?: boolean }).__rumiUpdateReady = true
+            }
+          })
+        })
+      })
+      .catch(() => {})
   })
 }

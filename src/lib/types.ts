@@ -18,6 +18,8 @@ export interface Reservation {
   status: StayStatus
   created_at: string
   updated_at: string
+  ezee_booking_id: string | null
+  ezee_status: string | null
 }
 
 /** What a tablet is allowed to see about a booking. */
@@ -61,6 +63,49 @@ export interface Checkin {
   approved_at: string | null
   approved_by: string | null
   data_purged_at: string | null
+  ezee_synced_at: string | null
+  ezee_error: string | null
+}
+
+export interface CheckinGuest {
+  id: string
+  checkin_id: string
+  created_at: string
+  doc_source: 'mrz' | 'manual'
+  doc_type: string | null
+  issuing_country: string | null
+  nationality: string | null
+  surname: string | null
+  given_names: string | null
+  document_number: string | null
+  birth_date: string | null
+  sex: 'M' | 'F' | 'X' | null
+  expiry_date: string | null
+  mrz_valid: boolean | null
+  ezee_synced_at: string | null
+  ezee_error: string | null
+}
+
+export interface IntegrationSettings {
+  id: 1
+  ezee_enabled: boolean
+  push_guest_data: boolean
+  auto_checkin: boolean
+  push_checkout: boolean
+  last_pull_at: string | null
+  last_push_at: string | null
+  last_error: string | null
+  last_error_at: string | null
+}
+
+export interface SyncLogEntry {
+  id: number
+  created_at: string
+  direction: 'pull' | 'push' | 'system'
+  action: string
+  booking_ref: string | null
+  ok: boolean
+  message: string | null
 }
 
 export interface Checkout {
@@ -121,6 +166,7 @@ export interface TabletConfig {
   breakfast_hours: string
   review_url: string
   idle_seconds: number
+  retention_days?: number
 }
 
 /** Passport/ID fields read from the machine-readable zone. */

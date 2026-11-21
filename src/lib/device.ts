@@ -95,6 +95,7 @@ export interface CheckinPayload {
   shuttle: boolean
   consent: boolean
   signature_png: string
+  companions?: Partial<CheckinPayload>[]
 }
 
 export function mrzPayload(m: MrzData | null): Partial<CheckinPayload> {

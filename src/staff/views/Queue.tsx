@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError, rpc, supabase, errorCode } from '../../lib/supabase'
-import type { Checkin, Reservation } from '../../lib/types'
+import type { Checkin, CheckinGuest, Reservation } from '../../lib/types'
 import { CarIcon, CheckIcon, Spinner } from '../../ui'
 import { fmtDate, fmtTime, nightsBetween, timeAgo, type StaffData } from '../data'
 import { Btn, Chip, Drawer, Empty, Field, PageHead, Panel, errorText, useToast } from '../kit'
@@ -44,7 +44,7 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
   )
 }
 
-export function CheckinDrawer({ c, r, onClose, reload }: { c: Checkin; r?: Reservation; onClose: () => void; reload: StaffData['reload'] }) {
+export function CheckinDrawer({ c, r, guests = [], onClose, reload }: { c: Checkin; r?: Reservation; guests?: CheckinGuest[]; onClose: () => void; reload: StaffData['reload'] }) {
   const toast = useToast()
   const [signature, setSignature] = useState<string | null | undefined>(undefined)
   const [room, setRoom] = useState(r?.room_number ?? '')
@@ -239,6 +239,33 @@ export function CheckinDrawer({ c, r, onClose, reload }: { c: Checkin; r?: Reser
           )}
         </section>
 
+        {guests.length > 0 && (
+          <section>
+            <h3 className="eyebrow">Additional guests ({guests.length})</h3>
+            <ul className="mt-2 divide-y divide-line text-[15px]">
+              {guests.map((g) => (
+                <li key={g.id} className="py-2">
+                  <div className="font-medium">{g.surname}, {g.given_names}</div>
+                  <div className="text-sm text-muted">
+                    {g.nationality} · {g.document_number} · born {g.birth_date ? fmtDate(g.birth_date, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                    {g.ezee_error && <span className="text-danger"> · eZee: {g.ezee_error}</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {r?.ezee_booking_id && (
+          <section>
+            <h3 className="eyebrow">eZee FrontDesk</h3>
+            <p className={`mt-2 text-[15px] ${c.ezee_error ? 'text-danger' : ''}`}>
+              {c.ezee_synced_at ? `Sent to eZee booking ${r.ezee_booking_id} at ${fmtTime(c.ezee_synced_at)}.` : c.ezee_error ? c.ezee_error : 'Waiting to be sent to eZee.'}
+              {r.ezee_status && <span className="text-muted"> eZee status: {r.ezee_status}.</span>}
+            </p>
+          </section>
+        )}
+
         <section>
           <h3 className="eyebrow">Guest details</h3>
           <dl className="mt-2 divide-y divide-line text-[15px]">
@@ -299,7 +326,7 @@ export function QueueView({ data, now, openId, setOpenId }: { data: StaffData; n
           </div>
         )}
       </Panel>
-      {open && <CheckinDrawer key={open.id} c={open} r={byId.get(open.reservation_id)} onClose={() => setOpenId(null)} reload={data.reload} />}
+      {open && <CheckinDrawer key={open.id} c={open} r={byId.get(open.reservation_id)} guests={data.guests.filter((g) => g.checkin_id === open.id)} onClose={() => setOpenId(null)} reload={data.reload} />}
     </>
   )
 }

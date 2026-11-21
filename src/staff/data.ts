@@ -65,7 +65,7 @@ export function useProfile(userId: string | undefined) {
 }
 
 const CHECKIN_LIST_COLUMNS =
-  'id,reservation_id,device_id,created_at,language,doc_source,doc_type,issuing_country,nationality,surname,given_names,document_number,birth_date,sex,expiry_date,mrz_valid,phone,email,shuttle,consent_at,status,approved_at,approved_by,data_purged_at,ezee_synced_at,ezee_error'
+  'id,reservation_id,device_id,created_at,language,doc_source,doc_type,issuing_country,nationality,surname,given_names,document_number,birth_date,sex,expiry_date,mrz_valid,phone,email,shuttle,consent_at,status,approved_at,approved_by,data_purged_at,ezee_synced_at,ezee_error,desk_code'
 
 export interface StaffData {
   reservations: Reservation[]

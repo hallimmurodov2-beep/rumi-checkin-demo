@@ -71,7 +71,7 @@ export const tablet = {
   findByRef: (ref: string, surname: string) => call<Lookup>('find_reservation_by_ref', { p_ref: ref, p_surname: surname }),
   findByName: (surname: string, given: string) => call<Lookup>('find_reservation_by_name', { p_surname: surname, p_given: given }),
   submitCheckin: (reservationId: string, p: CheckinPayload) =>
-    call<string>('submit_checkin', { p_reservation_id: reservationId, p }),
+    call<{ id: string; desk_code: string }>('submit_checkin', { p_reservation_id: reservationId, p }),
   findStay: (room: string, surname: string) => call<Lookup>('find_stay_for_checkout', { p_room: room, p_surname: surname }),
   submitCheckout: (reservationId: string, rating: number | null, comment: string) =>
     call<string>('submit_checkout', { p_reservation_id: reservationId, p_rating: rating, p_comment: comment }),

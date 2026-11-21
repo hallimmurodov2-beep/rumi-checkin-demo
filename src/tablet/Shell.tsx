@@ -1,15 +1,21 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useT } from '../i18n'
 import type { Key } from '../translations'
 import { ArrowLeft, Brand, Button, CheckIcon } from '../ui'
 
 const STEPS: Key[] = ['stepPassport', 'stepBooking', 'stepDetails', 'stepSignature', 'stepDone']
 
-function Stepper({ current }: { current: number }) {
+/** True when passports are scanned at reception: the tablet flow has no passport step. */
+export const DeskModeContext = createContext(false)
+
+function Stepper({ step }: { step: number }) {
   const t = useT()
+  const desk = useContext(DeskModeContext)
+  const steps = desk ? STEPS.slice(1) : STEPS
+  const current = desk ? Math.max(0, step - 1) : step
   return (
-    <ol className="flex min-w-0 items-center" aria-label={`${current + 1} / ${STEPS.length}`}>
-      {STEPS.map((k, i) => {
+    <ol className="flex min-w-0 items-center" aria-label={`${current + 1} / ${steps.length}`}>
+      {steps.map((k, i) => {
         const done = i < current
         const active = i === current
         return (
@@ -30,7 +36,7 @@ function Stepper({ current }: { current: number }) {
                 {t(k)}
               </span>
             </span>
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <span className={`mx-2.5 h-0.5 w-6 rounded-full ${i < current ? 'bg-forest' : 'bg-line'}`} aria-hidden="true" />
             )}
           </li>
@@ -74,7 +80,7 @@ export function Shell({
     <div className="flex h-full flex-col">
       <header className="vt-header flex items-center justify-between gap-6 border-b border-line bg-paper px-8 py-3.5 xl:px-10">
         <Brand />
-        {step !== undefined ? <Stepper current={step} /> : title && <h2 className="text-3xl text-forest">{title}</h2>}
+        {step !== undefined ? <Stepper step={step} /> : title && <h2 className="text-3xl text-forest">{title}</h2>}
         <Clock />
       </header>
       <main className="vt-main screen-in flex min-h-0 flex-1 flex-col overflow-y-auto px-8 py-6 xl:px-10">{children}</main>

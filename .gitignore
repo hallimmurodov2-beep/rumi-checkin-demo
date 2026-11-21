@@ -4,3 +4,4 @@ dist
 .DS_Store
 .claude
 public/ocr
+graphify-out

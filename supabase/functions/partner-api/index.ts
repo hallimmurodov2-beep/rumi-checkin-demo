@@ -45,7 +45,7 @@ async function log(action: string, ok: boolean, message: string, booking_ref?: s
 const RES_FIELDS =
   'id, booking_ref, alt_refs, partner_ref, ezee_booking_id, guest_name, source, room_type, room_number, arrival_date, departure_date, adults, breakfast, status'
 const CHECKIN_FIELDS =
-  'id, created_at, status, language, doc_source, doc_type, issuing_country, nationality, surname, given_names, document_number, birth_date, sex, expiry_date, mrz_valid, phone, email, shuttle, consent_at, approved_at, data_purged_at'
+  'id, created_at, status, language, doc_source, doc_type, issuing_country, nationality, surname, given_names, document_number, birth_date, sex, expiry_date, mrz_valid, phone, email, shuttle, consent_at, approved_at, data_purged_at, desk_code'
 
 // deno-lint-ignore no-explicit-any
 function shapeCheckin(c: any) {
@@ -53,6 +53,9 @@ function shapeCheckin(c: any) {
     id: c.id,
     created_at: c.created_at,
     status: c.status,
+    // Short number the guest shows at reception, e.g. "P17" (when passports are scanned at the desk).
+    desk_code: c.desk_code,
+    passport_scanned_on_tablet: c.doc_source === 'mrz',
     language: c.language,
     reservation: c.reservations,
     guest: {

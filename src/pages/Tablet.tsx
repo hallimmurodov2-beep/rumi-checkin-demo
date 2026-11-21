@@ -11,6 +11,9 @@ import { Checkout, CheckoutDone, CheckoutFind } from '../tablet/Checkout'
 import { PairTablet, TabletSettings } from '../tablet/Setup'
 import { Confirm, DetailsStep, Done, FindBooking, NeedHelp, OtherGuests, Scan, SignatureStep, emptyDetails, type Details } from '../tablet/Steps'
 import { Welcome } from '../tablet/Welcome'
+import { Screensaver } from '../tablet/Screensaver'
+import { SLIDES } from '../tablet/gallery'
+import { DeskModeContext } from '../tablet/Shell'
 import { COLORS, Emblem } from '../ui'
 
 type Step =
@@ -130,7 +133,12 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const [companions, setCompanions] = useState<MrzData[]>([])
   const [guestNotice, setGuestNotice] = useState<string | null>(null)
   const [stay, setStay] = useState<PublicReservation | null>(null)
+  const [deskCode, setDeskCode] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [saver, setSaver] = useState(false)
+  // Reception scans passports with its own scanner unless the admin switched the tablet camera on.
+  const deskMode = (config?.passport_mode ?? 'desk') === 'desk'
+  const saverAfter = config?.screensaver_seconds ?? 45
   const idleLimit = config?.idle_seconds ?? 60
   const [idleLeft, setIdleLeft] = useState(idleLimit)
   const online = useOnline()
@@ -138,19 +146,30 @@ function Kiosk({ device }: { device: StoredDevice }) {
   // Load hotel settings; repeating it every minute also tells the front desk this tablet is online.
   useEffect(() => {
     let alive = true
+    let warmed = false
     const load = () =>
       tablet
         .config()
-        .then((c) => alive && setConfig(c))
+        .then((c) => {
+          if (!alive) return
+          setConfig(c)
+          if (!warmed) {
+            warmed = true
+            // Warm up the passport reader only when this tablet scans passports itself.
+            if (c.passport_mode === 'tablet') warmUpOcr().catch(() => {})
+            // Load the screensaver photos in the background so the first slideshow is smooth.
+            SLIDES.forEach((sl) => {
+              const img = new Image()
+              img.src = sl.src
+            })
+          }
+        })
         .catch(() => {})
     load()
     const id = window.setInterval(load, 60_000)
-    // Warm up the passport reader in the background so the first scan starts fast.
-    const warm = window.setTimeout(() => warmUpOcr().catch(() => {}), 1500)
     return () => {
       alive = false
       window.clearInterval(id)
-      window.clearTimeout(warm)
     }
   }, [])
 
@@ -171,6 +190,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
   }, [step])
 
   const clearGuest = () => {
+    setDeskCode(null)
     setCompanions([])
     setGuestNotice(null)
     setMrz(null)
@@ -190,6 +210,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
       setDetails(emptyDetails)
       setCompanions([])
       setGuestNotice(null)
+      setDeskCode(null)
       setStay(null)
     }, 'back')
     ;(document.activeElement as HTMLElement | null)?.blur?.()
@@ -200,6 +221,25 @@ function Kiosk({ device }: { device: StoredDevice }) {
       clearGuest()
       setStep('welcome')
     }, 'back')
+
+  // Screensaver: hotel photos after a quiet spell on the Welcome screen. A tap brings Welcome back.
+  useEffect(() => {
+    if (step !== 'welcome' || saver || settingsOpen || saverAfter <= 0) return
+    let last = Date.now()
+    const touch = () => (last = Date.now())
+    const evts = ['pointerdown', 'keydown', 'touchstart']
+    evts.forEach((e) => window.addEventListener(e, touch, { passive: true }))
+    const id = window.setInterval(() => {
+      if (Date.now() - last >= saverAfter * 1000) {
+        setLang('en')
+        setSaver(true)
+      }
+    }, 1000)
+    return () => {
+      evts.forEach((e) => window.removeEventListener(e, touch))
+      window.clearInterval(id)
+    }
+  }, [step, saver, settingsOpen, saverAfter])
 
   // Idle reset: any step except Welcome returns to Welcome after the idle limit without touch.
   useEffect(() => {
@@ -256,7 +296,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const submitCheckin = async (signature: string) => {
     if (!reservation) return
     try {
-      await tablet.submitCheckin(reservation.id, {
+      const res = await tablet.submitCheckin(reservation.id, {
         language: lang,
         ...mrzPayload(mrz),
         phone: details.phone.trim(),
@@ -266,6 +306,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
         signature_png: signature,
         companions: companions.map((c) => mrzPayload(c)),
       } as Parameters<typeof tablet.submitCheckin>[1])
+      setDeskCode(deskMode ? res?.desk_code ?? null : null)
       go('done')
     } catch (e) {
       if (e instanceof ApiError && e.code === 'reservation_unavailable') go('help')
@@ -278,13 +319,17 @@ function Kiosk({ device }: { device: StoredDevice }) {
 
   return (
     <LangContext.Provider value={lang}>
+      <DeskModeContext.Provider value={deskMode}>
       <div className="h-full" lang={lang}>
         {step === 'welcome' && (
           <Welcome
             lang={lang}
             setLang={setLang}
             hotelName={config?.hotel_name ?? 'The Rumi Hotel & Residences'}
-            onStart={() => go('scan')}
+            onStart={() => {
+              setFindMultiple(false)
+              go(deskMode ? 'find' : 'scan')
+            }}
             onCheckout={() => go('coFind')}
             onSettings={() => setSettingsOpen(true)}
           />
@@ -303,10 +348,11 @@ function Kiosk({ device }: { device: StoredDevice }) {
         )}
         {step === 'find' && (
           <FindBooking
+            deskMode={deskMode}
             initialSurname={mrz?.surname ?? ''}
             multiple={findMultiple}
-            onBack={() => go('scan', 'back')}
-            onScan={() => go('scan', 'back')}
+            onBack={() => (deskMode ? toWelcome() : go('scan', 'back'))}
+            onScan={deskMode ? undefined : () => go('scan', 'back')}
             onHelp={() => go('help')}
             onFound={(r) => {
               setReservation(r)
@@ -320,7 +366,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
             reservation={reservation}
             mrz={mrz}
             onBack={() => go(mrz && !findMultiple ? 'scan' : 'find', 'back')}
-            onYes={() => go(reservation.adults > 1 ? 'guests' : 'details')}
+            onYes={() => go(reservation.adults > 1 && !deskMode ? 'guests' : 'details')}
             onNo={() => go('help')}
           />
         )}
@@ -330,7 +376,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
             value={details}
             onChange={setDetails}
             retentionDays={config?.retention_days ?? 90}
-            onBack={() => go(reservation && reservation.adults > 1 ? 'guests' : 'confirm', 'back')}
+            deskMode={deskMode}
+            onBack={() => go(reservation && reservation.adults > 1 && !deskMode ? 'guests' : 'confirm', 'back')}
             onNext={() => go('signature')}
           />
         )}
@@ -371,6 +418,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
             breakfast={!!reservation?.breakfast}
             config={config}
             room={reservation?.room_number ?? null}
+            deskCode={deskCode}
+            adults={reservation?.adults ?? 1}
           />
         )}
         {step === 'coFind' && (
@@ -403,6 +452,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
 
         {settingsOpen && <TabletSettings device={device} onClose={() => setSettingsOpen(false)} />}
 
+        {saver && step === 'welcome' && <Screensaver onWake={() => setSaver(false)} />}
+
         {warn && (
           <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/55" role="dialog" aria-modal="true" aria-labelledby="idle-title">
             <div className="pop-in card w-[440px] p-8 text-center">
@@ -432,6 +483,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
           </div>
         )}
       </div>
+      </DeskModeContext.Provider>
     </LangContext.Provider>
   )
 }

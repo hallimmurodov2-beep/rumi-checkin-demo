@@ -22,7 +22,7 @@ const checkin = (id: string, rid: string, extra: Partial<Checkin> = {}): Checkin
   id, reservation_id: rid, device_id: 'd1', created_at: iso(3), language: 'ru', doc_source: 'mrz', doc_type: 'P',
   issuing_country: 'UTO', nationality: 'UTO', surname: 'GUEST', given_names: 'FIXTURE ONE', document_number: 'L898902C3',
   birth_date: '1974-08-12', sex: 'F', expiry_date: '2031-04-15', mrz_valid: true, phone: '+000', email: 'fixture@example.com',
-  shuttle: true, consent_at: iso(3), signature_png: null, status: 'waiting', approved_at: null, approved_by: null, data_purged_at: null, ezee_synced_at: null, ezee_error: null, ...extra,
+  shuttle: true, consent_at: iso(3), signature_png: null, status: 'waiting', approved_at: null, approved_by: null, data_purged_at: null, ezee_synced_at: null, ezee_error: null, desk_code: 'K47', ...extra,
 })
 const data: StaffData = {
   reservations,
@@ -33,7 +33,7 @@ const data: StaffData = {
     { id: 'd1', name: 'Lobby tablet 1', pairing_code: null, pairing_expires_at: null, paired_at: iso(9000), last_seen_at: iso(0.5), revoked: false, created_at: iso(9000) },
     { id: 'd2', name: 'Lobby tablet 2', pairing_code: 'ABCD2345', pairing_expires_at: iso(-10), paired_at: null, last_seen_at: null, revoked: false, created_at: iso(5) },
   ],
-  settings: { id: 1, hotel_name: 'The Rumi Hotel & Residences', wifi_name: 'Rumi-Guest', wifi_password: '********', breakfast_hours: '07:00 - 10:30', review_url: '', idle_seconds: 60, retention_days: 90, updated_at: iso(100) },
+  settings: { id: 1, hotel_name: 'The Rumi Hotel & Residences', wifi_name: 'Rumi-Guest', wifi_password: '********', breakfast_hours: '07:00 - 10:30', review_url: '', idle_seconds: 60, retention_days: 90, passport_mode: 'desk', screensaver_seconds: 45, updated_at: iso(100) },
   profiles: [{ user_id: 'u1', email: 'admin@example.com', full_name: 'Fixture Admin', role: 'admin', created_at: iso(9000) }],
   guests: [{ id: 'g1', checkin_id: 'c1', created_at: iso(3), doc_source: 'mrz', doc_type: 'P', issuing_country: 'UTO', nationality: 'UTO', surname: 'GUEST', given_names: 'FIXTURE COMPANION', document_number: 'X1234567', birth_date: '1980-01-01', sex: 'M', expiry_date: '2030-01-01', mrz_valid: true, ezee_synced_at: null, ezee_error: null }],
   integration: { id: 1, ezee_enabled: false, push_guest_data: true, auto_checkin: false, push_checkout: true, last_pull_at: null, last_push_at: null, last_error: 'eZee credentials are not set. Add EZEE_HOTEL_CODE and EZEE_AUTH_CODE as Edge Function secrets.', last_error_at: iso(2) },

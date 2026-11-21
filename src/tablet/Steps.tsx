@@ -138,9 +138,10 @@ export function Scan({
   )
 }
 
-/* -------------------------- 1b. Find by booking number ------------------- */
+/* ---------------------- 1b. Find the booking (name / number) ----------- */
 
 export function FindBooking({
+  deskMode,
   initialSurname,
   multiple,
   onBack,
@@ -148,28 +149,36 @@ export function FindBooking({
   onScan,
   onHelp,
 }: {
+  /** Passports are scanned at reception: look the booking up by name first. */
+  deskMode: boolean
   initialSurname: string
   multiple: boolean
   onBack: () => void
   onFound: (r: PublicReservation) => void
-  onScan: () => void
+  onScan?: () => void
   onHelp: () => void
 }) {
   const t = useT()
+  const [by, setBy] = useState<'name' | 'ref'>(deskMode && !multiple ? 'name' : 'ref')
   const [ref, setRef] = useState('')
+  const [first, setFirst] = useState('')
   const [surname, setSurname] = useState(initialSurname)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<'none' | 'failed' | null>(null)
-  const ready = ref.trim().length >= 3 && surname.trim().length >= 2
+  const [needRef, setNeedRef] = useState(multiple)
+  const ready = surname.trim().length >= 2 && (by === 'name' ? first.trim().length >= 2 : ref.trim().length >= 3)
 
   const submit = async () => {
     if (!ready || busy) return
     setBusy(true)
     setError(null)
     try {
-      const res = await tablet.findByRef(ref.trim(), surname.trim())
+      const res = by === 'name' ? await tablet.findByName(surname.trim(), first.trim()) : await tablet.findByRef(ref.trim(), surname.trim())
       if (res.status === 'found') onFound(res.reservation)
-      else setError('none')
+      else if (res.status === 'multiple') {
+        setNeedRef(true)
+        setBy('ref')
+      } else setError('none')
     } catch {
       setError('failed')
     } finally {
@@ -177,9 +186,26 @@ export function FindBooking({
     }
   }
 
+  const tab = (k: 'name' | 'ref', label: string) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={by === k}
+      onClick={() => {
+        setBy(k)
+        setError(null)
+      }}
+      className={`min-h-14 flex-1 cursor-pointer rounded-xl px-5 text-lg font-medium transition-all duration-200 ${
+        by === k ? 'bg-forest text-cream shadow-[0_8px_20px_-12px_rgb(14_59_46/0.8)]' : 'text-muted hover:text-forest'
+      }`}
+    >
+      {label}
+    </button>
+  )
+
   return (
     <Shell
-      step={0}
+      step={deskMode ? 1 : 0}
       onBack={onBack}
       action={
         <Button disabled={!ready || busy} onClick={submit}>
@@ -196,34 +222,29 @@ export function FindBooking({
         }}
       >
         <h2 className="text-5xl text-forest">{t('findTitle')}</h2>
-        {multiple && <p className="mt-2 text-lg text-muted">{t('findMultiple')}</p>}
-        <div className="mt-8 grid grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="bk" className="eyebrow block">{t('bookingNumber')}</label>
-            <input
-              id="bk"
-              value={ref}
-              onChange={(e) => setRef(e.target.value)}
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              enterKeyHint="next"
-              className="field mt-2 uppercase tracking-wider"
-            />
-            <p className="mt-2 text-sm text-muted">{t('bookingNumberHint')}</p>
+        <p className="mt-2 text-lg text-muted">{needRef ? t('findMultiple') : by === 'name' ? t('findNameText') : t('bookingNumberHint')}</p>
+        {deskMode && (
+          <div className="mt-6 flex max-w-xl gap-1 rounded-2xl border border-line bg-white p-1.5" role="tablist">
+            {tab('name', t('findByName'))}
+            {tab('ref', t('findByRef'))}
           </div>
+        )}
+        <div key={by} className="fade-in mt-6 grid grid-cols-2 gap-6">
+          {by === 'name' ? (
+            <div>
+              <label htmlFor="fn" className="eyebrow block">{t('firstName')}</label>
+              <input id="fn" value={first} onChange={(e) => setFirst(e.target.value)} autoComplete="off" autoCapitalize="words" spellCheck={false} enterKeyHint="next" className="field mt-2" />
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="bk" className="eyebrow block">{t('bookingNumber')}</label>
+              <input id="bk" value={ref} onChange={(e) => setRef(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} enterKeyHint="next" className="field mt-2 uppercase tracking-wider" />
+              <p className="mt-2 text-sm text-muted">{t('bookingNumberHint')}</p>
+            </div>
+          )}
           <div>
             <label htmlFor="sn" className="eyebrow block">{t('surname')}</label>
-            <input
-              id="sn"
-              value={surname}
-              onChange={(e) => setSurname(e.target.value)}
-              autoComplete="off"
-              autoCapitalize="words"
-              spellCheck={false}
-              enterKeyHint="search"
-              className="field mt-2"
-            />
+            <input id="sn" value={surname} onChange={(e) => setSurname(e.target.value)} autoComplete="off" autoCapitalize="words" spellCheck={false} enterKeyHint="search" className="field mt-2" />
             <p className="mt-2 text-sm text-muted">{t('surnameHint')}</p>
           </div>
         </div>
@@ -245,9 +266,11 @@ export function FindBooking({
             </ErrorNote>
           )}
         </div>
-        <Button variant="ghost" className="self-start" onClick={onScan}>
-          {t('scanInstead')}
-        </Button>
+        {onScan && (
+          <Button variant="ghost" className="self-start" onClick={onScan}>
+            {t('scanInstead')}
+          </Button>
+        )}
       </form>
     </Shell>
   )
@@ -432,12 +455,14 @@ export function DetailsStep({
   onBack,
   onNext,
   retentionDays = 90,
+  deskMode = false,
 }: {
   value: Details
   onChange: (d: Details) => void
   onBack: () => void
   onNext: () => void
   retentionDays?: number
+  deskMode?: boolean
 }) {
   const t = useT()
   const [privacy, setPrivacy] = useState(false)
@@ -522,18 +547,18 @@ export function DetailsStep({
           </div>
         </div>
       </div>
-      {privacy && <PrivacySheet days={retentionDays} onClose={() => setPrivacy(false)} />}
+      {privacy && <PrivacySheet days={retentionDays} desk={deskMode} onClose={() => setPrivacy(false)} />}
     </Shell>
   )
 }
 
-function PrivacySheet({ days, onClose }: { days: number; onClose: () => void }) {
+function PrivacySheet({ days, desk, onClose }: { days: number; desk: boolean; onClose: () => void }) {
   const t = useT()
   return createPortal(
     <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-8" role="dialog" aria-modal="true" aria-labelledby="privacy-title" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="pop-in card max-h-full w-full max-w-2xl overflow-y-auto p-8">
         <h2 id="privacy-title" className="text-4xl text-forest">{t('privacyTitle')}</h2>
-        {t('privacyBody', { days })
+        {t(desk ? 'privacyBodyDesk' : 'privacyBody', { days })
           .split('\n\n')
           .map((para, i) => (
             <p key={i} className="mt-4 text-lg leading-relaxed text-ink">{para}</p>
@@ -753,12 +778,17 @@ export function Done({
   breakfast,
   config,
   room,
+  deskCode,
+  adults = 1,
 }: {
   onFinish: () => void
   shuttle: boolean
   breakfast: boolean
   config: TabletConfig | null
   room: string | null
+  /** Set when passports are scanned at reception: the number the guest shows at the desk. */
+  deskCode?: string | null
+  adults?: number
 }) {
   const t = useT()
   const n = useCountdown(20, onFinish)
@@ -814,12 +844,19 @@ export function Done({
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center">
         <div className="flex items-center gap-7" role="status">
           <AnimatedCheck size="h-24 w-24" />
-          <div className="rise" style={{ animationDelay: '120ms' }}>
+          <div className="rise min-w-0" style={{ animationDelay: '120ms' }}>
             <h2 className="text-6xl text-forest">{t('doneTitle')}</h2>
-            <p className="mt-1 text-2xl font-medium text-ink">{t('doneSub')}</p>
-            <p className="mt-1 text-lg text-muted">{t('doneKey')}</p>
+            <p className="mt-1 text-2xl font-medium text-ink">{deskCode ? t('deskSub') : t('doneSub')}</p>
+            <p className="mt-1 text-lg text-muted">{deskCode ? t('deskKey') : t('doneKey')}</p>
+            {deskCode && adults > 1 && <p className="mt-1 text-lg font-medium text-label">{t('deskManyPassports', { n: adults })}</p>}
           </div>
-          {room && (
+          {deskCode ? (
+            <div className="ring-grow ml-auto shrink-0 rounded-3xl bg-forest px-8 py-5 text-center text-cream shadow-[0_20px_50px_-24px_rgb(14_59_46/0.9)]" style={{ animationDelay: '180ms' }}>
+              <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">{t('checkinNumber').toUpperCase()}</p>
+              <p className="mt-1 font-mono text-6xl font-semibold tracking-[0.12em] text-cream">{deskCode}</p>
+              {room && <p className="mt-1 text-sm text-gold-light">{t('roomAssigned', { room })}</p>}
+            </div>
+          ) : room && (
             <div className="rise ml-auto rounded-2xl bg-forest px-7 py-4 text-center text-cream" style={{ animationDelay: '200ms' }}>
               <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</p>
               <p className="font-serif text-5xl font-semibold">{room}</p>

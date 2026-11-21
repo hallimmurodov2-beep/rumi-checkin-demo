@@ -65,6 +65,7 @@ export interface Checkin {
   data_purged_at: string | null
   ezee_synced_at: string | null
   ezee_error: string | null
+  desk_code?: string | null
 }
 
 export interface CheckinGuest {
@@ -167,6 +168,8 @@ export interface HotelSettings {
   review_url: string
   idle_seconds: number
   retention_days: number
+  passport_mode: 'desk' | 'tablet'
+  screensaver_seconds: number
   updated_at: string
 }
 
@@ -179,6 +182,8 @@ export interface TabletConfig {
   review_url: string
   idle_seconds: number
   retention_days?: number
+  passport_mode?: 'desk' | 'tablet'
+  screensaver_seconds?: number
 }
 
 /** Passport/ID fields read from the machine-readable zone. */

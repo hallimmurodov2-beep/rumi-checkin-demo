@@ -17,6 +17,7 @@ export function CheckinRow({ c, r, onOpen, now }: { c: Checkin; r?: Reservation;
       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.status === 'waiting' ? 'bg-gold' : c.status === 'approved' ? 'bg-forest' : 'bg-danger'}`} aria-hidden="true" />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
+          {c.desk_code && <span className="rounded-md bg-forest px-2 py-0.5 font-mono text-sm font-semibold tracking-wider text-gold-light">{c.desk_code}</span>}
           <span className="font-semibold">{r?.guest_name ?? 'Unknown booking'}</span>
           {c.doc_source === 'mrz' && c.mrz_valid && <Chip className="border-forest/30 bg-forest/10 text-forest"><CheckIcon className="h-3 w-3" /> Passport read</Chip>}
           {c.doc_source === 'none' && <Chip className="border-label/40 bg-gold-light/50 text-ink">No passport scan</Chip>}
@@ -124,7 +125,7 @@ export function CheckinDrawer({ c, r, guests = [], onClose, reload }: { c: Check
       onClose={onClose}
       title={
         <>
-          <p className="eyebrow">Tablet check-in · {fmtTime(c.created_at)}</p>
+          <p className="eyebrow">Tablet check-in{c.desk_code ? ` ${c.desk_code}` : ''} · {fmtTime(c.created_at)}</p>
           <h2 className="mt-1 truncate text-3xl text-forest">{r?.guest_name ?? 'Unknown booking'}</h2>
         </>
       }
@@ -205,7 +206,7 @@ export function CheckinDrawer({ c, r, guests = [], onClose, reload }: { c: Check
             </div>
           ) : c.doc_source === 'none' ? (
             <p className="mt-2 rounded-lg border border-dashed border-line px-4 py-3 text-muted">
-              The guest did not scan a passport. Check it at the desk and enter the details.
+              Passport not scanned on the tablet. Scan it at reception{c.desk_code ? ` (guest shows number ${c.desk_code})` : ''}, or enter the details here.
             </p>
           ) : (
             <>

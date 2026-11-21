@@ -26,7 +26,18 @@ Keep the key and the secret on your server only (environment variables). Never p
 
 ---
 
-## 2. The daily flow
+## 2. Passports and the check-in number
+
+By default (tablet Settings → **Passport scanning: At reception**), the tablet does **not** scan passports, because reception already scans them into eZee with its own scanner through your app.
+
+- The guest finds the booking by name or booking number, confirms it, adds contact details and signs.
+- The tablet then shows a short **check-in number**, such as `P17`. The guest brings it to reception with their passport, and with every other adult's passport.
+- `desk_code` is in every `checkin.*` webhook and in `GET /v1/checkins`. Show it in large type in your reception queue, so the receptionist can find the guest at once ("P17, please").
+- `passport_scanned_on_tablet` is `false` in this mode and the `guest.document` fields are empty. Scan the passport as you do today, then call **approve** with the room number.
+
+If the hotel ever switches the setting to **On the tablet camera**, the tablet reads the passport MRZ itself and fills `guest.document` and `additional_guests`.
+
+## 3. The daily flow
 
 ```
 Your app                              Tablet
@@ -41,13 +52,13 @@ POST /v1/reservations/{ref}/status ►  e.g. checked_out after paying at the des
 ```
 
 1. **Every few minutes, or whenever bookings change,** send arrivals for yesterday to tomorrow plus everyone in house, with room numbers when known.
-2. **On `checkin.created`,** show the guest in your reception queue. Reception compares the passport details with the real passport, gives the key and does the check-in on eZee as you do today. Then call **approve** with the room number.
+2. **On `checkin.created`,** show the guest in your reception queue with the `desk_code`. Reception compares the passport details with the real passport, gives the key and does the check-in on eZee as you do today. Then call **approve** with the room number.
 3. **When something happens at the desk** (walk-in check-in, early departure, no-show), call **status**.
 4. **On `checkout.created`,** the guest left the key and checked out on the tablet. Settle the bill in eZee as usual. `feedback.created` carries private comments from ratings of 1 to 3.
 
 ---
 
-## 3. API reference
+## 4. API reference
 
 All calls:
 
@@ -149,7 +160,7 @@ GET /v1/feedback?since=2026-11-21T00:00:00Z
 
 ---
 
-## 4. Webhooks
+## 5. Webhooks
 
 The tablet sends a `POST` to your webhook address for each event:
 
@@ -183,6 +194,8 @@ X-Rumi-Signature: sha256=5f2c...
       "id": "5f1a2c6b-…",
       "created_at": "2026-11-21T09:12:44Z",
       "status": "waiting",
+      "desk_code": "P17",
+      "passport_scanned_on_tablet": true,
       "language": "ru",
       "reservation": {
         "booking_ref": "33215-1", "partner_ref": "your-internal-id-77", "ezee_booking_id": "33215-1",
@@ -269,7 +282,7 @@ def rumi_webhook():
 
 ---
 
-## 5. Privacy
+## 6. Privacy
 
 The webhooks and the API carry passport data and signatures, so:
 
@@ -279,7 +292,7 @@ The webhooks and the API carry passport data and signatures, so:
 
 ---
 
-## 6. Quick test with curl
+## 7. Quick test with curl
 
 ```bash
 export RUMI=https://qlvlmgrslqexmqmzpuko.supabase.co/functions/v1/partner-api

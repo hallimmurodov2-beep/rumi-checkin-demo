@@ -105,6 +105,9 @@ The request formats follow eZee's published connectivity docs. Some fields in th
 
 ## Tablet details
 
+- **Passport scanning (Settings):** the default is **At reception**. The tablet skips the camera, finds the booking by name or booking number, and gives the guest a check-in number (such as `P17`) to show at the desk with the passport. Reception scans passports with its own scanner into eZee. Switch to **On the tablet camera** to read passports on the tablet instead.
+- **Photo screensaver:** after 45 seconds without a touch on the Welcome screen (configurable in Settings, 0 turns it off), the tablet shows the hotel photos from `public/gallery`. Each photo slowly zooms, cross-fades into the next and has an English, Russian and Tajik caption, and a "Touch the screen to check in" prompt cycles through the three languages. One tap returns to Welcome. To change the photos, replace the files in `public/gallery` (WebP, about 1024 px wide) and update `src/tablet/gallery.ts`.
+
 - **Passport reading** runs entirely on the tablet. The OCR engine and English model are served from this site (`public/ocr`, copied from npm at build time), so no third-party CDN is involved. While the passport is partly in view, the tablet says "Almost there" and doesn't time out.
 - **Additional guests:** for bookings with more than one adult, the tablet asks for each other adult's passport. Guests can skip this, and the front desk handles the rest.
 - **Privacy notice** in all three languages, linked from the consent box. It shows the retention period from Settings.

@@ -37,6 +37,21 @@ function HotelPanel({ settings, isAdmin, reload }: { settings: HotelSettings | n
         <Field label="Guest Wi-Fi network" {...f('wifi_name')} />
         <Field label="Guest Wi-Fi password" {...f('wifi_password')} />
         <Field label="Public review link" type="url" {...f('review_url')} hint="Google or TripAdvisor review page. Shown as a QR code to guests who rate 4-5." className="sm:col-span-2" />
+        <div>
+          <label htmlFor="pm" className="mb-1.5 block text-sm font-medium text-ink">Passport scanning</label>
+          <select
+            id="pm"
+            value={s.passport_mode}
+            disabled={!isAdmin}
+            onChange={(e) => setS({ ...s, passport_mode: e.target.value as HotelSettings['passport_mode'] })}
+            className="min-h-11 w-full rounded-lg border border-line bg-white px-3 text-[15px]"
+          >
+            <option value="desk">At reception (the desk's own scanner)</option>
+            <option value="tablet">On the tablet camera</option>
+          </select>
+          <p className="mt-1 text-xs text-muted">At reception: the tablet finds the booking by name and gives the guest a check-in number to show at the desk.</p>
+        </div>
+        <Field label="Photo screensaver after (seconds)" type="number" min={0} max={600} {...f('screensaver_seconds')} hint="Hotel photos appear on the Welcome screen after this long without a touch. 0 turns it off." />
         <Field label="Idle reset (seconds)" type="number" min={30} max={300} {...f('idle_seconds')} hint="Tablet returns to the start after this long without a touch." />
         <Field label="Keep guest data (days after departure)" type="number" min={1} max={3650} {...f('retention_days')} hint="Passport details, contacts and signatures are deleted automatically after this." />
       </div>

@@ -1,15 +1,30 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Landing from './pages/Landing'
-import Tablet from './pages/Tablet'
-import Staff from './pages/Staff'
+import { COLORS, Emblem } from './ui'
+
+const Tablet = lazy(() => import('./pages/Tablet'))
+const StaffApp = lazy(() => import('./staff/StaffApp'))
+const StaffPreview = import.meta.env.DEV ? lazy(() => import('./dev/StaffPreview')) : null
+
+function Splash() {
+  return (
+    <div className="flex h-dvh items-center justify-center bg-cream">
+      <Emblem color={COLORS.gold} className="breathe h-16 w-16" />
+    </div>
+  )
+}
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/tablet" element={<Tablet />} />
-      <Route path="/staff" element={<Staff />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<Splash />}>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/tablet" element={<Tablet />} />
+        <Route path="/staff" element={<StaffApp />} />
+        {StaffPreview && <Route path="/dev/staff" element={<StaffPreview />} />}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }

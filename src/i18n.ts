@@ -3,6 +3,10 @@ import { translations, type Key, type Lang } from './translations'
 
 export const LangContext = createContext<Lang>('en')
 
+export function useLang(): Lang {
+  return useContext(LangContext)
+}
+
 export function useT() {
   const lang = useContext(LangContext)
   return (key: Key, vars?: Record<string, string | number>) => {

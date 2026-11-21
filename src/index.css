@@ -10,31 +10,145 @@
   --color-muted: #56615B;
   --color-line: #E8DFC9;
   --color-label: #7A5A0C;
+  --color-paper: #FFFDF8;
+  --color-danger: #9A3412;
   --font-serif: "Cormorant Garamond", Georgia, serif;
   --font-sans: "Inter", system-ui, sans-serif;
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-html, body, #root { height: 100%; }
-body {
-  margin: 0;
-  background: var(--color-cream);
-  color: var(--color-ink);
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    font-feature-settings: "cv11", "ss01";
+  }
+  button, a { touch-action: manipulation; }
+  h1, h2, h3 { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.005em; }
+  /* Cormorant's old-style figures make 1 look like I; use lining figures everywhere. */
+  h1, h2, h3, .font-serif { font-variant-numeric: lining-nums; }
+  :focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; }
+  ::selection { background: var(--color-gold-light); color: var(--color-ink); }
+}
+
+/* ---- Surfaces ------------------------------------------------------------ */
+@utility card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 2px rgb(23 34 29 / 0.04), 0 12px 32px -18px rgb(23 34 29 / 0.18);
+}
+@utility field {
+  min-height: 4rem;
+  width: 100%;
+  border-radius: 0.875rem;
+  border: 2px solid var(--color-line);
+  background: white;
+  padding-inline: 1.25rem;
+  font-size: 1.25rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:focus { outline: none; border-color: var(--color-forest); box-shadow: 0 0 0 4px rgb(201 154 26 / 0.22); }
+  &::placeholder { color: #8b938e; }
+}
+@utility eyebrow {
   font-family: var(--font-sans);
-  -webkit-tap-highlight-color: transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-label);
 }
-button, a { touch-action: manipulation; }
-h1, h2, h3 { font-family: var(--font-serif); font-weight: 600; }
-:focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; }
 
-@keyframes scan {
-  0% { top: 8%; }
-  100% { top: 88%; }
+.emblem {
+  display: inline-block;
+  -webkit-mask: url(/emblem.svg) center / contain no-repeat;
+  mask: url(/emblem.svg) center / contain no-repeat;
 }
-.scan-line { animation: scan 1.5s ease-in-out infinite alternate; }
 
-@keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.fade-in { animation: fade-in 0.25s ease-out; }
+/* ---- Kiosk (tablet) ------------------------------------------------------ */
+.kiosk {
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.kiosk input, .kiosk textarea { -webkit-user-select: text; user-select: text; }
+html:has(.kiosk), body:has(.kiosk) { overscroll-behavior: none; overflow: hidden; }
+
+.rotate-hint { display: none; }
+@media (orientation: portrait) and (max-width: 1100px) {
+  .rotate-hint { display: flex; }
+}
+
+/* ---- Screen transitions (View Transitions API) --------------------------- */
+.vt-header { view-transition-name: tablet-header; }
+.vt-main { view-transition-name: tablet-main; }
+.vt-footer { view-transition-name: tablet-footer; }
+
+::view-transition-group(*) { animation-duration: 420ms; animation-timing-function: var(--ease-out-soft); }
+::view-transition-old(root) { animation: 260ms ease-in both vt-fade-out; }
+::view-transition-new(root) { animation: 420ms var(--ease-out-soft) both vt-fade-scale-in; }
+::view-transition-old(tablet-main) { animation: 240ms cubic-bezier(0.4, 0, 1, 1) both vt-out-left; }
+::view-transition-new(tablet-main) { animation: 460ms var(--ease-out-soft) 60ms both vt-in-right; }
+html[data-dir="back"]::view-transition-old(tablet-main) { animation-name: vt-out-right; }
+html[data-dir="back"]::view-transition-new(tablet-main) { animation-name: vt-in-left; }
+::view-transition-old(tablet-footer), ::view-transition-new(tablet-footer),
+::view-transition-old(tablet-header), ::view-transition-new(tablet-header) { animation-duration: 300ms; }
+
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-scale-in { from { opacity: 0; transform: scale(0.985); } }
+@keyframes vt-out-left { to { opacity: 0; transform: translateX(-36px); } }
+@keyframes vt-out-right { to { opacity: 0; transform: translateX(36px); } }
+@keyframes vt-in-right { from { opacity: 0; transform: translateX(56px); } }
+@keyframes vt-in-left { from { opacity: 0; transform: translateX(-56px); } }
+
+/* Fallback for browsers without view transitions. */
+.no-vt .screen-in { animation: fade-in 0.35s var(--ease-out-soft); }
+
+/* ---- Motion helpers ------------------------------------------------------ */
+@keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.fade-in { animation: fade-in 0.3s var(--ease-out-soft) both; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.7s var(--ease-out-soft) both; }
+
+@keyframes pop-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+.pop-in { animation: pop-in 0.3s var(--ease-out-soft) both; }
+
+@keyframes slide-down { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+.slide-down { animation: slide-down 0.3s var(--ease-out-soft) both; }
+
+@keyframes slide-in-right { from { transform: translateX(100%); } to { transform: none; } }
+.drawer-in { animation: slide-in-right 0.35s var(--ease-out-soft) both; }
+
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.draw-check { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 0.55s 0.15s var(--ease-out-soft) forwards; }
+
+@keyframes ring-grow { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.ring-grow { animation: ring-grow 0.5s var(--ease-out-soft) both; }
+
+@keyframes scan { 0% { top: 6%; } 100% { top: 90%; } }
+.scan-line { animation: scan 1.6s ease-in-out infinite alternate; }
+
+@keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.breathe { animation: breathe 2.4s ease-in-out infinite; }
+
+@keyframes new-row { from { background-color: #ECCD78; } to { background-color: #FBF4DE; } }
+.new-row { animation: new-row 1.6s ease-out; background-color: #FBF4DE; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.9s linear infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .scan-line, .fade-in { animation: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .fade-in, .rise, .pop-in, .slide-down, .drawer-in, .ring-grow, .scan-line, .breathe, .new-row, .no-vt .screen-in { animation: none !important; }
+  .draw-check { animation: none; stroke-dashoffset: 0; }
+  .scan-line { top: 48%; }
 }

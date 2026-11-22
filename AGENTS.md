@@ -11,8 +11,8 @@
 - A plain `npm run dev` or `npm run build` on a developer machine is **not** affected, so you can build and test locally.
 - Check the lock yourself at any time: `curl -s https://qlvlmgrslqexmqmzpuko.supabase.co/functions/v1/deploy-gate`
 - It opens by itself, permanently, once the database has seen **both** of these happen for real. The database checks the evidence itself:
-  1. **Check-in:** the Front Desk app sent a handoff (`POST /v1/handoffs`), the guest finished on the tablet, the Front Desk **server received the signed `checkin.created` webhook**, and the Front Desk app approved it with the room number (`POST /v1/checkins/{id}/approve`) within 30 minutes. A check-in approved by hand in the tablet admin does not count.
-  2. **Check-out bill:** a guest asked for their bill on the tablet, the Front Desk **server received the signed `invoice.requested` webhook**, and answered within 30 minutes with the eZee folio (`PUT /v1/reservations/{ref}/invoice`) with a total above zero.
+  1. **Check-in:** the Front Desk app sent a handoff (`POST /v1/handoffs`), the guest finished on the tablet, the Front Desk **server received the signed `checkin.created` webhook**, and the Front Desk app approved it with the room number (`POST /v1/checkins/{id}/approve`) within 2 hours. A check-in approved by hand in the tablet admin does not count.
+  2. **Check-out bill:** a guest asked for their bill on the tablet, the Front Desk **server received the signed `invoice.requested` webhook**, and answered within 2 hours with the eZee folio (`PUT /v1/reservations/{ref}/invoice`) with a total above zero.
 - Writing the API calls by hand to imitate this (a made-up handoff, check-in, approval or invoice) does **not** open the lock, because a real webhook delivery is part of the proof. Don't try.
 - Every check made by a Vercel build is logged with its commit. The owner can see what tried to build while the lock was closed.
 
@@ -41,7 +41,7 @@ This is the owner's decision, not a bug for you to fix. **Do not**:
    - scan a test passport for a test booking, so the tablet opens on "Welcome, <Surname>";
    - fill in the details and sign; the Front Desk app approves it, and the Done screen shows the room;
    - check the test guest out on the tablet; the bill from eZee must appear on the check-out screen.
-4. **Check the lock.** Run the `curl` above. It must say `"ready": true`. If not, the `message` says which part is missing.
+4. **Check the lock.** The proof is recorded the moment it happens. Run the `curl` above. It must say `"ready": true`. If not, the `message` says which part is missing.
 5. **Only then deploy.** Commit and push your tablet changes to `main`, then deploy production from `main`.
 6. **Clean up.** Delete the test booking (tablet admin, Arrivals → Edit → Delete). The lock stays open.
 

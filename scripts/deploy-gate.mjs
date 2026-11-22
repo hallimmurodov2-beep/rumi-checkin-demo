@@ -10,6 +10,10 @@
 //
 // A plain `npm run build` / `npm run dev` on a developer machine is not affected (no VERCEL variable).
 
+import { realpathSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 const GATE_URL = 'https://qlvlmgrslqexmqmzpuko.supabase.co/functions/v1/deploy-gate'
 
 /** True when this build is a Vercel build (on Vercel, or `vercel build` run locally). */
@@ -35,7 +39,17 @@ export async function checkGate(src = 'build', env = process.env) {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run when called as `node scripts/deploy-gate.mjs`. Compared as real paths, so folders with spaces
+// or symlinks (e.g. a macOS copy named "rumi-checkin copy") can't make the check silently skip.
+function isMain() {
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(resolve(process.argv[1] ?? ''))
+  } catch {
+    return /deploy-gate\.mjs$/.test(process.argv[1] ?? '')
+  }
+}
+
+if (isMain()) {
   const r = await checkGate('build')
   console.log(r.message)
   process.exit(r.ok ? 0 : 1)

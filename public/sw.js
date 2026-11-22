@@ -2,7 +2,8 @@
 // Navigations: network first, fall back to the cached app shell.
 // Same-origin assets and Google Fonts: serve from cache, refresh in the background.
 // API calls to Supabase are never cached.
-const CACHE = 'rumi-v5'
+// The build id in CACHE is filled in at build time (vite.config.ts), so each deploy installs a new worker.
+const CACHE = 'rumi-__BUILD_ID__'
 const SHELL = ['/', '/emblem.svg', '/manifest.webmanifest', '/icons/icon-192.png']
 
 self.addEventListener('install', (e) => {

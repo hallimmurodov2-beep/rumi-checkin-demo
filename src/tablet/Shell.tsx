@@ -16,14 +16,17 @@ function Stepper({ step }: { step: number }) {
   return (
     <ol className="flex min-w-0 items-center" aria-label={`${current + 1} / ${steps.length}`}>
       {steps.map((k, i) => {
-        const done = i < current
+        // The last step is complete as soon as it is shown.
+        const done = i < current || (i === steps.length - 1 && current === i)
         const active = i === current
         return (
           <li key={k} className="flex items-center" aria-current={active ? 'step' : undefined}>
             <span className="flex items-center gap-2">
               <span
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-all duration-300 ${
-                  done
+                  done && active
+                    ? 'bg-forest text-gold-light ring-4 ring-gold/25'
+                    : done
                     ? 'bg-forest text-gold-light'
                     : active
                       ? 'bg-forest text-gold-light ring-4 ring-gold/25'

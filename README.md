@@ -14,7 +14,8 @@ Stack: Vite, React, TypeScript, Tailwind CSS v4 and Supabase (Postgres, Auth, Re
 3. Cyrillic surnames are transliterated, so Петрова matches a booking for Petrova.
 4. The guest confirms the booking and adds a phone number, email and airport-shuttle choice. They tick the consent box and sign on screen.
 5. The check-in appears instantly in **Tablet check-ins** at the desk. Staff check the passport against the details, enter the room number and tap **Approve & give key**. The guest is now **In house**.
-6. To check out, the guest enters their room number and surname on the tablet and rates the stay. A rating of 4–5 shows a QR code for the public review link. A rating of 1–3 opens a private feedback box that only staff see.
+6. When check-in is done, the tablet shows the guest Wi-Fi with a QR code: guests point their phone camera at it to join.
+7. To check out, the guest enters their room number and surname on the tablet, sees their full bill (sent by the front desk app) and rates the stay. A rating of 4–5 shows a QR code for the public review link. A rating of 1–3 opens a private feedback box that only staff see.
 
 The tablet returns to the welcome screen after 60 seconds without a touch, with a visible countdown for the last 10 seconds, and clears everything entered. The idle time can be changed in Settings.
 
@@ -26,7 +27,7 @@ The tablet returns to the welcome screen after 60 seconds without a touch, with 
 
    Without this, sign-up confirmation and password-reset emails link to `localhost`.
 2. **Create the first account.** Open `/staff` → **Create an account**. The first account becomes the **administrator**. Later accounts wait as **Pending** until an admin gives them access under Settings → Team.
-3. **Hotel information.** In Settings, enter the guest Wi-Fi, breakfast hours and your Google or TripAdvisor review link.
+3. **Hotel information.** In Settings, enter the guest Wi-Fi (network, password and security type, used for the QR code), breakfast hours and your Google or TripAdvisor review link. The front desk app can also set the Wi-Fi through the API.
 4. **Pair each tablet.** In Settings → Tablets → **Add tablet**, you get an 8-character code that is valid for 15 minutes. On the tablet, open `/tablet`, enter the code, then install it to the home screen (see below).
 5. **Add arrivals.** Use Arrivals → **Add booking**, or **Import CSV**. Download the template from the import window. Existing booking numbers are updated rather than duplicated.
 
@@ -55,8 +56,9 @@ npm run build    # type-check and production build
 ```
 
 - `/dev/staff` (development only) shows the front-desk UI with fixture data, so you can work on screens without signing in. It is not included in production builds.
+- `/dev/tablet` (development only) shows the tablet's Done and Check-out screens with fixture data: `/dev/tablet?screen=done&wifi=stay` or `/dev/tablet?screen=checkout&lang=ru&bill=due` (`bill` can be `due`, `paid`, `slow` or `none`).
 - The Supabase URL and publishable key are in `src/lib/supabase.ts`; you can override them with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. The publishable key is designed to be public; access is enforced in the database.
-- The database schema, row-level security and functions are applied as Supabase migrations: `core_schema`, `device_secrets_and_rpcs`, `fix_unaccent_and_schedule_purge`, `cyrillic_name_matching`, `ezee_sync_and_companions`, `tablet_config_retention`, `partner_app_integration` and `fix_partner_event_trigger`.
+- The database schema, row-level security and functions are applied as Supabase migrations: `core_schema`, `device_secrets_and_rpcs`, `fix_unaccent_and_schedule_purge`, `cyrillic_name_matching`, `ezee_sync_and_companions`, `tablet_config_retention`, `partner_app_integration`, `fix_partner_event_trigger`, `desk_passport_mode_and_screensaver`, `desk_to_tablet_handoffs`, `checkin_without_consent_checkbox` and `wifi_qr_and_checkout_invoices`.
 - `npm test` also covers the eZee request and response mapping (`tests/ezee.test.ts`).
 
 ## Deploy
@@ -79,9 +81,10 @@ The hotel's own front desk app, which already talks to eZee, connects to the tab
 
 - **Webhooks:** the tablet sends every check-in (passport details, additional guests, signature), check-out and feedback to the app instantly. Each webhook is signed with HMAC-SHA256 and retried automatically if delivery fails.
 - **API:** the app sends bookings and room numbers to the tablet, approves or sends back tablet check-ins, and can list check-ins, check-outs and feedback.
+- **Wi-Fi and bills:** the app sets the guest Wi-Fi shown as a QR code after check-in (hotel-wide, or a personal voucher per stay), and sends each guest's full bill, which the tablet shows at check-out. When a guest starts checking out, the app receives `invoice.requested` and answers with the current bill.
 - **Setup:** in Settings → **Front desk app connection**, create the API key and signing secret, enter the app's webhook address, then press **Send test event**.
 
-The full guide for the app's developer is [docs/partner-api.md](docs/partner-api.md). When the front desk app is connected this way, leave the direct eZee sync below switched off, because the front desk app already syncs with eZee.
+The full guide for the app's developer is [docs/partner-api.md](docs/partner-api.md). A ready-to-paste prompt for the Codex agent that built the front desk app is in [docs/frontdesk-app-codex-prompt.md](docs/frontdesk-app-codex-prompt.md). When the front desk app is connected this way, leave the direct eZee sync below switched off, because the front desk app already syncs with eZee.
 
 ## eZee FrontDesk sync (alternative)
 
@@ -112,7 +115,9 @@ The request formats follow eZee's published connectivity docs. Some fields in th
 - **Privacy notice** in all three languages, linked from the consent box. It shows the retention period from Settings.
 - **Signature** is labelled with the guest's name and the date.
 - **Room number** is shown on the confirmation and done screens when eZee has already assigned one.
-- **Self-updating:** an installed tablet checks for a new version every 30 minutes and reloads while it's on the welcome screen. It also refreshes itself once a night at about 04:00.
+- **Wi-Fi QR:** the Done screen shows the guest network with a QR code that phones join by scanning. If the front desk app sent a personal Wi-Fi for the stay, that one is shown instead, marked "Just for your stay". The screen stays up for 45 seconds so guests have time to scan.
+- **Bill at check-out:** the check-out screen asks the front desk app for the guest's current bill and shows every charge, taxes, payments and the balance. A balance due asks the guest to settle at the desk; a settled bill shows "Paid in full". With no front desk app connected, the tablet says the bill is ready at the desk.
+- **Self-updating:** every build stamps a new id into `sw.js`, so an installed tablet notices each deploy within 30 minutes and reloads while it's on the welcome screen. It also refreshes itself once a night at about 04:00.
 
 ## Known limits
 

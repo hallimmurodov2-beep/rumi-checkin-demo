@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
 import { ApiError } from '../lib/supabase'
-import type { MrzData, PublicReservation, TabletConfig } from '../lib/types'
+import type { MrzData, PublicReservation, TabletConfig, WifiInfo } from '../lib/types'
+import { wifiQrText } from '../lib/wifi'
 import { fmtDay, LANGS, type Lang } from '../translations'
-import { AnimatedCheck, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, Spinner, WifiIcon } from '../ui'
+import { AnimatedCheck, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, Spinner, WifiIcon } from '../ui'
 import { Shell } from './Shell'
 
 export interface Details {
@@ -296,10 +297,10 @@ export function Confirm({
   )
 }
 
-export function NeedHelp({ onBack, onStart, step = 1 }: { onBack?: () => void; onStart: () => void; step?: number }) {
+export function NeedHelp({ onBack, onStart, step, title }: { onBack?: () => void; onStart: () => void; step?: number; title?: string }) {
   const t = useT()
   return (
-    <Shell step={step} onBack={onBack} hideBack={!onBack}>
+    <Shell step={step} title={title} onBack={onBack} hideBack={!onBack}>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <span className="ring-grow flex h-20 w-20 items-center justify-center rounded-full bg-gold-light/60 font-serif text-4xl font-semibold text-forest" aria-hidden="true">
           ?
@@ -592,6 +593,80 @@ function useCountdown(seconds: number, onEnd: () => void) {
   return Math.max(n, 0)
 }
 
+/** Guest Wi-Fi with a QR code. Shows the hotel network at once and switches to the stay's own
+ *  network if the front desk app sends one in the moments after check-in. */
+function useWifi(config: TabletConfig | null, checkinId: string | null | undefined): WifiInfo | null {
+  const fallback: WifiInfo | null = config?.wifi_name
+    ? {
+        ssid: config.wifi_name,
+        password: config.wifi_password || null,
+        security: config.wifi_security ?? 'WPA',
+        hidden: config.wifi_hidden,
+        qr_payload: config.wifi_qr,
+      }
+    : null
+  const [wifi, setWifi] = useState<WifiInfo | null>(null)
+  useEffect(() => {
+    if (!checkinId) return
+    let alive = true
+    let tries = 0
+    let timer: number | undefined
+    const load = () =>
+      tablet
+        .wifi(checkinId)
+        .then((w) => {
+          if (!alive) return
+          if (w) setWifi(w)
+          // The front desk app may still be creating a personal Wi-Fi voucher: check a few more times.
+          if (!w?.per_stay && ++tries < 6) timer = window.setTimeout(load, 3500)
+        })
+        .catch(() => {
+          if (alive && ++tries < 6) timer = window.setTimeout(load, 3500)
+        })
+    load()
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+  }, [checkinId])
+  return wifi ?? fallback
+}
+
+function WifiCard({ wifi }: { wifi: WifiInfo }) {
+  const t = useT()
+  return (
+    <div className="card flex items-center gap-6 p-6">
+      <QrCode key={wifiQrText(wifi)} text={wifiQrText(wifi)} label={t('wifiScan')} className="h-44 w-44 xl:h-48 xl:w-48" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-forest">
+          <WifiIcon />
+          <h3 className="text-3xl">{t('wifiTitle')}</h3>
+          {wifi.per_stay && (
+            <span className="fade-in rounded-full bg-gold-light/50 px-3 py-1 text-xs font-semibold tracking-wide text-label">{t('wifiPerStay')}</span>
+          )}
+        </div>
+        <dl className="mt-3 space-y-2 text-lg">
+          <div>
+            <dt className="eyebrow">{t('wifiNetwork')}</dt>
+            <dd className="break-all font-medium">{wifi.ssid}</dd>
+          </div>
+          {wifi.password && (
+            <div>
+              <dt className="eyebrow">{t('wifiPassword')}</dt>
+              <dd className="break-all font-mono text-xl font-medium tracking-wide">{wifi.password}</dd>
+            </div>
+          )}
+        </dl>
+        <p className="mt-3 flex items-center gap-2 text-sm text-muted">
+          <PhoneIcon className="h-4 w-4 shrink-0" />
+          {t('wifiScan')}
+        </p>
+        {wifi.note && <p className="mt-1 text-sm text-muted">{wifi.note}</p>}
+      </div>
+    </div>
+  )
+}
+
 export function Done({
   onFinish,
   shuttle,
@@ -601,6 +676,7 @@ export function Done({
   deskCode,
   adults = 1,
   fromDesk = false,
+  checkinId,
 }: {
   onFinish: () => void
   shuttle: boolean
@@ -612,27 +688,16 @@ export function Done({
   adults?: number
   /** The booking came from reception, which already holds the passport. */
   fromDesk?: boolean
+  /** The check-in just created, used to fetch the stay's own Wi-Fi. */
+  checkinId?: string | null
 }) {
   const t = useT()
-  const n = useCountdown(20, onFinish)
-  const cards: React.ReactNode[] = []
-  if (config?.wifi_name)
-    cards.push(
-      <div key="wifi" className="card p-6">
-        <div className="flex items-center gap-3 text-forest">
-          <WifiIcon />
-          <h3 className="text-3xl">{t('wifiTitle')}</h3>
-        </div>
-        <dl className="mt-3 space-y-2 text-lg">
-          <div className="flex justify-between gap-3"><dt className="text-muted">{t('wifiNetwork')}</dt><dd className="font-medium">{config.wifi_name}</dd></div>
-          {config.wifi_password && (
-            <div className="flex justify-between gap-3"><dt className="text-muted">{t('wifiPassword')}</dt><dd className="font-medium">{config.wifi_password}</dd></div>
-          )}
-        </dl>
-      </div>,
-    )
+  const wifi = useWifi(config, checkinId)
+  // Give guests time to scan the Wi-Fi code before the screen resets.
+  const n = useCountdown(wifi ? 45 : 20, onFinish)
+  const extras: React.ReactNode[] = []
   if (breakfast && config?.breakfast_hours)
-    cards.push(
+    extras.push(
       <div key="bf" className="card p-6">
         <div className="flex items-center gap-3 text-forest">
           <CupIcon />
@@ -642,7 +707,7 @@ export function Done({
       </div>,
     )
   if (shuttle)
-    cards.push(
+    extras.push(
       <div key="sh" className="card p-6">
         <div className="flex items-center gap-3 text-forest">
           <CarIcon />
@@ -680,19 +745,32 @@ export function Done({
               {room && <p className="mt-1 text-sm text-gold-light">{t('roomAssigned', { room })}</p>}
             </div>
           ) : room && (
-            <div className="rise ml-auto rounded-2xl bg-forest px-7 py-4 text-center text-cream" style={{ animationDelay: '200ms' }}>
+            <div className="rise ml-auto shrink-0 rounded-2xl bg-forest px-7 py-4 text-center text-cream" style={{ animationDelay: '200ms' }}>
               <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</p>
               <p className="font-serif text-5xl font-semibold">{room}</p>
             </div>
           )}
         </div>
-        {cards.length > 0 && (
-          <div className={`mt-10 grid gap-5 ${cards.length === 3 ? 'grid-cols-3' : cards.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-md'}`}>
-            {cards.map((c, i) => (
-              <div key={i} className="rise" style={{ animationDelay: `${260 + i * 90}ms` }}>
-                {c}
+        {(wifi || extras.length > 0) && (
+          <div
+            className={`mt-10 grid gap-5 ${
+              wifi && extras.length ? 'grid-cols-[1.45fr_1fr]' : wifi ? 'max-w-3xl grid-cols-1' : extras.length === 2 ? 'grid-cols-2' : 'max-w-md grid-cols-1'
+            }`}
+          >
+            {wifi && (
+              <div className="rise" style={{ animationDelay: '260ms' }}>
+                <WifiCard wifi={wifi} />
               </div>
-            ))}
+            )}
+            {extras.length > 0 && (
+              <div className={wifi ? 'flex flex-col gap-5' : 'contents'}>
+                {extras.map((c, i) => (
+                  <div key={i} className="rise" style={{ animationDelay: `${350 + i * 90}ms` }}>
+                    {c}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

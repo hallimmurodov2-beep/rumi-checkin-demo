@@ -6,6 +6,7 @@ import { COLORS, Emblem } from './ui'
 const Tablet = lazy(() => import('./pages/Tablet'))
 const StaffApp = lazy(() => import('./staff/StaffApp'))
 const StaffPreview = import.meta.env.DEV ? lazy(() => import('./dev/StaffPreview')) : null
+const TabletPreview = import.meta.env.DEV ? lazy(() => import('./dev/TabletPreview')) : null
 
 function Splash() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/tablet" element={<Tablet />} />
         <Route path="/staff" element={<StaffApp />} />
         {StaffPreview && <Route path="/dev/staff" element={<StaffPreview />} />}
+        {TabletPreview && <Route path="/dev/tablet" element={<TabletPreview />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

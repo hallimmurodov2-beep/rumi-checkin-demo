@@ -165,6 +165,22 @@ const en = {
   idleWarn: 'Returning to the start in {n}s',
   idleTouch: 'Touch the screen to stay.',
   stillHere: "I'm still here",
+  offline: 'No internet connection - please ask at the front desk',
+  wifiScan: 'Scan with your phone camera to connect',
+  wifiPerStay: 'Just for your stay',
+  invoiceTitle: 'Your bill',
+  invoiceLoading: 'Getting your bill from reception...',
+  invoiceNumber: 'Invoice {n}',
+  subtotal: 'Subtotal',
+  taxIncluded: 'Prices include taxes',
+  total: 'Total',
+  payments: 'Payments',
+  balanceDue: 'Balance due',
+  paidInFull: 'Paid in full',
+  refundDue: 'To be refunded',
+  settleAtDesk: 'Please settle the balance at the front desk before you leave.',
+  invoiceUpdated: 'Updated {time}',
+  checkoutAnyway: 'You can still check out here; reception will settle the bill with you.',
 }
 
 export type Key = keyof typeof en
@@ -321,6 +337,22 @@ const ru: Dict = {
   idleWarn: 'Возврат на главный экран через {n} с',
   idleTouch: 'Коснитесь экрана, чтобы остаться.',
   stillHere: 'Я ещё здесь',
+  offline: 'Нет подключения к интернету - пожалуйста, обратитесь на стойку регистрации',
+  wifiScan: 'Наведите камеру телефона, чтобы подключиться',
+  wifiPerStay: 'Только для вашего проживания',
+  invoiceTitle: 'Ваш счёт',
+  invoiceLoading: 'Получаем ваш счёт со стойки регистрации...',
+  invoiceNumber: 'Счёт № {n}',
+  subtotal: 'Промежуточный итог',
+  taxIncluded: 'Цены включают налоги',
+  total: 'Итого',
+  payments: 'Платежи',
+  balanceDue: 'К оплате',
+  paidInFull: 'Оплачено полностью',
+  refundDue: 'К возврату',
+  settleAtDesk: 'Пожалуйста, оплатите остаток на стойке регистрации перед отъездом.',
+  invoiceUpdated: 'Обновлено в {time}',
+  checkoutAnyway: 'Вы можете завершить выезд здесь, а счёт оплатить на стойке регистрации.',
 }
 
 // TODO: review by a native Tajik speaker.
@@ -475,11 +507,27 @@ const tg: Dict = {
   idleWarn: 'Бозгашт ба саҳифаи аввал баъд аз {n} сония',
   idleTouch: 'Барои мондан ба экран даст расонед.',
   stillHere: 'Ман ҳанӯз дар ин ҷо ҳастам',
+  offline: 'Пайвасти интернет нест - лутфан ба мизи қабул муроҷиат кунед',
+  wifiScan: 'Барои пайваст шудан бо камераи телефон скан кунед',
+  wifiPerStay: 'Танҳо барои иқомати шумо',
+  invoiceTitle: 'Ҳисоби шумо',
+  invoiceLoading: 'Ҳисоби шуморо аз мизи қабул мегирем...',
+  invoiceNumber: 'Ҳисоб № {n}',
+  subtotal: 'Ҷамъи мобайнӣ',
+  taxIncluded: 'Нархҳо андозро дар бар мегиранд',
+  total: 'Ҳамагӣ',
+  payments: 'Пардохтҳо',
+  balanceDue: 'Бояд пардохт шавад',
+  paidInFull: 'Пурра пардохт шудааст',
+  refundDue: 'Барои баргардонидан',
+  settleAtDesk: 'Лутфан пеш аз рафтан боқимондаро дар мизи қабул пардохт кунед.',
+  invoiceUpdated: 'Навсозӣ: {time}',
+  checkoutAnyway: 'Шумо метавонед дар ин ҷо баромадро анҷом диҳед; ҳисобро дар мизи қабул пардохт мекунед.',
 }
 
 export const translations: Record<Lang, Dict> = { en, ru, tg }
 
-const LOCALE: Record<Lang, string> = { en: 'en-GB', ru: 'ru-RU', tg: 'tg-TJ' }
+export const LOCALE: Record<Lang, string> = { en: 'en-GB', ru: 'ru-RU', tg: 'tg-TJ' }
 const TG_MONTHS = ['январ', 'феврал', 'март', 'апрел', 'май', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр']
 
 /** "21 Nov" style date in the guest's language (Tajik month names are written out by hand). */

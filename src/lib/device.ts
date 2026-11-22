@@ -1,5 +1,5 @@
 import { rpc, ApiError } from './supabase'
-import type { PublicReservation, TabletConfig } from './types'
+import type { InvoiceResult, PublicReservation, TabletConfig, WifiInfo } from './types'
 
 // A paired tablet keeps a random secret in local storage. The database only
 // stores its SHA-256 hash; every tablet call proves itself with the secret.
@@ -95,6 +95,11 @@ export const tablet = {
   findStay: (room: string, surname: string) => call<Lookup>('find_stay_for_checkout', { p_room: room, p_surname: surname }),
   submitCheckout: (reservationId: string, rating: number | null, comment: string) =>
     call<string>('submit_checkout', { p_reservation_id: reservationId, p_rating: rating, p_comment: comment }),
+  /** Wi-Fi for a check-in this tablet just finished (the stay's own network, or the hotel's). */
+  wifi: (checkinId: string) => call<WifiInfo | null>('tablet_wifi', { p_checkin_id: checkinId }),
+  /** The guest's bill. With request=true the front desk app is asked for an up-to-date one. */
+  invoice: (reservationId: string, request = false) =>
+    call<InvoiceResult>('tablet_invoice', { p_reservation_id: reservationId, p_request: request }),
 }
 
 export interface CheckinPayload {

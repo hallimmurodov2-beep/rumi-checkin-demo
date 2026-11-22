@@ -164,6 +164,10 @@ export interface HotelSettings {
   hotel_name: string
   wifi_name: string
   wifi_password: string
+  wifi_security: WifiSecurity
+  wifi_hidden: boolean
+  wifi_qr: string | null
+  wifi_updated_by: 'admin' | 'partner'
   breakfast_hours: string
   review_url: string
   idle_seconds: number
@@ -178,6 +182,9 @@ export interface TabletConfig {
   hotel_name: string
   wifi_name: string
   wifi_password: string
+  wifi_security?: WifiSecurity
+  wifi_hidden?: boolean
+  wifi_qr?: string | null
   breakfast_hours: string
   review_url: string
   idle_seconds: number
@@ -199,4 +206,53 @@ export interface MrzData {
   expiryDate: string // YYYY-MM-DD
   valid: boolean // document number, birth date and expiry check digits all pass
   compositeOk?: boolean
+}
+
+export type WifiSecurity = 'WPA' | 'WEP' | 'nopass'
+
+/** Guest Wi-Fi shown on the Done screen: the stay's own network (from the front desk app) or the hotel's. */
+export interface WifiInfo {
+  ssid: string
+  password: string | null
+  security: WifiSecurity
+  hidden?: boolean
+  /** Exact text to put in the QR code, when the front desk app wants its own (for example a captive-portal link). */
+  qr_payload?: string | null
+  note?: string | null
+  per_stay?: boolean
+}
+
+export interface InvoiceLine {
+  date: string | null
+  description: string
+  quantity: number | null
+  unit_price: number | null
+  amount: number
+  category?: string | null
+}
+
+/** The guest's bill, sent by the front desk app (PUT /v1/reservations/{ref}/invoice). */
+export interface Invoice {
+  invoice_number: string | null
+  currency: string
+  issued_at: string
+  guest_name?: string | null
+  lines: InvoiceLine[]
+  taxes: { name: string; amount: number }[]
+  payments: { date: string | null; method: string; amount: number }[]
+  prices_include_tax: boolean
+  subtotal: number
+  tax_total: number
+  total: number
+  paid: number
+  balance: number
+  note?: string | null
+}
+
+export interface InvoiceResult {
+  invoice: Invoice | null
+  received_at: string | null
+  requested_at: string | null
+  /** False when no front desk app is connected, so there is nothing to wait for. */
+  can_request: boolean
 }

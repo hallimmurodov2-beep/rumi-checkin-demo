@@ -126,9 +126,9 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const [reservation, setReservation] = useState<PublicReservation | null>(null)
   const [findMultiple, setFindMultiple] = useState(false)
   const [details, setDetails] = useState<Details>(emptyDetails)
-  const [guestNotice, setGuestNotice] = useState<string | null>(null)
   const [stay, setStay] = useState<PublicReservation | null>(null)
   const [deskCode, setDeskCode] = useState<string | null>(null)
+  const [checkinId, setCheckinId] = useState<string | null>(null)
   const [handoff, setHandoff] = useState<Handoff | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [saver, setSaver] = useState(false)
@@ -183,32 +183,26 @@ function Kiosk({ device }: { device: StoredDevice }) {
     return () => window.clearInterval(id)
   }, [step])
 
-  const clearGuest = () => {
+  const clearGuest = useCallback(() => {
     setHandoff(null)
     setDeskCode(null)
-    setGuestNotice(null)
+    setCheckinId(null)
     setMrz(null)
     setReservation(null)
     setFindMultiple(false)
     setDetails(emptyDetails)
     setStay(null)
-  }
+  }, [])
 
+  // Back to Welcome in English with everything the guest entered cleared.
   const reset = useCallback(() => {
     transition(() => {
+      clearGuest()
       setStep('welcome')
       setLang('en')
-      setMrz(null)
-      setReservation(null)
-      setFindMultiple(false)
-      setDetails(emptyDetails)
-        setGuestNotice(null)
-      setDeskCode(null)
-      setHandoff(null)
-      setStay(null)
     }, 'back')
     ;(document.activeElement as HTMLElement | null)?.blur?.()
-  }, [])
+  }, [clearGuest])
 
   const toWelcome = () =>
     transition(() => {
@@ -318,6 +312,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
         handoff_id: handoff?.id,
       } as Parameters<typeof tablet.submitCheckin>[1])
       setDeskCode(deskMode && !handoff ? res?.desk_code ?? null : null)
+      setCheckinId(res?.id ?? null)
       go('done')
     } catch (e) {
       if (e instanceof ApiError && e.code === 'reservation_unavailable') go('help')
@@ -372,7 +367,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
             onLang={handoff ? setLang : undefined}
           />
         )}
-        {step === 'help' && <NeedHelp onStart={reset} />}
+        {step === 'help' && <NeedHelp onStart={reset} step={stay ? undefined : 1} title={stay ? tr('coTitle') : undefined} />}
         {step === 'waitDesk' && (
           <WaitForDesk
             onBack={toWelcome}
@@ -407,6 +402,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
             deskCode={deskCode}
             adults={reservation?.adults ?? 1}
             fromDesk={!!handoff}
+            checkinId={checkinId}
           />
         )}
         {step === 'coFind' && (
@@ -424,16 +420,22 @@ function Kiosk({ device }: { device: StoredDevice }) {
             reviewUrl={config?.review_url ?? ''}
             onBack={() => go('coFind', 'back')}
             onComplete={async (rating, feedback) => {
-              await tablet.submitCheckout(stay.id, rating, feedback)
-              go('coDone')
+              try {
+                await tablet.submitCheckout(stay.id, rating, feedback)
+                go('coDone')
+              } catch (e) {
+                // Reception checked the guest out at the desk in the meantime.
+                if (e instanceof ApiError && e.code === 'reservation_unavailable') go('help')
+                else throw e
+              }
             }}
           />
         )}
         {step === 'coDone' && <CheckoutDone onFinish={reset} />}
 
         {!online && (
-          <div className="slide-down fixed left-1/2 top-3 z-40 -translate-x-1/2 rounded-full bg-ink px-5 py-2 text-sm font-medium text-cream shadow-lg">
-            No internet connection - please ask at the front desk
+          <div role="alert" className="slide-down fixed left-1/2 top-3 z-40 -translate-x-1/2 rounded-full bg-ink px-5 py-2 text-sm font-medium text-cream shadow-lg">
+            {tr('offline')}
           </div>
         )}
 

@@ -1,5 +1,6 @@
-import type { ButtonHTMLAttributes, CSSProperties } from 'react'
+import { useEffect, useState, type ButtonHTMLAttributes, type CSSProperties } from 'react'
 import type React from 'react'
+import QRCode from 'qrcode'
 
 export const COLORS = {
   forest: '#0E3B2E',
@@ -176,6 +177,45 @@ export function StarIcon({ filled, className = 'h-10 w-10' }: { filled: boolean;
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill={filled ? '#C99A1A' : 'none'} stroke={filled ? '#7A5A0C' : '#56615B'} strokeWidth="1.6" strokeLinejoin="round">
       <path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1L3.2 9.6l6.1-.8z" />
+    </svg>
+  )
+}
+
+/** A crisp SVG QR code. Renders an empty frame until the code is ready. */
+export function QrCode({ text, label, className = 'h-40 w-40' }: { text: string; label: string; className?: string }) {
+  const [svg, setSvg] = useState('')
+  useEffect(() => {
+    let alive = true
+    QRCode.toString(text, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#17221D', light: '#00000000' } })
+      .then((s) => alive && setSvg(s))
+      .catch(() => alive && setSvg(''))
+    return () => {
+      alive = false
+    }
+  }, [text])
+  return (
+    <div
+      className={`shrink-0 rounded-xl border border-line bg-white p-3 [&>svg]:h-full [&>svg]:w-full ${svg ? 'fade-in' : ''} ${className}`}
+      role="img"
+      aria-label={label}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
+}
+
+export function ReceiptIcon({ className = 'h-6 w-6' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6M9 16h3" />
+    </svg>
+  )
+}
+
+export function PhoneIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" />
+      <path d="M10.5 18.5h3" />
     </svg>
   )
 }

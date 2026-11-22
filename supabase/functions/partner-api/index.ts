@@ -14,7 +14,7 @@ const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SE
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, content-type, x-sync-secret, apikey, x-client-info',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body, null, 2), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
@@ -133,6 +133,12 @@ async function eventData(event: string, subjectId: string) {
     const h = await loadHandoff(subjectId)
     return h ? { handoff: h } : null
   }
+  if (event === 'invoice.requested') {
+    const { data } = await db.from('reservations').select(`${RES_FIELDS}, invoice_requested_at`).eq('id', subjectId).maybeSingle()
+    if (!data) return null
+    const { invoice_requested_at, ...reservation } = data
+    return { invoice_request: { requested_at: invoice_requested_at, reservation } }
+  }
   if (event === 'ping') return { message: 'Test event from The Rumi tablet app' }
   return null
 }
@@ -183,7 +189,8 @@ async function deliver() {
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
-    const ref = (data as { checkin?: { reservation?: { booking_ref?: string } } }).checkin?.reservation?.booking_ref ?? null
+    const d = data as { [k: string]: { reservation?: { booking_ref?: string } } | undefined }
+    const ref = (d.checkin ?? d.checkout ?? d.feedback ?? d.invoice_request ?? d.handoff)?.reservation?.booking_ref ?? null
     if (error) {
       const attempts = ev.attempts + 1
       const wait = Math.min(60, 2 ** attempts) // minutes: 2, 4, 8 ... capped at 1 hour
@@ -207,6 +214,104 @@ async function deliver() {
 
 const STATUSES = ['expected', 'pending_desk', 'in_house', 'checked_out', 'cancelled', 'no_show']
 const isDate = (s: unknown) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+const normRef = (s: string) => s.trim().toUpperCase().replace(/\s+/g, '')
+const str = (v: unknown, max: number) => (v === undefined || v === null ? null : String(v).trim().slice(0, max) || null)
+
+/* ---------------------------------------------------------------- Wi-Fi */
+
+// deno-lint-ignore no-explicit-any
+function cleanWifi(w: any): { wifi?: Record<string, unknown>; error?: string } {
+  if (!w || typeof w !== 'object') return { error: 'wifi must be an object' }
+  const ssid = str(w.ssid, 64)
+  if (!ssid) return { error: 'wifi.ssid is required' }
+  const password = str(w.password, 63)
+  const security = w.security === undefined ? (password ? 'WPA' : 'nopass') : String(w.security).toUpperCase() === 'NOPASS' ? 'nopass' : String(w.security).toUpperCase()
+  if (!['WPA', 'WEP', 'nopass'].includes(security)) return { error: 'wifi.security must be WPA, WEP or nopass' }
+  if (security !== 'nopass' && !password) return { error: 'wifi.password is required unless security is nopass' }
+  const qr = str(w.qr_payload, 500)
+  return {
+    wifi: {
+      ssid,
+      password: security === 'nopass' ? null : password,
+      security,
+      hidden: !!w.hidden,
+      qr_payload: qr,
+      note: str(w.note, 140),
+    },
+  }
+}
+
+/* ---------------------------------------------------------------- Invoices */
+
+const money = (v: unknown) => {
+  const n = typeof v === 'string' ? Number(v.replace(',', '.')) : Number(v)
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null
+}
+
+// deno-lint-ignore no-explicit-any
+function cleanInvoice(b: any): { invoice?: Record<string, unknown>; error?: string } {
+  if (!b || typeof b !== 'object') return { error: 'Send the invoice as a JSON object.' }
+  const currency = str(b.currency, 3)?.toUpperCase()
+  if (!currency || !/^[A-Z]{3}$/.test(currency)) return { error: 'currency must be a 3-letter code such as TJS or USD' }
+  if (!Array.isArray(b.lines) || b.lines.length === 0) return { error: 'lines must be a non-empty array' }
+  if (b.lines.length > 300) return { error: 'At most 300 lines' }
+  const lines = []
+  for (const [i, l] of b.lines.entries()) {
+    const description = str(l?.description, 120)
+    if (!description) return { error: `lines[${i}].description is required` }
+    const quantity = l.quantity === undefined ? 1 : money(l.quantity)
+    const unit = l.unit_price === undefined ? null : money(l.unit_price)
+    const amount = l.amount === undefined ? (unit !== null && quantity !== null ? money(unit * quantity) : null) : money(l.amount)
+    if (amount === null) return { error: `lines[${i}].amount (or unit_price) must be a number` }
+    if (l.date !== undefined && l.date !== null && !isDate(l.date)) return { error: `lines[${i}].date must be YYYY-MM-DD` }
+    lines.push({ date: l.date ?? null, description, quantity, unit_price: unit, amount, category: str(l.category, 30) })
+  }
+  const taxes = []
+  for (const [i, t] of (Array.isArray(b.taxes) ? b.taxes : []).slice(0, 20).entries()) {
+    const amount = money(t?.amount)
+    if (!str(t?.name, 60) || amount === null) return { error: `taxes[${i}] needs name and amount` }
+    taxes.push({ name: str(t.name, 60), amount })
+  }
+  const payments = []
+  for (const [i, p] of (Array.isArray(b.payments) ? b.payments : []).slice(0, 50).entries()) {
+    const amount = money(p?.amount)
+    if (amount === null) return { error: `payments[${i}].amount must be a number` }
+    if (p.date !== undefined && p.date !== null && !isDate(String(p.date).slice(0, 10))) return { error: `payments[${i}].date must be YYYY-MM-DD` }
+    payments.push({ date: p.date ? String(p.date).slice(0, 10) : null, method: str(p.method, 60) ?? 'Payment', amount })
+  }
+  const sum = (xs: { amount: number | null }[]) => Math.round(xs.reduce((a, x) => a + (x.amount ?? 0), 0) * 100) / 100
+  const includeTax = !!b.prices_include_tax
+  const subtotal = b.subtotal !== undefined ? money(b.subtotal) : sum(lines)
+  const tax_total = b.tax_total !== undefined ? money(b.tax_total) : sum(taxes)
+  const total = b.total !== undefined ? money(b.total) : Math.round(((subtotal ?? 0) + (includeTax ? 0 : tax_total ?? 0)) * 100) / 100
+  const paid = b.paid !== undefined ? money(b.paid) : sum(payments)
+  const balance = b.balance !== undefined ? money(b.balance) : Math.round(((total ?? 0) - (paid ?? 0)) * 100) / 100
+  if ([subtotal, tax_total, total, paid, balance].some((x) => x === null)) return { error: 'subtotal, tax_total, total, paid and balance must be numbers' }
+  if (b.issued_at !== undefined && Number.isNaN(Date.parse(b.issued_at))) return { error: 'issued_at must be an ISO date-time' }
+  return {
+    invoice: {
+      invoice_number: str(b.invoice_number, 40),
+      currency,
+      issued_at: b.issued_at ?? new Date().toISOString(),
+      guest_name: str(b.guest_name, 120),
+      lines,
+      taxes,
+      payments,
+      prices_include_tax: includeTax,
+      subtotal,
+      tax_total,
+      total,
+      paid,
+      balance,
+      note: str(b.note, 300),
+    },
+  }
+}
+
+async function reservationByRef(ref: string) {
+  const { data } = await db.from('reservations').select('id, booking_ref, status, wifi').eq('booking_ref', normRef(ref)).maybeSingle()
+  return data
+}
 
 // deno-lint-ignore no-explicit-any
 function cleanReservation(b: any, i: number): { row?: Record<string, unknown>; error?: string } {
@@ -232,6 +337,14 @@ function cleanReservation(b: any, i: number): { row?: Record<string, unknown>; e
   if (b.partner_ref !== undefined) row.partner_ref = String(b.partner_ref).slice(0, 60)
   if (b.ezee_booking_id !== undefined) row.ezee_booking_id = b.ezee_booking_id === null ? null : String(b.ezee_booking_id).slice(0, 40)
   if (b.status !== undefined) row.status = b.status
+  if (b.wifi !== undefined) {
+    if (b.wifi === null) row.wifi = null
+    else {
+      const w = cleanWifi(b.wifi)
+      if (w.error) return { error: `[${i}] ${w.error}` }
+      row.wifi = w.wifi
+    }
+  }
   return { row }
 }
 
@@ -341,6 +454,76 @@ async function api(req: Request, path: string, url: URL) {
     if (!STATUSES.includes(body.status)) return fail(400, 'bad_status', `status must be one of ${STATUSES.join(', ')}`)
     const id = await setStatus(decodeURIComponent(m[1]), body.status, body.room_number ? String(body.room_number).slice(0, 10) : null)
     return id ? json({ ok: true }) : fail(404, 'not_found', 'No reservation with that booking_ref')
+  }
+
+  // GET /v1/wifi   and   PUT /v1/wifi  { ssid, password, security, hidden, qr_payload }
+  // The hotel's guest network, shown with a QR code on the tablet's Done screen.
+  if (path === '/v1/wifi' && (req.method === 'GET' || req.method === 'PUT')) {
+    if (req.method === 'PUT') {
+      const w = cleanWifi(await req.json().catch(() => null))
+      if (w.error) return fail(400, 'invalid_wifi', w.error)
+      const { error } = await db
+        .from('hotel_settings')
+        .update({
+          wifi_name: w.wifi!.ssid,
+          wifi_password: w.wifi!.password ?? '',
+          wifi_security: w.wifi!.security,
+          wifi_hidden: w.wifi!.hidden,
+          wifi_qr: w.wifi!.qr_payload,
+          wifi_updated_by: 'partner',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', 1)
+      if (error) return fail(400, 'save_failed', error.message)
+      await log('Wi-Fi updated', true, `Guest network ${w.wifi!.ssid}`)
+    }
+    const { data: s } = await db.from('hotel_settings').select('wifi_name, wifi_password, wifi_security, wifi_hidden, wifi_qr, wifi_updated_by, updated_at').eq('id', 1).single()
+    return json({
+      wifi: s?.wifi_name
+        ? { ssid: s.wifi_name, password: s.wifi_password || null, security: s.wifi_security, hidden: s.wifi_hidden, qr_payload: s.wifi_qr, updated_by: s.wifi_updated_by }
+        : null,
+    })
+  }
+
+  // PUT|GET|DELETE /v1/reservations/:booking_ref/wifi   Wi-Fi for one stay (overrides the hotel network)
+  m = path.match(/^\/v1\/reservations\/([^/]+)\/wifi$/)
+  if (m && ['GET', 'PUT', 'DELETE'].includes(req.method)) {
+    const r = await reservationByRef(decodeURIComponent(m[1]))
+    if (!r) return fail(404, 'not_found', 'No reservation with that booking_ref')
+    if (req.method === 'GET') return json({ wifi: r.wifi ?? null })
+    let wifi: Record<string, unknown> | null = null
+    if (req.method === 'PUT') {
+      const w = cleanWifi(await req.json().catch(() => null))
+      if (w.error) return fail(400, 'invalid_wifi', w.error)
+      wifi = w.wifi!
+    }
+    await db.from('reservations').update({ wifi }).eq('id', r.id)
+    return json({ wifi })
+  }
+
+  // PUT|GET|DELETE /v1/reservations/:booking_ref/invoice   The guest's bill, shown at check-out.
+  m = path.match(/^\/v1\/reservations\/([^/]+)\/invoice$/)
+  if (m && ['GET', 'PUT', 'DELETE'].includes(req.method)) {
+    const r = await reservationByRef(decodeURIComponent(m[1]))
+    if (!r) return fail(404, 'not_found', 'No reservation with that booking_ref')
+    if (req.method === 'DELETE') {
+      await db.from('invoices').delete().eq('reservation_id', r.id)
+      return json({ invoice: null })
+    }
+    if (req.method === 'PUT') {
+      const body = await req.json().catch(() => null)
+      const inv = cleanInvoice(body)
+      if (inv.error) return fail(400, 'invalid_invoice', inv.error)
+      const i = inv.invoice!
+      const { error } = await db.from('invoices').upsert(
+        { reservation_id: r.id, data: i, currency: i.currency, total: i.total, balance: i.balance, received_at: new Date().toISOString() },
+        { onConflict: 'reservation_id' },
+      )
+      if (error) return fail(400, 'save_failed', error.message)
+      await log('invoice received', true, `${i.currency} ${i.total}, balance ${i.balance}`, r.booking_ref)
+    }
+    const { data: row } = await db.from('invoices').select('data, received_at').eq('reservation_id', r.id).maybeSingle()
+    return row ? json({ invoice: row.data, received_at: row.received_at }) : fail(404, 'no_invoice', 'No invoice has been sent for this booking')
   }
 
   // GET /v1/tablets

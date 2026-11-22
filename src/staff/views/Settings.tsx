@@ -14,6 +14,13 @@ function HotelPanel({ settings, isAdmin, reload }: { settings: HotelSettings | n
   const save = async () => {
     setBusy(true)
     const { id: _id, updated_at: _u, ...patch } = s
+    const wifiChanged =
+      !!settings &&
+      (['wifi_name', 'wifi_password', 'wifi_security', 'wifi_hidden'] as const).some((k) => settings[k] !== s[k])
+    if (wifiChanged) {
+      patch.wifi_updated_by = 'admin'
+      patch.wifi_qr = null // a QR text from the front desk app no longer matches a network typed here
+    }
     const { error } = await supabase.from('hotel_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', 1)
     setBusy(false)
     if (error) return toast(errorText(errorCode(error)), 'error')
@@ -34,8 +41,37 @@ function HotelPanel({ settings, isAdmin, reload }: { settings: HotelSettings | n
       <div className="grid gap-4 p-5 sm:grid-cols-2">
         <Field label="Hotel name" {...f('hotel_name')} />
         <Field label="Breakfast hours" {...f('breakfast_hours')} hint='Shown as "Served daily 07:00 - 10:30 in the restaurant."' />
-        <Field label="Guest Wi-Fi network" {...f('wifi_name')} />
+        <Field
+          label="Guest Wi-Fi network"
+          {...f('wifi_name')}
+          hint={s.wifi_updated_by === 'partner' ? 'Set by the front desk app. Saving a change here replaces it.' : 'Shown with a QR code on the Done screen, so guests can join by scanning it.'}
+        />
         <Field label="Guest Wi-Fi password" {...f('wifi_password')} />
+        <div>
+          <label htmlFor="wifi-sec" className="mb-1.5 block text-sm font-medium text-ink">Guest Wi-Fi security</label>
+          <select
+            id="wifi-sec"
+            disabled={!isAdmin}
+            value={s.wifi_security}
+            onChange={(e) => setS({ ...s, wifi_security: e.target.value as HotelSettings['wifi_security'] })}
+            className="min-h-11 w-full rounded-lg border border-line bg-white px-3 text-[15px] transition focus:border-forest focus:shadow-[0_0_0_3px_rgb(201_154_26/0.22)] focus:outline-none"
+          >
+            <option value="WPA">WPA / WPA2 / WPA3 (most networks)</option>
+            <option value="WEP">WEP (old routers)</option>
+            <option value="nopass">Open network, no password</option>
+          </select>
+          <p className="mt-1 text-xs text-muted">Must match the router, or the QR code won't connect.</p>
+        </div>
+        <label className="flex items-center gap-2 self-center text-sm text-ink">
+          <input
+            type="checkbox"
+            disabled={!isAdmin}
+            checked={s.wifi_hidden}
+            onChange={(e) => setS({ ...s, wifi_hidden: e.target.checked })}
+            className="h-4 w-4 accent-[#0E3B2E]"
+          />
+          The network name is hidden
+        </label>
         <Field label="Public review link" type="url" {...f('review_url')} hint="Google or TripAdvisor review page. Shown as a QR code to guests who rate 4-5." className="sm:col-span-2" />
         <Field label="Photo screensaver after (seconds)" type="number" min={0} max={600} {...f('screensaver_seconds')} hint="Hotel photos appear on the Welcome screen after this long without a touch. 0 turns it off." />
         <Field label="Idle reset (seconds)" type="number" min={30} max={300} {...f('idle_seconds')} hint="Tablet returns to the start after this long without a touch." />

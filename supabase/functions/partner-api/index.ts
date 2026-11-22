@@ -46,7 +46,7 @@ async function log(action: string, ok: boolean, message: string, booking_ref?: s
 const RES_FIELDS =
   'id, booking_ref, alt_refs, partner_ref, ezee_booking_id, guest_name, source, room_type, room_number, arrival_date, departure_date, adults, breakfast, status'
 const CHECKIN_FIELDS =
-  'id, created_at, status, language, doc_source, doc_type, issuing_country, nationality, surname, given_names, document_number, birth_date, sex, expiry_date, mrz_valid, phone, email, shuttle, consent_at, approved_at, data_purged_at, desk_code, handoff_id'
+  'id, created_at, status, language, doc_source, doc_type, issuing_country, nationality, surname, given_names, document_number, birth_date, sex, expiry_date, mrz_valid, phone, email, shuttle, consent_at, approved_at, data_purged_at, desk_code, handoff_id, policy_id, hotel_policies(id, lang, version)'
 
 // deno-lint-ignore no-explicit-any
 function shapeCheckin(c: any) {
@@ -91,6 +91,8 @@ function shapeCheckin(c: any) {
     ),
     airport_shuttle: c.shuttle,
     consent_at: c.consent_at,
+    // The hotel policy version the guest read and signed (null if none was published).
+    policy_signed: c.hotel_policies ? { id: c.hotel_policies.id, lang: c.hotel_policies.lang, version: c.hotel_policies.version } : null,
     approved_at: c.approved_at,
     ...(c.signature_png !== undefined ? { signature_png: c.signature_png } : {}),
     data_deleted: !!c.data_purged_at,
@@ -429,6 +431,34 @@ async function api(req: Request, path: string, url: URL) {
     }
     const { data: row } = await db.from('invoices').select('data, received_at').eq('reservation_id', r.id).maybeSingle()
     return row ? json({ invoice: row.data, received_at: row.received_at }) : fail(404, 'no_invoice', 'No invoice has been sent for this booking')
+  }
+
+  // GET /v1/policy[?lang=ru]   and   PUT /v1/policy/:lang  { "body_md": "..." }
+  // The hotel rulebook shown above the signature on the tablet. Every PUT is a new version.
+  if (req.method === 'GET' && path === '/v1/policy') {
+    const langs = url.searchParams.get('lang') ? [url.searchParams.get('lang')!] : ['en', 'ru', 'tg']
+    const out: Record<string, unknown> = {}
+    for (const l of langs) {
+      const { data } = await db.from('hotel_policies').select('id, lang, version, body_md, created_at').eq('lang', l).order('version', { ascending: false }).limit(1).maybeSingle()
+      out[l] = data ?? null
+    }
+    return json({ policies: out })
+  }
+  m = path.match(/^\/v1\/policy\/(en|ru|tg)$/)
+  if (req.method === 'PUT' && m) {
+    const body = await req.json().catch(() => null)
+    const md = typeof body?.body_md === 'string' ? body.body_md.trim() : ''
+    if (!md) return fail(400, 'body_required', 'Send { "body_md": "<markdown>" }')
+    if (md.length > 60000) return fail(400, 'too_long', 'At most 60,000 characters')
+    const { data: last } = await db.from('hotel_policies').select('version').eq('lang', m[1]).order('version', { ascending: false }).limit(1).maybeSingle()
+    const { data, error } = await db
+      .from('hotel_policies')
+      .insert({ lang: m[1], version: (last?.version ?? 0) + 1, body_md: md, created_by: 'front desk app' })
+      .select('id, lang, version, created_at')
+      .single()
+    if (error) return fail(400, 'save_failed', error.message)
+    await log('policy published', true, `${m[1]} v${data.version}`)
+    return json({ policy: data })
   }
 
   // GET /v1/tablets

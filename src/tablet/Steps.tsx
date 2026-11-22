@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
 import { ApiError } from '../lib/supabase'
-import type { MrzData, PublicReservation, TabletConfig, WifiInfo } from '../lib/types'
+import type { Policy, TabletConfig, WifiInfo } from '../lib/types'
+import { Markdown } from '../lib/markdown'
 import { wifiQrText } from '../lib/wifi'
 import { fmtDay, LANGS, type Lang } from '../translations'
+import { dushanbeTime, hasLobbyWifiPairing, useWifiVoucher, wifiVoucherText } from './frontdesk'
 import { AnimatedCheck, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, Spinner, WifiIcon } from '../ui'
 import { Shell } from './Shell'
 
@@ -14,288 +16,6 @@ export interface Details {
   shuttle: 'yes' | 'no' | null
 }
 export const emptyDetails: Details = { phone: '', email: '', shuttle: null }
-
-/* -------------------- 1a. Waiting for reception to scan ----------------- */
-
-export function WaitForDesk({ onBack, onManual }: { onBack: () => void; onManual: () => void }) {
-  const t = useT()
-  return (
-    <Shell step={1} onBack={onBack}>
-      <div className="flex flex-1 items-center gap-14">
-        <div className="relative flex h-[300px] w-[38%] shrink-0 items-center justify-center" aria-hidden="true">
-          <span className="ss-ping absolute h-56 w-56 rounded-full bg-gold/15" />
-          <span className="absolute h-56 w-56 rounded-full border-2 border-gold/30" />
-          <div className="handoff-card relative flex h-44 w-32 flex-col items-center justify-between rounded-2xl bg-forest py-5 text-gold-light shadow-[0_24px_50px_-20px_rgb(14_59_46/0.8)]">
-            <span className="text-[10px] font-semibold tracking-[0.3em]">PASSPORT</span>
-            <span className="emblem h-12 w-12" style={{ backgroundColor: 'currentColor' }} />
-            <span className="h-1 w-16 rounded-full bg-gold-light/40" />
-          </div>
-        </div>
-        <div className="flex-1">
-          <h2 className="text-5xl leading-tight text-forest">{t('waitTitle')}</h2>
-          <p className="mt-4 flex items-center gap-3 text-xl text-muted">
-            <Spinner className="h-5 w-5 text-gold" />
-            {t('waitSub')}
-          </p>
-          <Button variant="ghost" className="mt-10" onClick={onManual}>
-            {t('waitManual')}
-          </Button>
-        </div>
-      </div>
-    </Shell>
-  )
-}
-
-/* ---------------------- 1b. Find the booking (name / number) ----------- */
-
-export function FindBooking({
-  deskMode,
-  initialSurname,
-  multiple,
-  onBack,
-  onFound,
-  onScan,
-  onHelp,
-}: {
-  /** Passports are scanned at reception: look the booking up by name first. */
-  deskMode: boolean
-  initialSurname: string
-  multiple: boolean
-  onBack: () => void
-  onFound: (r: PublicReservation) => void
-  onScan?: () => void
-  onHelp: () => void
-}) {
-  const t = useT()
-  const [by, setBy] = useState<'name' | 'ref'>(deskMode && !multiple ? 'name' : 'ref')
-  const [ref, setRef] = useState('')
-  const [first, setFirst] = useState('')
-  const [surname, setSurname] = useState(initialSurname)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<'none' | 'failed' | null>(null)
-  const [needRef, setNeedRef] = useState(multiple)
-  const ready = surname.trim().length >= 2 && (by === 'name' ? first.trim().length >= 2 : ref.trim().length >= 3)
-
-  const submit = async () => {
-    if (!ready || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const res = by === 'name' ? await tablet.findByName(surname.trim(), first.trim()) : await tablet.findByRef(ref.trim(), surname.trim())
-      if (res.status === 'found') onFound(res.reservation)
-      else if (res.status === 'multiple') {
-        setNeedRef(true)
-        setBy('ref')
-      } else setError('none')
-    } catch {
-      setError('failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const tab = (k: 'name' | 'ref', label: string) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={by === k}
-      onClick={() => {
-        setBy(k)
-        setError(null)
-      }}
-      className={`min-h-14 flex-1 cursor-pointer rounded-xl px-5 text-lg font-medium transition-all duration-200 ${
-        by === k ? 'bg-forest text-cream shadow-[0_8px_20px_-12px_rgb(14_59_46/0.8)]' : 'text-muted hover:text-forest'
-      }`}
-    >
-      {label}
-    </button>
-  )
-
-  return (
-    <Shell
-      step={deskMode ? 1 : 0}
-      onBack={onBack}
-      action={
-        <Button disabled={!ready || busy} onClick={submit}>
-          {busy ? <Spinner /> : null}
-          {busy ? t('searching') : t('findBooking')}
-        </Button>
-      }
-    >
-      <form
-        className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center"
-        onSubmit={(e) => {
-          e.preventDefault()
-          submit()
-        }}
-      >
-        <h2 className="text-5xl text-forest">{t('findTitle')}</h2>
-        <p className="mt-2 text-lg text-muted">{needRef ? t('findMultiple') : by === 'name' ? t('findNameText') : t('bookingNumberHint')}</p>
-        {deskMode && (
-          <div className="mt-6 flex max-w-xl gap-1 rounded-2xl border border-line bg-white p-1.5" role="tablist">
-            {tab('name', t('findByName'))}
-            {tab('ref', t('findByRef'))}
-          </div>
-        )}
-        <div key={by} className="fade-in mt-6 grid grid-cols-2 gap-6">
-          {by === 'name' ? (
-            <div>
-              <label htmlFor="fn" className="eyebrow block">{t('firstName')}</label>
-              <input id="fn" value={first} onChange={(e) => setFirst(e.target.value)} autoComplete="off" autoCapitalize="words" spellCheck={false} enterKeyHint="next" className="field mt-2" />
-            </div>
-          ) : (
-            <div>
-              <label htmlFor="bk" className="eyebrow block">{t('bookingNumber')}</label>
-              <input id="bk" value={ref} onChange={(e) => setRef(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} enterKeyHint="next" className="field mt-2 uppercase tracking-wider" />
-              <p className="mt-2 text-sm text-muted">{t('bookingNumberHint')}</p>
-            </div>
-          )}
-          <div>
-            <label htmlFor="sn" className="eyebrow block">{t('surname')}</label>
-            <input id="sn" value={surname} onChange={(e) => setSurname(e.target.value)} autoComplete="off" autoCapitalize="words" spellCheck={false} enterKeyHint="search" className="field mt-2" />
-            <p className="mt-2 text-sm text-muted">{t('surnameHint')}</p>
-          </div>
-        </div>
-        <button type="submit" hidden />
-        <div className="mt-6 min-h-[88px]">
-          {error === 'none' && (
-            <ErrorNote>
-              <strong className="block font-semibold">{t('notFoundTitle')}</strong>
-              {t('notFoundText')}
-              <button type="button" onClick={onHelp} className="ml-2 min-h-11 cursor-pointer font-semibold underline underline-offset-4">
-                {t('teamHelp')}
-              </button>
-            </ErrorNote>
-          )}
-          {error === 'failed' && (
-            <ErrorNote>
-              <strong className="block font-semibold">{t('errorTitle')}</strong>
-              {t('errorText')}
-            </ErrorNote>
-          )}
-        </div>
-        {onScan && (
-          <Button variant="ghost" className="self-start" onClick={onScan}>
-            {t('scanInstead')}
-          </Button>
-        )}
-      </form>
-    </Shell>
-  )
-}
-
-/* ------------------------------ 2. Confirm ------------------------------- */
-
-function mask(doc: string) {
-  return doc.length > 4 ? `•••• ${doc.slice(-4)}` : doc
-}
-
-export function Confirm({
-  reservation: r,
-  mrz,
-  onBack,
-  onYes,
-  onNo,
-  greetName,
-  onLang,
-}: {
-  reservation: PublicReservation
-  mrz: MrzData | null
-  onBack?: () => void
-  onYes: () => void
-  onNo: () => void
-  /** Sent from reception: greet the guest by name and let them change the language. */
-  greetName?: string
-  onLang?: (l: Lang) => void
-}) {
-  const t = useT()
-  const lang = useLang()
-  const expired = mrz?.expiryDate ? mrz.expiryDate < new Date().toISOString().slice(0, 10) : false
-  return (
-    <Shell step={1} onBack={onBack} hideBack={!onBack} noLang={!!onLang}>
-      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center">
-        {greetName && (
-          <div className="mb-1 flex items-center justify-between gap-4">
-            <p className="rise font-serif text-3xl font-semibold text-label">{t('welcomeName', { name: greetName })}</p>
-            {onLang && (
-              <div className="flex gap-1 rounded-xl border border-line bg-white p-1" role="group" aria-label={t('chooseLanguage')}>
-                {LANGS.map((l) => (
-                  <button
-                    key={l.code}
-                    type="button"
-                    lang={l.code}
-                    aria-pressed={lang === l.code}
-                    onClick={() => onLang(l.code)}
-                    className={`min-h-12 cursor-pointer rounded-lg px-4 text-base font-medium transition ${lang === l.code ? 'bg-forest text-cream' : 'text-muted hover:text-forest'}`}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        <h2 className="text-5xl text-forest">{t('confirmTitle')}</h2>
-        <div className="card mt-6 overflow-hidden">
-          <div className="relative overflow-hidden bg-forest px-8 py-6 text-cream">
-            <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">
-              {t('bookingRef').toUpperCase()} · {r.booking_ref} · {r.source}
-            </p>
-            <p className="mt-1 font-serif text-4xl font-semibold">{r.guest_name}</p>
-          </div>
-          <dl className="grid grid-cols-3 divide-x divide-line">
-            <div className="px-8 py-5">
-              <dt className="eyebrow">{t('dates')}</dt>
-              <dd className="mt-1.5 text-xl font-medium">
-                {fmtDay(r.arrival_date, lang)} – {fmtDay(r.departure_date, lang)}
-              </dd>
-              <dd className="text-muted">{r.nights === 1 ? t('oneNight') : t('nights', { n: r.nights })}</dd>
-            </div>
-            <div className="px-8 py-5">
-              <dt className="eyebrow">{t('room')}</dt>
-              <dd className="mt-1.5 text-xl font-medium">{r.room_number ? t('roomAssigned', { room: r.room_number }) : r.room_type || '—'}</dd>
-              <dd className="text-muted">
-                {r.room_number && r.room_type ? `${r.room_type} · ` : ''}
-                {t('guests')}: {r.adults}
-              </dd>
-            </div>
-            <div className="px-8 py-5">
-              <dt className="eyebrow">{t('meals')}</dt>
-              <dd className="mt-1.5 text-xl font-medium">{r.breakfast ? t('breakfastIncluded') : t('roomOnly')}</dd>
-            </div>
-          </dl>
-          {mrz && (
-            <div className="flex items-center justify-between gap-6 border-t border-line bg-cream/60 px-8 py-4">
-              <div>
-                <span className="eyebrow">{t('passport')}</span>
-                <p className="mt-1 text-lg font-medium">
-                  {mrz.surname}, {mrz.givenNames}
-                  <span className="ml-3 text-muted">
-                    {mrz.nationality} · {mask(mrz.documentNumber)}
-                  </span>
-                </p>
-              </div>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-forest text-gold-light" aria-hidden="true">
-                <CheckIcon className="h-4 w-4" />
-              </span>
-            </div>
-          )}
-        </div>
-        {expired && (
-          <div className="mt-4">
-            <ErrorNote>{t('passportExpired')}</ErrorNote>
-          </div>
-        )}
-        <div className="mt-6 grid grid-cols-2 gap-4">
-          <Button onClick={onYes}>{t('yesCorrect')}</Button>
-          <Button variant="secondary" onClick={onNo}>
-            {t('notMine')}
-          </Button>
-        </div>
-      </div>
-    </Shell>
-  )
-}
 
 export function NeedHelp({ onBack, onStart, step, title }: { onBack?: () => void; onStart: () => void; step?: number; title?: string }) {
   const t = useT()
@@ -320,12 +40,16 @@ export function NeedHelp({ onBack, onStart, step, title }: { onBack?: () => void
 export function DetailsStep({
   value,
   onChange,
-  onBack,
+  greetName,
+  onNotMe,
   onNext,
 }: {
   value: Details
   onChange: (d: Details) => void
-  onBack: () => void
+  /** The guest's surname from the passport reception scanned. */
+  greetName: string
+  /** Shown as "Not you?": the booking reception sent is someone else's. */
+  onNotMe: () => void
   onNext: () => void
 }) {
   const t = useT()
@@ -334,15 +58,23 @@ export function DetailsStep({
   return (
     <Shell
       step={2}
-      onBack={onBack}
+      hideBack
       action={
-        <Button disabled={emailBad} onClick={onNext}>
-          {t('continue')}
-        </Button>
+        <div className="flex w-full items-center justify-between gap-4">
+          <button type="button" onClick={onNotMe} className="min-h-12 cursor-pointer rounded-lg px-3 text-base text-muted underline underline-offset-4 hover:text-forest">
+            {t('notMe')}
+          </button>
+          <Button disabled={emailBad} onClick={onNext}>
+            {t('continue')}
+          </Button>
+        </div>
       }
     >
       <div className="mx-auto grid w-full max-w-4xl flex-1 grid-cols-2 content-center gap-x-8 gap-y-6">
-        <h2 className="col-span-2 text-5xl text-forest">{t('detailsTitle')}</h2>
+        <div className="col-span-2">
+          {greetName && <p className="rise font-serif text-3xl font-semibold text-label">{t('welcomeName', { name: greetName })}</p>}
+          <h2 className="text-5xl text-forest">{t('detailsTitle')}</h2>
+        </div>
         <div>
           <label htmlFor="phone" className="eyebrow block">{t('phone')}{opt}</label>
           <input id="phone" type="tel" inputMode="tel" autoComplete="off" placeholder="+992" className="field mt-2" value={value.phone} onChange={(e) => onChange({ ...value, phone: e.target.value })} />
@@ -411,17 +143,36 @@ function exportSignature(c: HTMLCanvasElement): string {
   return out.toDataURL('image/png')
 }
 
+/** The hotel policy in the guest's language (English fallback); null when none is published. */
+function usePolicy(lang: Lang): Policy | null | 'loading' {
+  const [p, setP] = useState<Policy | null | 'loading'>('loading')
+  useEffect(() => {
+    let alive = true
+    setP((cur) => (cur && cur !== 'loading' && cur.lang === lang ? cur : 'loading'))
+    tablet
+      .policy(lang)
+      .then((r) => alive && setP(r))
+      .catch(() => alive && setP(null))
+    return () => {
+      alive = false
+    }
+  }, [lang])
+  return p
+}
+
 export function SignatureStep({
   onBack,
   onSubmit,
   signerName,
 }: {
   onBack: () => void
-  onSubmit: (signaturePng: string) => Promise<void>
+  /** policyId: the hotel policy version shown on this screen (null when none is published). */
+  onSubmit: (signaturePng: string, policyId: string | null) => Promise<void>
   signerName: string
 }) {
   const t = useT()
   const lang = useLang()
+  const policy = usePolicy(lang)
   const canvas = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
   const pts = useRef<Pt[]>([])
@@ -516,7 +267,7 @@ export function SignatureStep({
     setBusy(true)
     setFailed(false)
     try {
-      await onSubmit(exportSignature(canvas.current!))
+      await onSubmit(exportSignature(canvas.current!), policy && policy !== 'loading' ? policy.id : null)
     } catch (e) {
       if (!(e instanceof ApiError && e.code === 'reservation_unavailable')) setFailed(true)
       setBusy(false)
@@ -534,43 +285,59 @@ export function SignatureStep({
         </Button>
       }
     >
-      <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <h2 className="text-5xl text-forest">{t('sigTitle')}</h2>
-            <p className="mt-1 text-lg text-muted">{t('sigHint')}</p>
+      <div className={`mx-auto grid min-h-0 w-full flex-1 gap-6 ${policy === null ? 'max-w-4xl grid-cols-1' : 'max-w-6xl grid-cols-[1.05fr_1fr]'}`}>
+        {policy !== null && (
+          <section className="card flex min-h-0 flex-col overflow-hidden" aria-labelledby="policy-title">
+            <h3 id="policy-title" className="border-b border-line px-6 py-4 text-2xl text-forest">{t('policyTitle')}</h3>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4 text-[17px] text-ink">
+              {policy === 'loading' ? (
+                <div className="space-y-3" aria-hidden="true">
+                  {[90, 70, 84, 60, 76].map((w, i) => <span key={i} className="shimmer h-4 rounded-full" style={{ width: `${w}%` }} />)}
+                </div>
+              ) : (
+                <Markdown source={policy.body_md} />
+              )}
+            </div>
+          </section>
+        )}
+        <div className="flex min-h-0 flex-col">
+          <div className="flex items-end justify-between gap-6">
+            <div>
+              <h2 className="text-5xl text-forest">{t('sigTitle')}</h2>
+              <p className="mt-1 text-lg text-muted">{policy ? t('sigAgree') : t('sigHint')}</p>
+            </div>
+            <Button variant="secondary" onClick={clear} disabled={!signed || busy}>
+              {t('clear')}
+            </Button>
           </div>
-          <Button variant="secondary" onClick={clear} disabled={!signed || busy}>
-            {t('clear')}
-          </Button>
-        </div>
-        <div className="card relative mt-4 min-h-[240px] flex-1 overflow-hidden !bg-white">
-          <canvas
-            ref={canvas}
-            aria-label={t('signHere')}
-            className="relative z-10 h-full w-full cursor-crosshair touch-none"
-            onPointerDown={down}
-            onPointerMove={move}
-            onPointerUp={up}
-            onPointerCancel={up}
-          />
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-10 bottom-12 flex items-center gap-3 text-muted">
-            <span className="font-serif text-3xl">×</span>
-            <span className="h-px flex-1 bg-line" />
-            <span className="text-sm">{t('signHere')}</span>
+          <div className="card relative mt-4 min-h-[240px] flex-1 overflow-hidden !bg-white">
+            <canvas
+              ref={canvas}
+              aria-label={t('signHere')}
+              className="relative z-10 h-full w-full cursor-crosshair touch-none"
+              onPointerDown={down}
+              onPointerMove={move}
+              onPointerUp={up}
+              onPointerCancel={up}
+            />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-8 bottom-12 flex items-center gap-3 text-muted">
+              <span className="font-serif text-3xl">×</span>
+              <span className="h-px flex-1 bg-line" />
+              <span className="text-sm">{t('signHere')}</span>
+            </div>
+            <p aria-hidden="true" className="pointer-events-none absolute inset-x-8 bottom-4 text-sm text-muted">
+              {t('signedBy', { name: signerName, date: fmtDay(new Date().toISOString().slice(0, 10), lang, true) })}
+            </p>
           </div>
-          <p aria-hidden="true" className="pointer-events-none absolute inset-x-10 bottom-4 text-sm text-muted">
-            {t('signedBy', { name: signerName, date: fmtDay(new Date().toISOString().slice(0, 10), lang, true) })}
-          </p>
-        </div>
-        <div className="mt-2 min-h-6">
-          {failed ? (
-            <ErrorNote>
-              <strong className="font-semibold">{t('errorTitle')}.</strong> {t('errorText')}
-            </ErrorNote>
-          ) : (
-            <p className="text-sm text-muted">{signed ? '' : t('sigNeeded')}</p>
-          )}
+          <div className="mt-2 min-h-6">
+            {failed ? (
+              <ErrorNote>
+                <strong className="font-semibold">{t('errorTitle')}.</strong> {t('errorText')}
+              </ErrorNote>
+            ) : (
+              <p className="text-sm text-muted">{signed ? '' : t('sigNeeded')}</p>
+            )}
+          </div>
         </div>
       </div>
     </Shell>
@@ -593,19 +360,16 @@ function useCountdown(seconds: number, onEnd: () => void) {
   return Math.max(n, 0)
 }
 
-/** Guest Wi-Fi with a QR code. Shows the hotel network at once and switches to the stay's own
- *  network if the front desk app sends one in the moments after check-in. */
-function useWifi(config: TabletConfig | null, checkinId: string | null | undefined): WifiInfo | null {
-  const fallback: WifiInfo | null = config?.wifi_name
-    ? {
-        ssid: config.wifi_name,
-        password: config.wifi_password || null,
-        security: config.wifi_security ?? 'WPA',
-        hidden: config.wifi_hidden,
-        qr_payload: config.wifi_qr,
-      }
-    : null
-  const [wifi, setWifi] = useState<WifiInfo | null>(null)
+/**
+ * Room and Wi-Fi for the Done screen. Asks the server a few times, because reception may assign the
+ * room, or the front desk app may create a personal Wi-Fi voucher, just after the guest signs.
+ * Wi-Fi: the stay's own network if the front desk app sent one; otherwise the hotel's Wi-Fi login
+ * voucher from the front desk server (the tablet's "Visitors Wi-Fi" pairing); otherwise the network
+ * set in Settings.
+ */
+function useDoneInfo(config: TabletConfig | null, checkinId: string | null | undefined, initialRoom: string | null) {
+  const [room, setRoom] = useState(initialRoom)
+  const [serverWifi, setServerWifi] = useState<WifiInfo | null | undefined>(undefined)
   useEffect(() => {
     if (!checkinId) return
     let alive = true
@@ -613,15 +377,15 @@ function useWifi(config: TabletConfig | null, checkinId: string | null | undefin
     let timer: number | undefined
     const load = () =>
       tablet
-        .wifi(checkinId)
-        .then((w) => {
+        .checkinInfo(checkinId)
+        .then((info) => {
           if (!alive) return
-          if (w) setWifi(w)
-          // The front desk app may still be creating a personal Wi-Fi voucher: check a few more times.
-          if (!w?.per_stay && ++tries < 6) timer = window.setTimeout(load, 3500)
+          if (info?.room_number) setRoom(info.room_number)
+          setServerWifi(info?.wifi ?? null)
+          if ((!info?.room_number || !info?.wifi?.per_stay) && ++tries < 8) timer = window.setTimeout(load, 3500)
         })
         .catch(() => {
-          if (alive && ++tries < 6) timer = window.setTimeout(load, 3500)
+          if (alive && ++tries < 8) timer = window.setTimeout(load, 3500)
         })
     load()
     return () => {
@@ -629,21 +393,22 @@ function useWifi(config: TabletConfig | null, checkinId: string | null | undefin
       window.clearTimeout(timer)
     }
   }, [checkinId])
-  return wifi ?? fallback
+  const hotelWifi: WifiInfo | null = config?.wifi_name
+    ? { ssid: config.wifi_name, password: config.wifi_password || null, security: config.wifi_security ?? 'WPA', hidden: config.wifi_hidden, qr_payload: config.wifi_qr }
+    : null
+  return { room, perStay: serverWifi?.per_stay ? serverWifi : null, fallback: serverWifi ?? hotelWifi }
 }
 
 function WifiCard({ wifi }: { wifi: WifiInfo }) {
   const t = useT()
   return (
-    <div className="card flex items-center gap-6 p-6">
+    <div className="card flex h-full items-center gap-6 p-6">
       <QrCode key={wifiQrText(wifi)} text={wifiQrText(wifi)} label={t('wifiScan')} className="h-44 w-44 xl:h-48 xl:w-48" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-forest">
           <WifiIcon />
           <h3 className="text-3xl">{t('wifiTitle')}</h3>
-          {wifi.per_stay && (
-            <span className="fade-in rounded-full bg-gold-light/50 px-3 py-1 text-xs font-semibold tracking-wide text-label">{t('wifiPerStay')}</span>
-          )}
+          {wifi.per_stay && <span className="fade-in rounded-full bg-gold-light/50 px-3 py-1 text-xs font-semibold tracking-wide text-label">{t('wifiPerStay')}</span>}
         </div>
         <dl className="mt-3 space-y-2 text-lg">
           <div>
@@ -667,56 +432,55 @@ function WifiCard({ wifi }: { wifi: WifiInfo }) {
   )
 }
 
+/** The hotel's Wi-Fi login link (from the front desk server) as a QR code. */
+function VoucherCard({ url, expiresAt }: { url: string; expiresAt: number }) {
+  const t = useT()
+  const lang = useLang()
+  const v = wifiVoucherText[lang]
+  return (
+    <div className="card flex h-full items-center gap-6 p-6">
+      <QrCode key={url} text={url} label={t('wifiTitle')} className="h-44 w-44 xl:h-48 xl:w-48" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3 text-forest">
+          <WifiIcon />
+          <h3 className="text-3xl">{t('wifiTitle')}</h3>
+        </div>
+        <p className="mt-3 text-lg">{v[1]}</p>
+        <p className="mt-3 flex items-center gap-2 text-sm text-muted">
+          <PhoneIcon className="h-4 w-4 shrink-0" />
+          {t('wifiScan')}
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          {v[2]} {dushanbeTime.format(expiresAt)}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function Done({
   onFinish,
-  shuttle,
   breakfast,
   config,
-  room,
-  deskCode,
-  adults = 1,
-  fromDesk = false,
+  room: initialRoom,
   checkinId,
 }: {
   onFinish: () => void
-  shuttle: boolean
   breakfast: boolean
   config: TabletConfig | null
   room: string | null
-  /** Set when passports are scanned at reception: the number the guest shows at the desk. */
-  deskCode?: string | null
-  adults?: number
-  /** The booking came from reception, which already holds the passport. */
-  fromDesk?: boolean
-  /** The check-in just created, used to fetch the stay's own Wi-Fi. */
+  /** The check-in just created: used to fetch the room and the stay's Wi-Fi. */
   checkinId?: string | null
 }) {
   const t = useT()
-  const wifi = useWifi(config, checkinId)
+  const { room, perStay, fallback } = useDoneInfo(config, checkinId, initialRoom)
+  const paired = hasLobbyWifiPairing()
+  const { voucher } = useWifiVoucher(paired && !perStay)
+  const wifi = perStay ?? (paired ? null : fallback)
+  const showWifi = !!wifi || !!voucher
   // Give guests time to scan the Wi-Fi code before the screen resets.
-  const n = useCountdown(wifi ? 45 : 20, onFinish)
-  const extras: React.ReactNode[] = []
-  if (breakfast && config?.breakfast_hours)
-    extras.push(
-      <div key="bf" className="card p-6">
-        <div className="flex items-center gap-3 text-forest">
-          <CupIcon />
-          <h3 className="text-3xl">{t('breakfastTitle')}</h3>
-        </div>
-        <p className="mt-3 text-lg">{t('breakfastInfo', { hours: config.breakfast_hours })}</p>
-      </div>,
-    )
-  if (shuttle)
-    extras.push(
-      <div key="sh" className="card p-6">
-        <div className="flex items-center gap-3 text-forest">
-          <CarIcon />
-          <h3 className="text-3xl leading-tight">{t('shuttleTitle')}</h3>
-        </div>
-        <p className="mt-3 text-lg">{t('shuttleBooked')}</p>
-        <p className="mt-1 text-sm text-muted">{t('shuttleNote')}</p>
-      </div>,
-    )
+  const n = useCountdown(45, onFinish)
+  const showBreakfast = breakfast && !!config?.breakfast_hours
 
   return (
     <Shell
@@ -734,41 +498,31 @@ export function Done({
           <AnimatedCheck size="h-24 w-24" />
           <div className="rise min-w-0" style={{ animationDelay: '120ms' }}>
             <h2 className="text-6xl text-forest">{t('doneTitle')}</h2>
-            <p className="mt-1 text-2xl font-medium text-ink">{fromDesk ? t('handoffDoneSub') : deskCode ? t('deskSub') : t('doneSub')}</p>
-            {!fromDesk && <p className="mt-1 text-lg text-muted">{deskCode ? t('deskKey') : t('doneKey')}</p>}
-            {deskCode && adults > 1 && <p className="mt-1 text-lg font-medium text-label">{t('deskManyPassports', { n: adults })}</p>}
+            <p className="mt-1 text-2xl font-medium text-ink">{t('handoffDoneSub')}</p>
           </div>
-          {deskCode ? (
-            <div className="ring-grow ml-auto shrink-0 rounded-3xl bg-forest px-8 py-5 text-center text-cream shadow-[0_20px_50px_-24px_rgb(14_59_46/0.9)]" style={{ animationDelay: '180ms' }}>
-              <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">{t('checkinNumber').toUpperCase()}</p>
-              <p className="mt-1 font-mono text-6xl font-semibold tracking-[0.12em] text-cream">{deskCode}</p>
-              {room && <p className="mt-1 text-sm text-gold-light">{t('roomAssigned', { room })}</p>}
-            </div>
-          ) : room && (
-            <div className="rise ml-auto shrink-0 rounded-2xl bg-forest px-7 py-4 text-center text-cream" style={{ animationDelay: '200ms' }}>
+          {room && (
+            <div className="ring-grow ml-auto shrink-0 rounded-3xl bg-forest px-9 py-5 text-center text-cream shadow-[0_20px_50px_-24px_rgb(14_59_46/0.9)]" style={{ animationDelay: '200ms' }}>
               <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</p>
-              <p className="font-serif text-5xl font-semibold">{room}</p>
+              <p className="font-serif text-6xl font-semibold">{room}</p>
             </div>
           )}
         </div>
-        {(wifi || extras.length > 0) && (
-          <div
-            className={`mt-10 grid gap-5 ${
-              wifi && extras.length ? 'grid-cols-[1.45fr_1fr]' : wifi ? 'max-w-3xl grid-cols-1' : extras.length === 2 ? 'grid-cols-2' : 'max-w-md grid-cols-1'
-            }`}
-          >
-            {wifi && (
+        {(showWifi || showBreakfast) && (
+          <div className={`mt-10 grid gap-5 ${showWifi && showBreakfast ? 'grid-cols-[1.6fr_1fr]' : 'max-w-3xl grid-cols-1'}`}>
+            {showWifi && (
               <div className="rise" style={{ animationDelay: '260ms' }}>
-                <WifiCard wifi={wifi} />
+                {wifi ? <WifiCard wifi={wifi} /> : <VoucherCard url={voucher!.url} expiresAt={voucher!.expiresAt} />}
               </div>
             )}
-            {extras.length > 0 && (
-              <div className={wifi ? 'flex flex-col gap-5' : 'contents'}>
-                {extras.map((c, i) => (
-                  <div key={i} className="rise" style={{ animationDelay: `${350 + i * 90}ms` }}>
-                    {c}
+            {showBreakfast && (
+              <div className="rise" style={{ animationDelay: '350ms' }}>
+                <div className="card h-full p-6">
+                  <div className="flex items-center gap-3 text-forest">
+                    <CupIcon />
+                    <h3 className="text-3xl">{t('breakfastTitle')}</h3>
                   </div>
-                ))}
+                  <p className="mt-3 text-lg">{t('breakfastInfo', { hours: config!.breakfast_hours })}</p>
+                </div>
               </div>
             )}
           </div>

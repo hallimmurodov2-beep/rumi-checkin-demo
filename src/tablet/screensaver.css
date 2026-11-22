@@ -1,0 +1,35 @@
+/* Screensaver layout and world clocks (from the Front Desk app developer's build, 2026-11-22). */
+.ss-root{--ss-edge:clamp(16px, 3.4vw, 48px);--ss-gold:#e8d09a}
+.ss-root:after{content:"";z-index:3;pointer-events:none;background:linear-gradient(#07191670,#0000 35% 52%,#071916ab);position:absolute;inset:0}
+.ss-masthead{z-index:4;inset:var(--ss-edge) var(--ss-edge) auto;justify-content:space-between;align-items:flex-start;gap:12px;display:flex;position:absolute}
+.ss-home-clock{text-align:right;color:#fff9ed;border-inline-end:2px solid var(--ss-gold);background:#0a1f1bd1;border-radius:12px 2px 2px 12px;padding:12px clamp(14px,2vw,28px)}
+.ss-home-city,.ss-city{color:var(--ss-gold);letter-spacing:.12em;text-transform:uppercase;font-weight:600}
+.ss-home-city{font-size:clamp(10px,1.2vw,15px)}
+.ss-time,.ss-home-time{font-family:var(--font-serif), Georgia, serif;font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.025em;line-height:1;display:block}
+.ss-home-time{margin:4px 0;font-size:clamp(44px,6.6vw,92px)}
+.ss-home-date{font-size:clamp(11px,1.3vw,16px)}
+.ss-lower{z-index:4;inset:auto var(--ss-edge) var(--ss-edge);gap:clamp(12px,2.5vh,26px);display:grid;position:absolute}
+.ss-caption-wrap{justify-self:start;max-width:min(640px,75%)}
+.ss-clock-rail{color:#fff9ed;background:#0a1f1be3;border-top:1px solid #e8d09aad;border-radius:2px 2px 12px 12px;grid-template-columns:repeat(4,minmax(0,1fr));padding:12px 0;display:grid}
+.ss-world-clock{justify-content:center;align-items:center;gap:clamp(8px,1.4vw,24px);min-width:0;display:flex}
+.ss-world-clock+.ss-world-clock{border-inline-start:1px solid #e8d09a52}
+.ss-city{font-size:clamp(10px,1.1vw,15px)}
+.ss-time{margin-top:4px;font-size:clamp(25px,3vw,46px)}
+.ss-dial{aspect-ratio:1;border:1px solid #e8d09abf;border-radius:50%;flex:none;width:clamp(31px,4.2vw,60px);position:relative}
+.ss-dial:before{content:"";background:repeating-conic-gradient(from -1deg, var(--ss-gold) 0deg 2deg, transparent 2deg 30deg);border-radius:50%;position:absolute;inset:2px;-webkit-mask:radial-gradient(closest-side,#0000 81%,#000 84%);mask:radial-gradient(closest-side,#0000 81%,#000 84%)}
+.ss-dial i{transform-origin:bottom;border-radius:2px;width:2px;position:absolute;bottom:50%;left:calc(50% - 1px)}
+.ss-hour-hand{background:#fff9ed;height:24%}
+.ss-minute-hand{background:var(--ss-gold);height:36%}
+.ss-dial:after{content:"";background:var(--ss-gold);border-radius:50%;position:absolute;inset:calc(50% - 2px)}
+@media (width<=650px){.ss-clock-rail{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}
+.ss-world-clock:nth-child(3){border:0}
+.ss-caption-wrap{max-width:100%}
+.ss-caption p:first-of-type{font-size:1.7rem}
+}
+@media (height<=450px) and (orientation:landscape){.ss-root{--ss-edge:12px}
+.ss-clock-rail{grid-template-columns:repeat(4,minmax(0,1fr));padding:7px 0}
+.ss-world-clock:nth-child(3){border-inline-start:1px solid #e8d09a52}
+.ss-caption{padding:8px 14px}
+.ss-caption p:first-of-type{font-size:1.45rem}
+}
+

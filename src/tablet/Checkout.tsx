@@ -3,11 +3,11 @@ import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
 import type { Invoice, PublicReservation } from '../lib/types'
 import { fmtDay, LOCALE } from '../translations'
-import { AnimatedCheck, Button, CheckIcon, ErrorNote, QrCode, ReceiptIcon, Spinner, StarIcon } from '../ui'
+import { AnimatedCheck, Button, CarIcon, CheckIcon, ErrorNote, QrCode, ReceiptIcon, Spinner, StarIcon } from '../ui'
 import { Shell } from './Shell'
 import { useCountdown } from './Steps'
 
-export function CheckoutFind({ onBack, onFound }: { onBack: () => void; onFound: (r: PublicReservation) => void }) {
+export function CheckoutFind({ onBack, onFound }: { onBack: () => void; onFound: (r: PublicReservation, shuttle: boolean) => void }) {
   const t = useT()
   const [room, setRoom] = useState('')
   const [surname, setSurname] = useState('')
@@ -21,7 +21,7 @@ export function CheckoutFind({ onBack, onFound }: { onBack: () => void; onFound:
     setError(null)
     try {
       const res = await tablet.findStay(room.trim(), surname.trim())
-      if (res.status === 'found') onFound(res.reservation)
+      if (res.status === 'found') onFound(res.reservation, !!res.shuttle)
       else setError('none')
     } catch {
       setError('failed')
@@ -232,13 +232,17 @@ function BillLoading() {
 export function Checkout({
   stay: r,
   reviewUrl,
+  shuttle = false,
   onBack,
   onComplete,
 }: {
   stay: PublicReservation
   reviewUrl: string
+  /** The guest asked for the free airport shuttle at check-in. */
+  shuttle?: boolean
   onBack: () => void
-  onComplete: (rating: number, feedback: string, due: Due | null) => Promise<void>
+  /** rating is null when the guest skipped it (rating is optional). */
+  onComplete: (rating: number | null, feedback: string, due: Due | null) => Promise<void>
 }) {
   const t = useT()
   const lang = useLang()
@@ -247,13 +251,16 @@ export function Checkout({
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const bill = useInvoice(r.id)
+  // Leaving before the booked departure date usually changes the bill; say so up front.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dushanbe' })
+  const earlyDays = Math.round((Date.parse(r.departure_date) - Date.parse(today)) / 86_400_000)
 
   const complete = async () => {
     setBusy(true)
     setFailed(false)
     try {
       const inv = bill.invoice
-      await onComplete(rating, rating <= 3 ? text.trim() : '', inv && inv.balance > 0.004 ? { amount: inv.balance, currency: inv.currency } : null)
+      await onComplete(rating || null, rating > 0 && rating <= 3 ? text.trim() : '', inv && inv.balance > 0.004 ? { amount: inv.balance, currency: inv.currency } : null)
     } catch {
       setFailed(true)
       setBusy(false)
@@ -265,7 +272,7 @@ export function Checkout({
       title={t('coTitle')}
       onBack={busy ? undefined : onBack}
       action={
-        <Button disabled={!rating || busy} onClick={complete}>
+        <Button disabled={busy} onClick={complete}>
           {busy && <Spinner />}
           {busy ? t('sending') : t('confirmCheckout')}
         </Button>
@@ -294,7 +301,9 @@ export function Checkout({
         </section>
 
         <section className="card self-start p-7">
-          <h3 className="text-3xl text-forest">{t('rateTitle')}</h3>
+          <h3 className="text-3xl text-forest">
+            {t('rateTitle')} <span className="font-sans text-base font-normal text-muted">({t('optional')})</span>
+          </h3>
           <div className="mt-3 flex gap-1" role="group" aria-label={t('rateTitle')}>
             {[1, 2, 3, 4, 5].map((n) => (
               <button
@@ -338,6 +347,22 @@ export function Checkout({
               <ErrorNote>
                 <strong className="font-semibold">{t('errorTitle')}.</strong> {t('errorText')}
               </ErrorNote>
+            </div>
+          )}
+          {(earlyDays > 0 || shuttle) && (
+            <div className="mt-6 space-y-3 border-t border-line pt-5">
+              {earlyDays > 0 && (
+                <p className="flex gap-3 text-[15px] text-ink">
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-gold" aria-hidden="true" />
+                  {t('earlyDeparture', { n: earlyDays, date: fmtDay(r.departure_date, lang) })}
+                </p>
+              )}
+              {shuttle && (
+                <p className="flex gap-3 text-[15px] text-ink">
+                  <CarIcon className="h-5 w-5 shrink-0 text-forest" />
+                  {t('shuttleReminder')}
+                </p>
+              )}
             </div>
           )}
         </section>

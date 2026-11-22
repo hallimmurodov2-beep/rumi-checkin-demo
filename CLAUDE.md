@@ -11,14 +11,16 @@ Guest tablet (`/tablet`) and front-desk staff app (`/staff`) for The Rumi Hotel 
 ## Where things live
 
 - `src/pages/Tablet.tsx`: the kiosk state machine (steps, idle reset, screensaver, handoff polling).
-- `src/tablet/*`: tablet screens. `Steps.tsx` = check-in steps incl. the Done screen with the Wi-Fi QR; `Checkout.tsx` = check-out with the guest's bill.
+- `src/tablet/*`: tablet screens. Check-in is reception-led: a handoff opens `Steps.tsx` at Details → Signature (hotel policy, `src/lib/markdown.tsx`) → Done (room, Wi-Fi QR, breakfast). There is no Check-in button. `Checkout.tsx` = check-out with the guest's bill. `frontdesk.tsx` = the front desk server integrations (Visitors Wi-Fi voucher, folio invoice station) written by the owner's Codex; keep them working.
 - `src/lib/device.ts`: every tablet call. Tablets have no table access; each call is a `SECURITY DEFINER` RPC that checks the tablet's pairing secret first.
-- `src/staff/*`: staff app. `src/dev/*`: dev-only fixture previews (`/dev/staff`, and `/dev/tablet?screen=<welcome|wait|find|confirm|details|signature|help|done|cofind|checkout|codone|saver|settings>&lang=en|ru|tg&bill=due|paid|slow|none&wifi=stay&due=1`). Use these to check screens without pairing a tablet or touching live data.
+- `src/staff/*`: staff app. `src/dev/*`: dev-only fixture previews (`/dev/staff`, and `/dev/tablet?screen=<welcome|details|signature|help|done|cofind|checkout|codone|saver|settings>&policy=0&lang=en|ru|tg&bill=due|paid|slow|none&wifi=stay&due=1`). Use these to check screens without pairing a tablet or touching live data.
 - `src/translations.ts`: all guest strings in en, ru, tg. Every new guest-facing string needs all three (Tajik is best-effort, flagged for native review).
 - `supabase/functions/partner-api`: REST API + signed webhooks for the owner's front desk app. Guide: `docs/partner-api.md`; Codex integration prompt: `docs/frontdesk-app-codex-prompt.md`.
 - Migrations are not in the repo; they live in Supabase (`list_migrations`). Read live function definitions with `pg_get_functiondef` before changing one.
 
 ## Conventions
+
+- The owner's Codex also works on this repo (see `AGENTS.md`, `CODEX-CONNECT-FRONTDESK.md`). Before deploying, check that production wasn't deployed from another copy: list the Vercel deployments, and if the newest has no git commit, diff its bundles against `main` and port its changes first (this happened on 2026-11-22).
 
 - Tablet UI is landscape-first, large touch targets (min-h-16 buttons), and must fit a ~1180x820 viewport without the important parts scrolling off.
 - Guest data has a retention purge (`purge_guest_data`); anything new that holds guest data must be added to it.

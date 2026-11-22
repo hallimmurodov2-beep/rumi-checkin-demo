@@ -38,11 +38,12 @@ The tablets stand at the reception desk, so the smoothest flow starts with the p
 
 1. The guest hands the passport to the receptionist, who scans it in your app as today. Your app finds the booking in eZee.
 2. Your app calls **`POST /v1/handoffs`** with the booking number, which tablet to use, and the passport details. You can include the booking itself in the same call if you haven't sent it yet.
-3. Within about 2 seconds that tablet opens the booking: "Welcome, Anna — is this your booking?" It's shown in the guest's language, picked from the passport nationality (TJK → Tajik, Russian-speaking countries → Russian, otherwise English). The guest can switch languages there.
-4. The guest confirms, adds a phone number, email and shuttle choice, and signs. You receive `checkin.created` with `handoff_id`, the passport details you sent, and the signature. Give the key and call **approve**.
-5. If the guest taps "Not my booking", you receive `handoff.declined`, so reception can check the booking.
+3. Within about 2 seconds that tablet opens **straight on the Details step**: "Welcome, Eriksson", using the surname from the passport you sent. It's shown in the guest's language, picked from the passport nationality (TJK → Tajik, Russian-speaking countries → Russian, otherwise English). The guest can switch languages at the top.
+4. The guest adds an optional phone number and email and answers the airport shuttle question. They read the **hotel policy** in their language and sign under it. You receive `checkin.created` with `handoff_id`, the passport details you sent, the signature and `policy_signed`.
+5. The Done screen shows the room number, the Wi-Fi QR code and the breakfast hours. It asks for the room again for about 30 seconds, so call **approve** with the room as soon as you have it.
+6. If the guest taps "Not you?", you receive `handoff.declined`, so reception can check the booking.
 
-If the guest walks up to the tablet first, it shows "Please hand your passport to the receptionist" and waits for your handoff. A "Find my booking myself" link lets the guest look it up by name or booking number instead. In that case the tablet gives a short `desk_code` (such as `P17`) that the guest shows at reception.
+**The tablet has no Check-in button.** Every check-in starts with your handoff. A guest who walks up to the tablet is told to hand their passport to reception.
 
 ### `POST /v1/handoffs`
 
@@ -247,6 +248,18 @@ A positive `balance` shows "Balance due" and asks the guest to settle at the des
 
 Response `200`: `{ "invoice": { … as stored … }, "received_at": "…" }`. `GET` returns the stored bill (`404 no_invoice` if none); `DELETE` removes it. Errors: `400 invalid_invoice` with a `detail` that names the field.
 
+### Hotel policy: `GET /v1/policy` and `PUT /v1/policy/{lang}`
+
+The rulebook the guest reads above the signature box, one per language (`en`, `ru`, `tg`). A language without a policy shows the English one. Every `PUT` creates a new version; old versions are kept, and each check-in records the version that was signed.
+
+```json
+PUT /v1/policy/ru
+{ "body_md": "# Правила проживания\n\n- Выезд до 12:00.\n- Курение в номерах запрещено." }
+→ 200 { "policy": { "id": "…", "lang": "ru", "version": 4, "created_at": "…" } }
+```
+
+`GET /v1/policy` returns the latest of each language (`?lang=ru` for one). The body is Markdown: headings (`#`), lists (`-`, `1.`), `**bold**` and `*italic*` are shown; anything else is shown as text. Up to 60,000 characters. The hotel admin can also upload a `.md` file in the tablet admin (Settings → Hotel policy).
+
 ### Check-outs and feedback
 
 ```
@@ -313,6 +326,7 @@ X-Rumi-Signature: sha256=5f2c...
       ],
       "airport_shuttle": true,
       "consent_at": "2026-11-21T09:12:30Z",
+      "policy_signed": { "id": "…", "lang": "ru", "version": 4 },
       "approved_at": null,
       "signature_png": "data:image/png;base64,iVBORw0…",
       "data_deleted": false

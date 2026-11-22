@@ -11,8 +11,9 @@ export const DeskModeContext = createContext(false)
 function Stepper({ step }: { step: number }) {
   const t = useT()
   const desk = useContext(DeskModeContext)
-  const steps = desk ? STEPS.slice(1) : STEPS
-  const current = desk ? Math.max(0, step - 1) : step
+  // Check-in starts at reception, so the tablet shows Details, Signature and Done.
+  const steps = desk ? STEPS.slice(2) : STEPS
+  const current = desk ? Math.max(0, step - 2) : step
   return (
     <ol className="flex min-w-0 items-center" aria-label={`${current + 1} / ${steps.length}`}>
       {steps.map((k, i) => {

@@ -27,3 +27,4 @@ export function kioskInfo(): KioskInfo | null {
     return null
   }
 }
+

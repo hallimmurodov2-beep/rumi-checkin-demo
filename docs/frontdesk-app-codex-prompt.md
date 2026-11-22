@@ -10,7 +10,7 @@ You are working in the codebase of the Front Desk app for **The Rumi Hotel & Res
 
 The hotel also has guest **check-in tablets** at reception (a separate web app). Connect this app to the tablet through the tablet's **Partner API** (REST, JSON) and **webhooks** (signed HTTP POSTs to this app), so that:
 
-1. Reception scans a passport here, and the guest's booking opens on the tablet to confirm and sign.
+1. Reception scans a passport here and checks the guest in on eZee. The tablet then opens on its own at the Details step, greets the guest by surname in their language, shows the hotel policy and takes the signature. The tablet has no Check-in button: every check-in starts here.
 2. Tablet check-ins arrive here instantly. Reception approves them with a room number.
 3. The tablet always has today's bookings and in-house guests, with room numbers.
 4. The tablet shows the **guest Wi-Fi as a QR code** when check-in is done. This app sets that Wi-Fi.
@@ -96,7 +96,7 @@ Failed deliveries are retried by the tablet for about 12 hours (2, 4, 8 … 60 m
 
 ### 4. Passport scan → tablet: `POST /v1/handoffs`
 
-In the flow where reception scans a passport and finds the booking in eZee, add a **"Send to tablet"** action. Send automatically when exactly one booking matched; otherwise let reception pick the booking first.
+In the flow where reception scans a passport and checks the guest in on eZee, send the handoff **automatically** as soon as the eZee check-in succeeds (when exactly one booking matched; otherwise let reception pick the booking first, then send). Also keep a manual **"Send to tablet"** button for retries. The tablet opens straight on the Details step ("Welcome, <Surname>"), so send the real passport `surname` and `nationality`.
 
 - Body: `booking_ref`, `tablet` (from config, or let reception choose from `GET /v1/tablets` when there are several), `passport` (the scanner's fields), and `reservation` (the full booking, so it doesn't need to have been synced yet).
 - Don't send `language`; the tablet picks it from the passport nationality. Send it only when reception chose one.
@@ -104,7 +104,7 @@ In the flow where reception scans a passport and finds the booking in eZee, add 
   - `409 reservation_not_expected` → already checked in or cancelled
   - `400 tablet_required` → choose a tablet
   - `404 tablet_not_found` → tablet name wrong
-- Keep the returned `handoff.id` with the booking. When `checkin.created` arrives with the same `handoff_id`, link them. On `handoff.declined` ("Not my booking" on the tablet), alert reception on that booking.
+- Keep the returned `handoff.id` with the booking. When `checkin.created` arrives with the same `handoff_id`, link them. On `handoff.declined` ("Not you?" on the tablet), alert reception on that booking.
 - Add "Cancel" → `POST /v1/handoffs/{id}/cancel`.
 
 ### 5. Tablet check-ins → reception queue
@@ -114,7 +114,8 @@ On `checkin.created`:
 - Add the guest to a **reception queue** here, showing: guest name, booking, `desk_code` (when present, the guest shows this number at the desk), passport fields, phone, email, airport shuttle request, the signature image (`signature_png`, a PNG data URL), and `additional_guests`.
 - `guest.document.source` is `desk` when the passport details came from this app's scan, or `none` when the guest found the booking themselves. Then reception must scan the passport here.
 - Write the contact details, shuttle request and signature to the eZee booking the same way this app already writes guest data to eZee (skip any field eZee rejects; log it).
-- Reception checks the passport, gives the key, checks the guest in on eZee as today, then presses **Approve** here → `POST /v1/checkins/{id}/approve` with `{ "room_number": "305" }`. **Send back** → `POST /v1/checkins/{id}/reject`.
+- The guest was already checked in on eZee when you sent the handoff, so **approve automatically** with the eZee room: `POST /v1/checkins/{id}/approve` with `{ "room_number": "305" }`. The tablet's Done screen asks for the room for about 30 seconds after the guest signs, so approve straight away. **Send back** (`POST /v1/checkins/{id}/reject`) only if reception spots a problem.
+- Store `policy_signed` (`{ id, lang, version }`) with the stay: it is the exact hotel policy version the guest signed.
 - On `checkin.updated` (approved or rejected from elsewhere), update the queue item so two receptionists don't act on it twice. `409 already_handled` from approve or reject means someone else did it: refresh and move on.
 
 When a check-in happens at the desk without the tablet (walk-in, or the guest skipped the tablet), call `POST /v1/reservations/{booking_ref}/status` with `in_house` and the room. That also closes any waiting tablet check-in.
@@ -127,6 +128,10 @@ The tablet's Done screen shows the Wi-Fi with a QR code. Phones join the network
 - Send them with `PUT /v1/wifi` when saved, and once at app start-up, so the tablet always matches. This replaces whatever the tablet admin typed.
 - **Optional, if the hotel uses per-guest Wi-Fi vouchers** (for example from the router or hotspot system): on `checkin.created`, create the voucher and send `PUT /v1/reservations/{booking_ref}/wifi` with `ssid`, `password`, `security` and a short `note` such as "Valid until 25 Nov, 12:00". Do this within about 15 seconds, because the Done screen checks for a personal Wi-Fi for about 20 seconds before it settles on the hotel network. You can also include `wifi` in the reservation when you send the handoff, which is the most reliable way. If there's no voucher system, skip this part; the hotel network is shown.
 - If the hotspot uses a login page instead of a password, send `qr_payload` with the login URL. The QR then opens that page.
+
+### 6b. Hotel policy (rulebook)
+
+The tablet shows the hotel policy above the signature box, in the guest's language. Publish it from this app with `PUT /v1/policy/{en|ru|tg}` and `{ "body_md": "<markdown>" }` (or the admin uploads a `.md` file in the tablet admin, Settings → Hotel policy). Each publish is a new version. If a language is missing, guests see English. Don't machine-translate the rules silently: have the Russian and Tajik versions checked by a person.
 
 ### 7. The guest's bill → `PUT /v1/reservations/{booking_ref}/invoice`
 
@@ -308,6 +313,10 @@ Same body as `/v1/wifi`, plus optional `note` (≤ 140). → `{ "wifi": { … } 
 Amounts are numbers (strings like `"950,00"` are accepted) rounded to 2 decimals.
 → `200 { "invoice": { …normalised… }, "received_at": "…" }` · `400 invalid_invoice` (detail names the field) · `404 not_found` · `GET` with no bill → `404 no_invoice`
 
+### `GET /v1/policy` and `PUT /v1/policy/{lang}`
+
+`PUT` body: `{ "body_md": "<markdown, ≤ 60,000 chars>" }` → `{ "policy": { "id", "lang", "version", "created_at" } }`. `GET /v1/policy[?lang=ru]` → `{ "policies": { "en": {…}|null, "ru": …, "tg": … } }`.
+
 ### `GET /v1/checkouts` and `GET /v1/feedback`
 
 Query: `since`, `limit`. → `{ "checkouts": [ { "id", "created_at", "rating", "key_returned", "from_tablet", "reservation" } ] }` and `{ "feedback": [ { "id", "created_at", "rating", "comment", "resolved", "reservation" } ] }`
@@ -363,6 +372,7 @@ X-Rumi-Signature: sha256=5f2c…     (hex HMAC-SHA256 of "<timestamp>.<raw body>
   "additional_guests": [],
   "airport_shuttle": true,
   "consent_at": "2026-11-21T09:12:30Z",
+  "policy_signed": { "id": "…", "lang": "ru", "version": 4 },
   "approved_at": null,
   "signature_png": "data:image/png;base64,iVBORw0…",
   "data_deleted": false

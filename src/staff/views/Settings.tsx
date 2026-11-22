@@ -4,6 +4,7 @@ import type { Device, HotelSettings, IntegrationSettings, PartnerSettings, Profi
 import { SUPABASE_URL } from '../../lib/supabase'
 import { deviceOnline, fmtDate, fmtTime, timeAgo, type StaffData } from '../data'
 import { Btn, Chip, Empty, Field, Modal, PageHead, Panel, errorText, useToast } from '../kit'
+import { Markdown } from '../../lib/markdown'
 
 function HotelPanel({ settings, isAdmin, reload }: { settings: HotelSettings | null; isAdmin: boolean; reload: StaffData['reload'] }) {
   const toast = useToast()
@@ -425,12 +426,132 @@ function TeamPanel({ profiles, me, reload }: { profiles: Profile[]; me: string; 
   )
 }
 
+
+const POLICY_LANGS = [
+  { code: 'en', label: 'English' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'tg', label: 'Tajik' },
+] as const
+type PolicyRow = { id: string; lang: string; version: number; body_md: string; created_at: string; created_by: string | null }
+
+/** Hotel policy (rulebook) shown to guests above the signature, one Markdown file per language. */
+function PolicyPanel({ isAdmin }: { isAdmin: boolean }) {
+  const toast = useToast()
+  const [lang, setLang] = useState<'en' | 'ru' | 'tg'>('en')
+  const [rows, setRows] = useState<PolicyRow[]>([])
+  const [draft, setDraft] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const load = () =>
+    supabase
+      .from('hotel_policies')
+      .select('id, lang, version, body_md, created_at, created_by')
+      .order('version', { ascending: false })
+      .then(({ data }) => setRows((data as PolicyRow[]) ?? []))
+  useEffect(() => {
+    load()
+  }, [])
+  const current = rows.find((r) => r.lang === lang)
+  const text = draft ?? current?.body_md ?? ''
+  const onFile = async (f: File | undefined) => {
+    if (!f) return
+    if (f.size > 120_000) return toast('That file is too large (max about 60,000 characters).', 'error')
+    setDraft(await f.text())
+  }
+  const publish = async () => {
+    if (!draft?.trim()) return
+    setBusy(true)
+    try {
+      const res = await rpc<{ version: number }>('publish_policy', { p_lang: lang, p_body: draft })
+      toast(`Published ${POLICY_LANGS.find((l) => l.code === lang)!.label} policy, version ${res.version}`)
+      setDraft(null)
+      load()
+    } catch (e) {
+      toast(errorText(e instanceof ApiError ? e.code : 'unknown_error'), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Panel
+      title="Hotel policy (shown before the guest signs)"
+      action={
+        isAdmin && (
+          <div className="flex gap-2">
+            <label className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-line bg-white px-4 text-sm font-medium text-forest hover:bg-cream">
+              Upload .md file
+              <input type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
+            </label>
+            <Btn tone="primary" disabled={busy || !draft?.trim()} onClick={publish}>Publish</Btn>
+          </div>
+        )
+      }
+    >
+      <div className="p-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex gap-1 rounded-lg border border-line bg-white p-1" role="tablist">
+            {POLICY_LANGS.map((l) => {
+              const has = rows.some((r) => r.lang === l.code)
+              return (
+                <button
+                  key={l.code}
+                  type="button"
+                  role="tab"
+                  aria-selected={lang === l.code}
+                  onClick={() => {
+                    setLang(l.code)
+                    setDraft(null)
+                  }}
+                  className={`min-h-9 cursor-pointer rounded-md px-3 text-sm font-medium ${lang === l.code ? 'bg-forest text-cream' : 'text-muted hover:text-forest'}`}
+                >
+                  {l.label}
+                  {!has && <span className="ml-1 text-xs opacity-70">(none)</span>}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-sm text-muted">
+            {draft !== null
+              ? 'Unpublished changes. Guests keep seeing the published version until you press Publish.'
+              : current
+                ? `Version ${current.version}, published ${fmtDate(current.created_at)} ${fmtTime(current.created_at)}${current.created_by ? ` by ${current.created_by}` : ''}.`
+                : lang === 'en'
+                  ? 'No policy yet. Guests sign without a policy text.'
+                  : 'No policy in this language yet. Guests who chose it see the English one.'}
+          </p>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div>
+            <label htmlFor="policy-md" className="mb-1.5 block text-sm font-medium text-ink">Markdown</label>
+            <textarea
+              id="policy-md"
+              value={text}
+              disabled={!isAdmin}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={16}
+              placeholder={'# House rules\n\n- Check-out is at 12:00.\n- No smoking in rooms.'}
+              className="w-full rounded-lg border border-line bg-white p-3 font-mono text-sm focus:border-forest focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-muted">Headings (#), lists (- or 1.), **bold** and *italic* are shown. Every publish is kept as a new version; each check-in records the version the guest signed.</p>
+          </div>
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-ink">How guests see it</p>
+            <div className="max-h-[420px] overflow-y-auto rounded-lg border border-line bg-paper p-4 text-[15px] text-ink">
+              {text.trim() ? <Markdown source={text} /> : <p className="text-muted">Nothing to show yet.</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  )
+}
+
 export function SettingsView({ data, isAdmin, profile, now }: { data: StaffData; isAdmin: boolean; profile: Profile; now: number }) {
   return (
     <>
       <PageHead title="Settings" sub={`Signed in as ${profile.full_name || profile.email} (${profile.role}).`} />
       <div className="space-y-6">
         <HotelPanel settings={data.settings} isAdmin={isAdmin} reload={data.reload} />
+        <PolicyPanel isAdmin={isAdmin} />
         <PartnerPanel partner={data.partner} isAdmin={isAdmin} reload={data.reload} now={now} />
         <EzeePanel integration={data.integration} log={data.syncLog} isAdmin={isAdmin} reload={data.reload} now={now} />
         <TabletsPanel devices={data.devices} isAdmin={isAdmin} reload={data.reload} now={now} />

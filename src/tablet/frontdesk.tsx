@@ -1,0 +1,318 @@
+// Integration with the owner's Front Desk app server (menu.therumihotel.com:8844), written by the
+// Front Desk app's own developer (Codex) and ported here from the build it deployed on 2026-11-22.
+//
+//  - Visitors Wi-Fi: the tablet is paired once with an 8-digit code from reception, then gets a
+//    time-limited Wi-Fi login link (login.therumihotel.com) shown as a QR code. The Done screen
+//    reuses the same voucher for checked-in guests.
+//  - Folio station: the tablet is paired as a "station"; when reception pushes a guest's invoice,
+//    it is shown full screen as page images.
+import { useEffect, useRef, useState } from 'react'
+import { useLang } from '../i18n'
+import { QrCode } from '../ui'
+
+export const LOBBY_WIFI_ENDPOINT = 'https://menu.therumihotel.com:8844/wifi/lobby-tablet'
+const LOBBY_WIFI_TOKEN = 'rumi-lobby-wifi-token'
+const FOLIO_BASE = 'https://menu.therumihotel.com:8844/wifi/folio/'
+const FOLIO_TOKEN = 'rumi-folio-station-v1'
+
+const WIFI_TEXT = {
+  en: ['Visitors Wi-Fi', 'Connect to The Rumi Hotel, then scan the code.', 'Code valid until', 'Loading…', 'Wi-Fi code temporarily unavailable', 'Close'],
+  ru: ['Wi-Fi для посетителей', 'Подключитесь к сети The Rumi Hotel и отсканируйте код.', 'Код действует до', 'Загрузка…', 'Код Wi-Fi временно недоступен', 'Закрыть'],
+  tg: ['Wi-Fi барои меҳмонон', 'Ба шабакаи The Rumi Hotel пайваст шавед ва рамзро скан кунед.', 'Рамз амал мекунад то', 'Бор шуда истодааст…', 'Рамзи Wi-Fi муваққатан дастнорас аст', 'Пӯшидан'],
+} as const
+
+export const dushanbeTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dushanbe', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+export interface WifiVoucher {
+  url: string
+  expiresAt: number
+}
+
+export function hasLobbyWifiPairing(): boolean {
+  try {
+    return !!localStorage.getItem(LOBBY_WIFI_TOKEN)
+  } catch {
+    return false
+  }
+}
+
+/** Fetches the current Wi-Fi login link. Returns 'unpaired' when the tablet has no (valid) pairing. */
+export async function fetchWifiVoucher(signal?: AbortSignal): Promise<WifiVoucher | 'unpaired'> {
+  const token = localStorage.getItem(LOBBY_WIFI_TOKEN)
+  if (!token) return 'unpaired'
+  const res = await fetch(LOBBY_WIFI_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+    cache: 'no-store',
+    signal,
+  })
+  if (res.status === 401) {
+    localStorage.removeItem(LOBBY_WIFI_TOKEN)
+    return 'unpaired'
+  }
+  if (!res.ok) throw new Error(String(res.status))
+  const v = (await res.json()) as WifiVoucher
+  const url = new URL(v.url)
+  const left = v.expiresAt - Date.now()
+  // Only ever show a login link on the hotel's own Wi-Fi portal.
+  if (url.hostname !== 'login.therumihotel.com' || !['http:', 'https:'].includes(url.protocol) || !Number.isFinite(left) || left <= 0 || left > 14_460_000)
+    throw new Error('bad voucher')
+  return v
+}
+
+/** Keeps a fresh voucher while mounted (renewed when it expires, retried every 5 s on errors). */
+export function useWifiVoucher(enabled = true) {
+  const [voucher, setVoucher] = useState<WifiVoucher | null>(null)
+  const [state, setState] = useState<'loading' | 'ok' | 'error' | 'unpaired'>('loading')
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    if (!enabled) return
+    const ac = new AbortController()
+    let timer: number | undefined
+    const load = async () => {
+      try {
+        const v = await fetchWifiVoucher(ac.signal)
+        if (ac.signal.aborted) return
+        if (v === 'unpaired') {
+          setVoucher(null)
+          setState('unpaired')
+          return
+        }
+        setVoucher(v)
+        setState('ok')
+        timer = window.setTimeout(load, v.expiresAt - Date.now())
+      } catch {
+        if (ac.signal.aborted) return
+        setState('error')
+        timer = window.setTimeout(load, 5000)
+      }
+    }
+    load()
+    return () => {
+      ac.abort()
+      window.clearTimeout(timer)
+    }
+  }, [enabled, attempt])
+  return { voucher, state, reload: () => setAttempt((n) => n + 1) }
+}
+
+/** "Visitors Wi-Fi" button on the Welcome screen: pairing (once) and the QR code. */
+export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: string }) {
+  const lang = useLang()
+  const t = WIFI_TEXT[lang]
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [open, setOpen] = useState(false)
+  const [pin, setPin] = useState('')
+  const [pairError, setPairError] = useState(false)
+  const busy = useRef(false)
+  const { voucher, state, reload } = useWifiVoucher(open)
+
+  const pair = async () => {
+    if (busy.current || !/^\d{8}$/.test(pin)) return
+    busy.current = true
+    try {
+      const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }) })
+      if (!res.ok) throw new Error()
+      const data = (await res.json()) as { token: string }
+      if (!/^[0-9a-f]{64}$/.test(data.token)) throw new Error()
+      localStorage.setItem(LOBBY_WIFI_TOKEN, data.token)
+      setPin('')
+      setPairError(false)
+      reload()
+    } catch {
+      setPairError(true)
+    } finally {
+      busy.current = false
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          dialog.current?.showModal()
+          setOpen(true)
+        }}
+        className="mt-3 min-h-14 rounded-xl border border-line bg-cream px-6 text-left text-lg font-semibold text-forest"
+      >
+        {t[0]}
+      </button>
+      <dialog
+        ref={dialog}
+        onClose={() => {
+          setOpen(false)
+          setPin('')
+        }}
+        className="fixed inset-auto right-4 bottom-4 m-0 w-80 max-w-[92vw] rounded-2xl border border-line bg-white p-5 text-ink shadow-xl backdrop:bg-forest/25"
+      >
+        <h2 className="font-serif text-2xl font-semibold">{t[0]}</h2>
+        <p className="my-2 text-sm">{t[1]}</p>
+        {state === 'unpaired' ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              pair()
+            }}
+          >
+            <label>
+              Код привязки с ресепшена
+              <input className="my-2 w-full rounded border p-2" inputMode="numeric" maxLength={8} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
+            </label>
+            <button type="submit">Привязать планшет</button>
+            {pairError && <p role="status">Проверьте код и связь с сетью Rumi.</p>}
+          </form>
+        ) : voucher ? (
+          <>
+            <QrCode key={voucher.url} text={voucher.url} label={t[0]} className="mx-auto h-52 w-52" />
+            <p className="text-center text-sm">
+              {t[2]} {dushanbeTime.format(voucher.expiresAt)}
+            </p>
+          </>
+        ) : (
+          <p role="status">{state === 'error' ? t[4] : t[3]}</p>
+        )}
+        <button type="button" onClick={() => dialog.current?.close()} className="mt-4 min-h-12 w-full rounded-xl bg-forest text-cream">
+          {t[5]}
+        </button>
+      </dialog>
+    </>
+  )
+}
+
+export const wifiVoucherText = WIFI_TEXT
+
+/* ------------------------------------------------------------ folio station */
+
+async function folio<T>(action: string, token: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(FOLIO_BASE + action, {
+    method: 'POST',
+    cache: 'no-store',
+    signal,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(String(res.status))
+  return res.json() as Promise<T>
+}
+
+/** Pairing field in the staff-only tablet settings: links this tablet to a front desk computer. */
+export function FolioPairing() {
+  const [pin, setPin] = useState('')
+  const [station, setStation] = useState(() => localStorage.getItem(FOLIO_TOKEN + '.name') || '')
+  const [busy, setBusy] = useState(false)
+  return (
+    <div className="mt-4">
+      <label>
+        Гостевой экран · код с компьютера стойки
+        <input className="ml-2 w-32 rounded border px-2 py-1" inputMode="numeric" value={pin} maxLength={8} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
+      </label>{' '}
+      <button
+        type="button"
+        disabled={busy || pin.length !== 8}
+        onClick={async () => {
+          setBusy(true)
+          try {
+            const r = await folio<{ token: string; station: string }>('pair', '', { pin })
+            localStorage.setItem(FOLIO_TOKEN, r.token)
+            localStorage.setItem(FOLIO_TOKEN + '.name', r.station)
+            setStation(r.station)
+            setPin('')
+            window.dispatchEvent(new Event('folio-pair'))
+          } catch {
+            setStation('Проверьте код и подключение к сети отеля')
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        Привязать
+      </button>
+      <small className="block">{station}</small>
+    </div>
+  )
+}
+
+/** Full-screen invoice pushed by reception to this station; disappears when the lease ends. */
+export function FolioOverlay() {
+  const [pages, setPages] = useState<string[]>([])
+  const [zoom, setZoom] = useState(false)
+  useEffect(() => {
+    let stopped = false
+    let version = ''
+    let poll: number | undefined
+    let lease: number | undefined
+    let ac: AbortController | undefined
+    const clear = () => {
+      version = ''
+      setPages([])
+      setZoom(false)
+    }
+    async function tick() {
+      if (stopped) return
+      const token = localStorage.getItem(FOLIO_TOKEN)
+      if (token && !document.hidden) {
+        const started = performance.now()
+        ac = new AbortController()
+        const timeout = window.setTimeout(() => ac?.abort(), 3500)
+        try {
+          const r = await folio<{ version: string; pages: string[]; leaseMs: number }>('read', token, { version }, ac.signal)
+          if (stopped) return
+          const left = Number(r.leaseMs) - (performance.now() - started)
+          if (document.hidden || token !== localStorage.getItem(FOLIO_TOKEN) || !r.version || !(left > 0)) clear()
+          else {
+            if (r.version !== version) {
+              if (!Array.isArray(r.pages) || !r.pages.length) throw new Error()
+              version = r.version
+              setPages(r.pages)
+              setZoom(false)
+            }
+            window.clearTimeout(lease)
+            lease = window.setTimeout(clear, Math.min(left, 5000))
+          }
+        } catch {
+          if (!stopped) clear()
+        } finally {
+          window.clearTimeout(timeout)
+        }
+      } else if (version) clear()
+      if (!stopped) poll = window.setTimeout(tick, version ? 650 : 1000)
+    }
+    const reset = () => {
+      ac?.abort()
+      clear()
+    }
+    window.addEventListener('folio-pair', reset)
+    window.addEventListener('offline', reset)
+    document.addEventListener('visibilitychange', reset)
+    tick()
+    return () => {
+      stopped = true
+      ac?.abort()
+      window.clearTimeout(poll)
+      window.clearTimeout(lease)
+      window.removeEventListener('folio-pair', reset)
+      window.removeEventListener('offline', reset)
+      document.removeEventListener('visibilitychange', reset)
+    }
+  }, [])
+  if (!pages.length) return null
+  return (
+    <section aria-label="Invoice" className="fixed inset-0 z-[200] flex flex-col bg-forest-deep text-cream">
+      <header className="flex items-center justify-between px-6 py-3">
+        <strong>The Rumi · Invoice</strong>
+        <button type="button" className="rounded border px-4 py-2" onClick={() => setZoom(!zoom)}>
+          {zoom ? '100%' : '150%'}
+        </button>
+      </header>
+      <div className="flex-1 overflow-auto">
+        <div style={{ width: zoom ? '150%' : '100%' }}>
+          {pages.map((p, i) => (
+            <img key={i} alt={'Invoice · ' + (i + 1)} className="mx-auto mb-2 block w-full max-w-[1500px]" src={'data:image/png;base64,' + p} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}

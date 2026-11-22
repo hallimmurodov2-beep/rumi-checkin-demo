@@ -257,3 +257,11 @@ export interface InvoiceResult {
   /** False when no front desk app is connected, so there is nothing to wait for. */
   can_request: boolean
 }
+
+/** The hotel policy (rulebook) the guest reads before signing. */
+export interface Policy {
+  id: string
+  lang: string
+  version: number
+  body_md: string
+}

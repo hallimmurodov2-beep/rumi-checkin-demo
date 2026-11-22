@@ -10,12 +10,12 @@ Stack: Vite, React, TypeScript, Tailwind CSS v4 and Supabase (Postgres, Auth, Re
 ## How it works
 
 1. Front desk adds the day's bookings under **Arrivals**, by hand or by importing a CSV.
-2. A guest taps **Check in** and hands the passport to the receptionist, who scans it in the front desk app. That app sends the booking to the tablet (`POST /v1/handoffs`), which opens it in the guest's language within about 2 seconds. Guests who prefer can find the booking by name or booking number on the tablet.
-3. Cyrillic surnames are transliterated, so Петрова matches a booking for Petrova.
-4. The guest confirms the booking and adds a phone number, email and airport-shuttle choice. They sign on screen.
-5. The check-in appears instantly in **Tablet check-ins** at the desk. Staff check the passport against the details, enter the room number and tap **Approve & give key**. The guest is now **In house**.
-6. When check-in is done, the tablet shows the guest Wi-Fi with a QR code: guests point their phone camera at it to join.
-7. To check out, the guest enters their room number and surname on the tablet, sees their full bill (sent by the front desk app) and rates the stay. A rating of 4–5 shows a QR code for the public review link. A rating of 1–3 opens a private feedback box that only staff see.
+2. **Check-in starts at reception.** The guest hands over the passport. The receptionist scans it in the front desk app, which checks the guest in on eZee and sends the booking to the tablet (`POST /v1/handoffs`). The tablet has no Check-in button.
+3. Within about 2 seconds the tablet opens on the **Details** step: "Welcome, Eriksson", in the guest's language (from the passport nationality). The guest adds an optional phone number and email and answers the airport-shuttle question.
+4. **Signature:** the guest reads the **hotel policy** in their language and signs under it. The admin uploads the policy as a Markdown file in Settings → Hotel policy, one per language (English is used when a language is missing). Each check-in records the policy version that was signed.
+5. The check-in appears instantly at the desk and goes to the front desk app, which approves it with the room number.
+6. The **Done** screen shows the room number, the Wi-Fi QR code (the hotel's Wi-Fi login link from the front desk server, the network from Settings, or a personal one per stay) and the breakfast hours.
+7. To check out, the guest enters their room number and surname on the tablet and sees their full bill (sent by the front desk app). Rating the stay is optional. The screen also reminds them about an airport shuttle they booked, and warns when they are leaving before the booked date. A rating of 4–5 shows a QR code for the public review link. A rating of 1–3 opens a private feedback box that only staff see.
 
 The tablet returns to the welcome screen after 60 seconds without a touch, with a visible countdown for the last 10 seconds, and clears everything entered. The idle time can be changed in Settings.
 
@@ -76,6 +76,13 @@ Guest strings are in `src/translations.ts` (en, ru, tg). The staff app is in Eng
 **TODO: review by a native Tajik speaker.** The Tajik translation is a best-effort draft and should be checked before guests use it.
 
 ## Connecting the owner's front desk app
+
+**For the front desk app's Codex agent:** start with [CODEX-CONNECT-FRONTDESK.md](CODEX-CONNECT-FRONTDESK.md). It is also linked from `AGENTS.md`.
+
+The front desk server (`menu.therumihotel.com:8844`) also gives the tablet two things directly, both written by its developer and kept in `src/tablet/frontdesk.tsx`:
+- **Visitors Wi-Fi:** a time-limited Wi-Fi login QR, after a one-time pairing with a code from reception.
+- **Folio station:** full-screen invoices pushed by reception.
+
 
 The hotel's own front desk app, which already talks to eZee, connects to the tablet through the **partner API**, the Supabase Edge Function `supabase/functions/partner-api`:
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useT } from '../i18n'
 import { LANGS, type Lang } from '../translations'
 import { inKioskApp } from '../lib/kiosk'
+import { VisitorWifi } from './frontdesk'
 import { ArrowRight, COLORS, Emblem, ExpandIcon } from '../ui'
 
 function useFullscreenAvailable() {
@@ -36,14 +37,12 @@ function enterFullscreen() {
 export function Welcome({
   lang,
   setLang,
-  onStart,
   onCheckout,
   onSettings,
   hotelName,
 }: {
   lang: Lang
   setLang: (l: Lang) => void
-  onStart: () => void
   onCheckout: () => void
   onSettings: () => void
   hotelName: string
@@ -106,20 +105,17 @@ export function Welcome({
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={onStart}
-          style={{ animationDelay: '300ms' }}
-          className="rise group mt-10 flex min-h-24 cursor-pointer items-center justify-between gap-4 rounded-2xl bg-forest px-8 text-left text-cream shadow-[0_16px_40px_-20px_rgb(14_59_46/0.9)] transition hover:bg-forest-deep active:scale-[0.99]"
-        >
+        {/* Check-in starts at reception: the front desk app scans the passport and opens it on this screen. */}
+        <div className="rise mt-10 flex items-center gap-6 rounded-2xl bg-forest px-8 py-6 text-cream shadow-[0_16px_40px_-20px_rgb(14_59_46/0.9)]" style={{ animationDelay: '300ms' }}>
+          <span className="handoff-card flex h-20 w-14 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg bg-gold-light/15 text-gold-light" aria-hidden="true">
+            <span className="emblem h-7 w-7" style={{ backgroundColor: 'currentColor' }} />
+            <span className="h-0.5 w-7 rounded-full bg-gold-light/50" />
+          </span>
           <span>
-            <span className="block font-serif text-4xl font-semibold leading-tight">{t('startCheckIn')}</span>
-            <span className="mt-0.5 block text-base text-gold-light">{t('startCheckInSub')}</span>
+            <span className="block font-serif text-3xl font-semibold leading-tight">{t('checkinAtDesk')}</span>
+            <span className="mt-1 block text-base text-gold-light">{t('checkinAtDeskSub')}</span>
           </span>
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold-light text-forest transition group-hover:translate-x-1">
-            <ArrowRight className="h-6 w-6" />
-          </span>
-        </button>
+        </div>
         <button
           type="button"
           onClick={onCheckout}
@@ -132,6 +128,8 @@ export function Welcome({
           </span>
           <ArrowRight className="h-6 w-6 shrink-0" />
         </button>
+
+        <VisitorWifi />
 
         {canFullscreen && (
           <button

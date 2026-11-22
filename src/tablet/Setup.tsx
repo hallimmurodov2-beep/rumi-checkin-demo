@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { clearDevice, saveDevice, tablet, type StoredDevice } from '../lib/device'
 import { kioskBridge, kioskInfo } from '../lib/kiosk'
+import { FolioPairing } from './frontdesk'
 import { ApiError } from '../lib/supabase'
 import { Button, COLORS, Emblem, ErrorNote, Spinner } from '../ui'
 
@@ -120,6 +121,7 @@ export function TabletSettings({ device, hotel, online, onClose }: { device: Sto
             </div>
           )}
         </dl>
+        <FolioPairing />
         <div className="mt-8 flex items-center justify-between gap-3 border-t border-line pt-6 [&_button]:whitespace-nowrap [&_button]:!px-5">
           <Button
             variant="secondary"

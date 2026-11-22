@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
 import { ApiError } from '../lib/supabase'
@@ -12,9 +11,8 @@ export interface Details {
   phone: string
   email: string
   shuttle: 'yes' | 'no' | null
-  consent: boolean
 }
-export const emptyDetails: Details = { phone: '', email: '', shuttle: null, consent: false }
+export const emptyDetails: Details = { phone: '', email: '', shuttle: null }
 
 /* -------------------- 1a. Waiting for reception to scan ----------------- */
 
@@ -323,18 +321,13 @@ export function DetailsStep({
   onChange,
   onBack,
   onNext,
-  retentionDays = 90,
-  deskMode = false,
 }: {
   value: Details
   onChange: (d: Details) => void
   onBack: () => void
   onNext: () => void
-  retentionDays?: number
-  deskMode?: boolean
 }) {
   const t = useT()
-  const [privacy, setPrivacy] = useState(false)
   const opt = <span className="font-normal normal-case tracking-normal text-muted"> ({t('optional')})</span>
   const emailBad = value.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email.trim())
   return (
@@ -342,7 +335,7 @@ export function DetailsStep({
       step={2}
       onBack={onBack}
       action={
-        <Button disabled={!value.consent || emailBad} onClick={onNext}>
+        <Button disabled={emailBad} onClick={onNext}>
           {t('continue')}
         </Button>
       }
@@ -394,50 +387,8 @@ export function DetailsStep({
             {value.shuttle === 'yes' && <p className="fade-in text-muted">{t('shuttleNote')}</p>}
           </div>
         </fieldset>
-        <div className="col-span-2">
-          <label
-            htmlFor="consent"
-            className={`flex min-h-16 cursor-pointer items-center gap-4 rounded-xl border-2 bg-white px-5 py-3.5 transition-colors ${value.consent ? 'border-forest' : 'border-line'}`}
-          >
-            <input
-              id="consent"
-              type="checkbox"
-              checked={value.consent}
-              onChange={(e) => onChange({ ...value, consent: e.target.checked })}
-              className="h-8 w-8 shrink-0 cursor-pointer accent-forest"
-            />
-            <span className="text-lg leading-snug">{t('consent')}</span>
-          </label>
-          <div className="mt-2 flex min-h-5 items-center justify-between gap-4">
-            <p className="text-sm text-muted">{value.consent ? '' : t('consentNeeded')}</p>
-            <button type="button" onClick={() => setPrivacy(true)} className="min-h-11 cursor-pointer text-sm font-medium text-forest underline underline-offset-4">
-              {t('privacyLink')}
-            </button>
-          </div>
-        </div>
       </div>
-      {privacy && <PrivacySheet days={retentionDays} desk={deskMode} onClose={() => setPrivacy(false)} />}
     </Shell>
-  )
-}
-
-function PrivacySheet({ days, desk, onClose }: { days: number; desk: boolean; onClose: () => void }) {
-  const t = useT()
-  return createPortal(
-    <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/55 p-8" role="dialog" aria-modal="true" aria-labelledby="privacy-title" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="pop-in card max-h-full w-full max-w-2xl overflow-y-auto p-8">
-        <h2 id="privacy-title" className="text-4xl text-forest">{t('privacyTitle')}</h2>
-        {t(desk ? 'privacyBodyDesk' : 'privacyBody', { days })
-          .split('\n\n')
-          .map((para, i) => (
-            <p key={i} className="mt-4 text-lg leading-relaxed text-ink">{para}</p>
-          ))}
-        <Button className="mt-8 w-full" onClick={onClose}>
-          {t('close')}
-        </Button>
-      </div>
-    </div>,
-    document.querySelector('.kiosk') ?? document.body,
   )
 }
 

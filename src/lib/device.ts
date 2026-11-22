@@ -113,7 +113,6 @@ export interface CheckinPayload {
   phone: string
   email: string
   shuttle: boolean
-  consent: boolean
   signature_png: string
   handoff_id?: string
 }

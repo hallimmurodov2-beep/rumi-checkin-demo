@@ -314,7 +314,6 @@ function Kiosk({ device }: { device: StoredDevice }) {
         phone: details.phone.trim(),
         email: details.email.trim(),
         shuttle: details.shuttle === 'yes',
-        consent: details.consent,
         signature_png: signature,
         handoff_id: handoff?.id,
       } as Parameters<typeof tablet.submitCheckin>[1])
@@ -387,8 +386,6 @@ function Kiosk({ device }: { device: StoredDevice }) {
           <DetailsStep
             value={details}
             onChange={setDetails}
-            retentionDays={config?.retention_days ?? 90}
-            deskMode={deskMode}
             onBack={() => go('confirm', 'back')}
             onNext={() => go('signature')}
           />

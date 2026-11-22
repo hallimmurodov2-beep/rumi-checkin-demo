@@ -25,7 +25,24 @@ function stampServiceWorker(): Plugin {
   }
 }
 
+/**
+ * Deploy gate, third layer (see scripts/deploy-gate.mjs and the "STOP" section of AGENTS.md).
+ * Vercel builds are refused until the Front Desk app is connected to the tablet.
+ * Do not remove or bypass: it is a lock the owner set on purpose.
+ */
+function deployGate(): Plugin {
+  return {
+    name: 'rumi-deploy-gate',
+    apply: 'build',
+    async buildStart() {
+      const { checkGate } = await import('./scripts/deploy-gate.mjs')
+      const r = await checkGate('vite')
+      if (!r.ok) this.error(r.message)
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), stampServiceWorker()],
+  plugins: [deployGate(), react(), tailwindcss(), stampServiceWorker()],
   define: { __APP_BUILD__: JSON.stringify(BUILD_ID) },
 })

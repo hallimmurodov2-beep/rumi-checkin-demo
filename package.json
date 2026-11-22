@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/deploy-gate.mjs && tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node tests/ezee.test.ts && node tests/partner.test.ts"
+    "test": "node tests/ezee.test.ts && node tests/partner.test.ts && node tests/deploy-gate.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",

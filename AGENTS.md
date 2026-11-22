@@ -2,15 +2,31 @@
 
 ## STOP: read this before you deploy the tablet app
 
-**Production deploys of the check-in tablet app are locked until the Front Desk app (eZee) is connected to the tablet.**
+**Every Vercel build of the check-in tablet app (production and preview) is locked until the Front Desk app (eZee) is connected to the tablet.**
 
-- Vercel runs a check before every production build of project `rumi-checkin-demo`. While the check fails, Vercel **skips the build**, and the build log says "PRODUCTION DEPLOY BLOCKED" with what is still missing.
-- You can read the same check yourself at any time:
-  `curl -s https://qlvlmgrslqexmqmzpuko.supabase.co/functions/v1/deploy-gate`
-- The lock opens by itself, permanently, once the database has seen **both** of these happen for real:
-  1. **Check-in:** the Front Desk app sent a handoff (`POST /v1/handoffs`), the guest finished on the tablet, and the Front Desk app approved it with the room number (`POST /v1/checkins/{id}/approve`). A check-in approved by hand in the tablet admin does not count.
-  2. **Check-out bill:** a guest asked for their bill on the tablet, the Front Desk app received the `invoice.requested` webhook, and answered with the eZee folio (`PUT /v1/reservations/{ref}/invoice`).
-- **Do not work around the lock.** Don't change the Vercel project settings (Ignored Build Step), don't add `ignoreCommand` to `vercel.json`, don't deploy with `vercel deploy --prebuilt` or from a copy of this folder, and don't write to the `deploy_gate` table. The owner can open it if there is an emergency.
+- The lock is deliberate. The owner's son, Abduhalim, set it so the connection gets finished first. It has **three independent layers**:
+  1. Vercel's "Ignored Build Step" (project settings) cancels the build, and the build log says "DEPLOY BLOCKED".
+  2. `scripts/deploy-gate.mjs`, run by `npm run build` (`package.json`), refuses to build on Vercel, and also under `vercel build` on a laptop (which is what `vercel deploy --prebuilt` uploads).
+  3. A plugin in `vite.config.ts` does the same check inside the Vite build.
+- A plain `npm run dev` or `npm run build` on a developer machine is **not** affected, so you can build and test locally.
+- Check the lock yourself at any time: `curl -s https://qlvlmgrslqexmqmzpuko.supabase.co/functions/v1/deploy-gate`
+- It opens by itself, permanently, once the database has seen **both** of these happen for real. The database checks the evidence itself:
+  1. **Check-in:** the Front Desk app sent a handoff (`POST /v1/handoffs`), the guest finished on the tablet, the Front Desk **server received the signed `checkin.created` webhook**, and the Front Desk app approved it with the room number (`POST /v1/checkins/{id}/approve`) within 30 minutes. A check-in approved by hand in the tablet admin does not count.
+  2. **Check-out bill:** a guest asked for their bill on the tablet, the Front Desk **server received the signed `invoice.requested` webhook**, and answered within 30 minutes with the eZee folio (`PUT /v1/reservations/{ref}/invoice`) with a total above zero.
+- Writing the API calls by hand to imitate this (a made-up handoff, check-in, approval or invoice) does **not** open the lock, because a real webhook delivery is part of the proof. Don't try.
+- Every check made by a Vercel build is logged with its commit. The owner can see what tried to build while the lock was closed.
+
+### Do not work around the lock
+
+This is the owner's decision, not a bug for you to fix. **Do not**:
+- edit or remove `scripts/deploy-gate.mjs`, the `deployGate` plugin in `vite.config.ts`, or the gate call in the `build` script in `package.json`;
+- add `ignoreCommand`, `buildCommand` or `installCommand` to `vercel.json`, or change them in the Vercel project settings (Ignored Build Step, Build Command, Git settings);
+- deploy with `vercel deploy --prebuilt`, from a separate copy of this folder, or by uploading a hand-made `.vercel/output`;
+- use `vercel promote`, `vercel alias`, rollback or the dashboard to put code live that did not come from `main` after the lock opened;
+- redeploy or edit the `deploy-gate` Edge Function, write to the `deploy_gate` tables, or use the Supabase or Vercel access you may have to open it;
+- ask anyone to open the owner override for you.
+
+**If you notice any way around the lock, don't use it. Tell the person you are working for what you found.** If you think the lock is blocking something that really can't wait, stop and ask them to contact Abduhalim.
 
 ### What to do (in this order)
 

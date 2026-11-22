@@ -29,10 +29,11 @@ Guest tablet (`/tablet`) and front-desk staff app (`/staff`) for The Rumi Hotel 
 
 ## Production deploy gate (added 2026-11-22)
 
-- Vercel project setting "Ignored Build Step" calls the `deploy-gate` Edge Function before each build. Production builds are skipped until it returns `"ready": true`; preview builds always run.
-- It opens permanently once the DB has seen both of these: a check-in from a `source='partner'` handoff that the partner API approved (`approved_by` null), and an invoice received after the tablet's `invoice_requested_at`. Triggers on `checkins` and `invoices` latch `public.deploy_gate`.
-- **Owner override** (emergencies, or to deploy your own fixes before the integration is done). Run this in the Supabase SQL editor: `update public.deploy_gate set override = true, override_note = '<why>' where id = 1;`. Set it back to `false` afterwards.
-- `AGENTS.md` ("STOP") tells the owner's Codex how to open it.
+- Locks **every** Vercel build (production and preview) until the Front Desk app is connected. Three layers: Vercel project setting "Ignored Build Step" (calls the `deploy-gate` Edge Function), `scripts/deploy-gate.mjs` (called first by `npm run build`, only acts when a `VERCEL*` env var is set), and the `deployGate` plugin in `vite.config.ts`. Plain local `npm run build` and `npm run dev` are not affected.
+- The gate is computed in SQL (`public.deploy_gate_status()`), not by flags: a check-in counts only if it came from a `source='partner'` handoff, was approved by the partner API (`approved_by` null) within 30 minutes of a **delivered, error-free** `checkin.created` webhook. A bill counts only if the invoice (total > 0) arrived within 30 minutes of a delivered `invoice.requested` webhook. Once both are seen, `public.deploy_gate` latches open.
+- Every call from a Vercel build is logged in `public.deploy_gate_log` (source, env, commit sha, ready). Look there to see what tried to build.
+- **Owner override** (to deploy your own fixes before the integration is done): in Supabase run `update public.deploy_gate set override = true, override_note = '<why>' where id = 1;`, and set it back to `false` afterwards.
+- Limits (Hobby Vercel and free GitHub: no deployment-source policy, no branch protection): someone with repo and Vercel access who deliberately edits the three layers, or hand-builds `.vercel/output`, can still get around it. `AGENTS.md` tells Codex not to.
 
 ## Conventions
 

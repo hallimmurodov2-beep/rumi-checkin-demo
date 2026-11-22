@@ -89,6 +89,9 @@ public class KioskActivity extends Activity {
         super.onCreate(state);
         Window w = getWindow();
         w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        WindowManager.LayoutParams wp = w.getAttributes();
+        wp.screenBrightness = 1f; // full brightness while the kiosk is on screen
+        w.setAttributes(wp);
         setShowWhenLocked(true);
         setTurnScreenOn(true);
         w.setDecorFitsSystemWindows(false);

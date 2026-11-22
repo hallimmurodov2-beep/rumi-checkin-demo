@@ -50,6 +50,10 @@ fi
 # Never show Android's one-time "This app is using the full screen" tip to guests.
 "$ADB" shell settings put secure immersive_mode_confirmations confirmed >/dev/null 2>&1 || true
 
+# Full brightness, no auto-brightness (the kiosk app also asks for full brightness itself).
+"$ADB" shell settings put system screen_brightness_mode 0 >/dev/null 2>&1 || true
+"$ADB" shell settings put system screen_brightness 255 >/dev/null 2>&1 || true
+
 # Samsung: stop charging at 85% to protect a battery that is plugged in all day (ignored elsewhere).
 "$ADB" shell settings put global protect_battery 1 >/dev/null 2>&1 || true
 

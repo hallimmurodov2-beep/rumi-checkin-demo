@@ -8,7 +8,7 @@ The app is the tablet's **device owner** (Android Enterprise). It uses that to:
 
 - **Lock Task Mode:** the tablet is locked to this app. No home or recent-apps buttons, notification shade, status bar, power menu or lock screen. Other apps can't open.
 - **Home screen:** the app replaces the Samsung launcher, so Android opens it after every restart. A boot receiver opens it as well.
-- **Screen:** always on while plugged in, landscape, with no system bars.
+- **Screen:** always on while plugged in, at full brightness, landscape, with no system bars.
 - **Foreground guard:** some system screens can still slip in front of a locked app, for example the Samsung keyboard's own settings page from its toolbar key. If anything other than the kiosk is in front, the kiosk pulls itself back within a second, and locks again if the lock was knocked off.
 - **Blocked:** safe mode (which would start Android without the kiosk), new users, SD cards, pop-ups from other apps, and Android's "app isn't responding" dialogs.
 - **System updates:** only installed between 02:00 and 04:00.

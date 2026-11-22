@@ -48,3 +48,7 @@
   .gl-root, .gl-fade-down, .gl-fade-up, .gl-caption, .ss-browse, .room-photo img { animation: none !important; }
   .gl-tile-photo { transition: opacity 0.6s; transform: none !important; }
 }
+
+/* Portrait photos: whole photo in the middle, blurred copy behind. */
+.si-backdrop { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; filter: blur(28px) brightness(0.6) saturate(1.1); }
+.si-front { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }

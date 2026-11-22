@@ -3,6 +3,7 @@ import { useLang, useT } from '../i18n'
 import type { Lang } from '../translations'
 import { Brand } from '../ui'
 import { SLIDES } from './gallery'
+import { SlideImage } from './SlideImage'
 import './screensaver.css'
 
 const SLIDE_MS = 7500
@@ -100,7 +101,7 @@ export function Screensaver({ onWake, onBrowse }: { onWake: () => void; /** Open
         return (
           <div key={s.src} className={`ss-slide ${state}`} aria-hidden="true">
             {(state || i === (index + 1) % SLIDES.length) && (
-              <img src={s.src} alt="" decoding="async" draggable={false} className={`ss-photo ss-kb-${i % 4}`} />
+              <SlideImage slide={s} className={`ss-kb-${i % 4}`} />
             )}
           </div>
         )

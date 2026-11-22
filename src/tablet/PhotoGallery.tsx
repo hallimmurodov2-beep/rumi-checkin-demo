@@ -3,6 +3,7 @@ import { useLang, useT } from '../i18n'
 import type { Key } from '../translations'
 import { ArrowLeft, ArrowRight, Brand } from '../ui'
 import { SLIDES, type Category, type Slide } from './gallery'
+import { SlideImage } from './SlideImage'
 import { LangSwitch } from './Shell'
 import './gallery.css'
 
@@ -12,6 +13,7 @@ const FILTERS: { id: Filter; label: Key }[] = [
   { id: 'rooms', label: 'galleryRooms' },
   { id: 'dining', label: 'galleryDining' },
   { id: 'spaces', label: 'gallerySpaces' },
+  { id: 'wellness', label: 'galleryWellness' },
 ]
 const AUTOPLAY_MS = 5000
 const mod = (n: number, m: number) => ((n % m) + m) % m
@@ -238,7 +240,7 @@ export function Gallery({
             const s = list[idx]
             return (
               <div key={n > 2 ? s.src : `${k}:${s.src}`} className="absolute inset-0" style={{ transform: `translate3d(${k * 100}%,0,0)` }} aria-hidden={k !== 0}>
-                <img src={s.src} alt={k === 0 ? s[lang] : ''} decoding="async" draggable={false} className="gl-photo" />
+                <SlideImage slide={s} alt={k === 0 ? s[lang] : ''} />
               </div>
             )
           })}

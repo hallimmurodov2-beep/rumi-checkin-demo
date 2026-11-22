@@ -423,8 +423,12 @@ public class KioskActivity extends Activity {
             boolean awake = getSystemService(android.os.PowerManager.class).isInteractive();
             if (awake && !resumed && !AdminActivity.visible && !Policy.inMaintenance(KioskActivity.this) && Policy.isOwner(KioskActivity.this)) {
                 Log.w(Policy.TAG, "Another screen is in front, bringing the kiosk back");
-                startActivity(new Intent(KioskActivity.this, KioskActivity.class)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+                try {
+                    startActivity(new Intent(KioskActivity.this, KioskActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+                } catch (Exception e) {
+                    Log.w(Policy.TAG, "Could not bring the kiosk back: " + e);
+                }
             }
             // Back in front but no longer locked (something knocked us out of lock task): lock again.
             if (resumed && awake && !Policy.inMaintenance(KioskActivity.this) && Policy.isOwner(KioskActivity.this) && !inLockTask()) {

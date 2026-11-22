@@ -1,6 +1,6 @@
 # The Rumi check-in kiosk (Android)
 
-A small Android app that turns a tablet into a dedicated check-in kiosk. It shows the check-in web app (`https://rumi-checkin.vercel.app/tablet`) full screen and nothing else. It is set up on the lobby **Samsung Galaxy Tab A8 (SM-X205, Android 14)**.
+A small Android app that turns a tablet into a dedicated check-in kiosk. It shows the check-in web app (`https://rumi-checkin.vercel.app/tablet`) full screen and nothing else. It is set up on the lobby **Samsung Galaxy Tab A8 (SM-X205, Android 14)** and tested on an **Android 17 (API 37)** tablet emulator. It runs on **Android 11 (API 30) and newer**, which includes Android 16 and 17.
 
 ## How it works
 
@@ -107,6 +107,32 @@ adb shell am start -n com.therumi.kiosk/.KioskActivity --ez reload true
 adb shell am start -n com.therumi.kiosk/.KioskActivity --ez clear_web_data true   # forget the cached web app (also unpairs the check-in tablet)
 adb exec-out screencap -p > screen.png
 ```
+
+## Android versions
+
+| Version | Status |
+|---|---|
+| Android 14 (Samsung Galaxy Tab A8) | Tested on the real tablet: lockdown, restart, offline, admin menu, maintenance, recovery. |
+| Android 17 (API 37, tablet emulator) | Tested: device owner, lockdown, admin gesture and PIN, maintenance mode, restart, adb recovery. |
+| Android 16 | Not tested (no image was available), but it sits between the two versions above and uses the same APIs. Run the checks in "Checking a new tablet" below. |
+
+The app targets Android 15 (API 35) on purpose. From API 36 on, large screens ignore a landscape-only request, so a tablet held upright would show the app sideways. Android 16 and 17 still honour the setting for apps that target 35. The version needs raising only when Android stops running apps at that level.
+
+**Rotation:** on a tablet whose sensor reads "portrait", Android 17 draws the landscape app as a letterboxed band in the middle of the screen. Mount the tablet in landscape, as it is meant to be used. Auto-rotate must stay on.
+
+### Checking a new tablet
+
+After `./provision.sh`, check these, in order:
+
+```bash
+adb shell dpm list-owners                                          # DeviceOwner
+adb shell dumpsys activity activities | grep mLockTaskModeState    # LOCKED
+adb shell input keyevent KEYCODE_HOME                              # nothing happens
+adb shell am start -a android.settings.SETTINGS                    # refused (error 101)
+adb logcat -d -s RumiKiosk | grep -i "failed"                      # no policy failures
+```
+
+Then tap the top-right corner 5 times for the PIN screen, and run `adb reboot` to see it come back locked. Keep a Wi-Fi network the tablet already knows, because Android 16 and 17 may ask for network permissions again after a factory reset.
 
 ## Security notes
 

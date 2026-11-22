@@ -17,7 +17,12 @@ public class BootReceiver extends BroadcastReceiver {
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)) Store.setMaintenanceUntil(c, 0); // a restart always ends maintenance
         Policy.apply(c);
         if (Policy.isOwner(c)) {
-            c.startActivity(new Intent(c, KioskActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            try {
+                c.startActivity(new Intent(c, KioskActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Exception e) {
+                // Newer Android versions restrict starting activities from the background; the kiosk is the home screen, so the system opens it anyway.
+                Log.w(Policy.TAG, "Could not start the kiosk from the receiver: " + e);
+            }
         }
     }
 }

@@ -8,6 +8,15 @@ Guest tablet (`/tablet`) and front-desk staff app (`/staff`) for The Rumi Hotel 
 - `npm run dev` (the `rumi-dev` preview config serves on port 5199), `npm run build` (type-check + build), `npm test` (eZee mapping, Wi-Fi QR text, and the partner API's Wi-Fi and bill checks in `supabase/functions/partner-api/validate.ts`).
 - **Deploy:** pushing `main` does NOT trigger a Vercel build (no Git auto-deploy on project `rumi-checkin-demo`). Push, then create a production deployment from the pushed commit (Vercel connection `create_deployment` with the GitHub source, or `npx vercel --prod` where the CLI is signed in). Confirm by checking that `https://rumi-checkin.vercel.app/sw.js` shows the new build id. Database and Edge Function changes are NOT deployed by a push: apply them to Supabase project `qlvlmgrslqexmqmzpuko` (migrations via the Supabase connection; the local Supabase CLI token lacks deploy rights for this project, so deploy Edge Functions through the Supabase connection too).
 
+## Current state (as of 2026-11-22)
+
+- **Live:** `https://rumi-checkin.vercel.app` (`/tablet`, `/staff`). Supabase project `qlvlmgrslqexmqmzpuko`. Vercel project `rumi-checkin-demo` (team `team_Of6vR4xLtrrOUqAmOn4gIwHO`). GitHub `hallimmurodov2-beep/rumi-checkin-demo` (private).
+- **Check-in** is reception-led only (handoff from the owner's front desk app). Built but **not tested end to end** with the real front desk app, because it doesn't send handoffs yet; test with staff app -> Arrivals -> Send to tablet.
+- **Not done / waiting on the owner:** publish the hotel policy (Settings -> Hotel policy; none published yet); native Tajik review of all `tg` strings; eZee credentials (so eZee sync is untested live); the owner's Codex connecting the front desk app (`CODEX-CONNECT-FRONTDESK.md`).
+- **Known risk:** real partner API credentials are committed in `docs/partner-api.md` (around lines 27-29) in the private repo. The owner chose to leave them; they should be rotated (staff app Settings -> Front desk app connection) before anyone else gets repo access. Never copy them elsewhere.
+- **Android kiosk** (`android-kiosk/`): see its README. The lobby Galaxy Tab A8 (SM-X205, Android 14) is a locked device-owner kiosk; the admin PIN is held by the owner (it is not stored in the repo; it can be changed in the kiosk admin menu). Back up `android-kiosk/signing/` (not in git). The target tablet may be Android 16/17: tested on an Android 17 emulator only.
+- **Dev tools you will need:** `adb` is at `~/Library/Android/sdk/platform-tools/adb` (needs the sandbox off to see USB); Android emulator AVD `Tab_API_37`; Supabase and Vercel work through the connected MCP tools (the local CLIs cannot deploy).
+
 ## Where things live
 
 - `src/pages/Tablet.tsx`: the kiosk state machine (steps, idle reset, screensaver, handoff polling).
@@ -22,6 +31,8 @@ Guest tablet (`/tablet`) and front-desk staff app (`/staff`) for The Rumi Hotel 
 
 - The owner's Codex also works on this repo (see `AGENTS.md`, `CODEX-CONNECT-FRONTDESK.md`). Before deploying, check that production wasn't deployed from another copy: list the Vercel deployments, and if the newest has no git commit, diff its bundles against `main` and port its changes first (this happened on 2026-11-22).
 
+- When editing files through shell heredocs, backslashes can get halved: re-check regexes and escapes (the Wi-Fi QR escape bug came from this). Write such lines with Python and `chr(92)`, or use the Edit tool.
+- Never put PINs, passwords, API keys or secrets in repo files, docs or memory.
 - Tablet UI is landscape-first, large touch targets (min-h-16 buttons), and must fit a ~1180x820 viewport without the important parts scrolling off.
 - Guest data has a retention purge (`purge_guest_data`); anything new that holds guest data must be added to it.
 - Test DB functions inside `begin; ... rollback;` so no live rows are left behind.

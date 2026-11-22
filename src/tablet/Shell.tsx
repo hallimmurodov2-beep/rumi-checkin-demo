@@ -53,13 +53,14 @@ function Stepper({ step }: { step: number }) {
 const SHORT: Record<string, string> = { en: 'EN', ru: 'РУ', tg: 'ТҶ' }
 
 /** Small language switch in the header, so guests can change language on any screen. */
-function LangSwitch() {
+export function LangSwitch({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
+  const dark = tone === 'dark'
   const lang = useLang()
   const setLang = useContext(SetLangContext)
   const t = useT()
   if (!setLang) return null
   return (
-    <div className="flex gap-0.5 rounded-xl border border-line bg-white p-0.5" role="group" aria-label={t('chooseLanguage')}>
+    <div className={`flex gap-0.5 rounded-xl border p-0.5 ${dark ? 'border-cream/25 bg-forest-deep/55 backdrop-blur-md' : 'border-line bg-white'}`} role="group" aria-label={t('chooseLanguage')}>
       {LANGS.map((l) => (
         <button
           key={l.code}
@@ -69,7 +70,9 @@ function LangSwitch() {
           aria-label={l.label}
           aria-pressed={lang === l.code}
           onClick={() => setLang(l.code)}
-          className={`min-h-11 min-w-11 cursor-pointer rounded-lg px-2 text-sm font-semibold transition ${lang === l.code ? 'bg-forest text-cream' : 'text-muted hover:text-forest'}`}
+          className={`min-h-11 min-w-11 cursor-pointer rounded-lg px-2 text-sm font-semibold transition ${
+            lang === l.code ? (dark ? 'bg-cream text-forest' : 'bg-forest text-cream') : dark ? 'text-cream/80 hover:text-cream' : 'text-muted hover:text-forest'
+          }`}
         >
           {SHORT[l.code]}
         </button>

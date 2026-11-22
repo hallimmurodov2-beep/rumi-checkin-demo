@@ -155,6 +155,21 @@ const en = {
   paidInFull: 'Paid in full',
   refundDue: 'To be refunded',
   settleAtDesk: 'Please settle the balance at the front desk before you leave.',
+
+  galleryTitle: 'Explore the hotel',
+  gallerySub: 'Rooms, restaurant and lobby in {n} photos',
+  galleryAll: 'All',
+  galleryRooms: 'Rooms',
+  galleryDining: 'Dining',
+  gallerySpaces: 'Lobby and halls',
+  galleryClose: 'Close',
+  galleryPlay: 'Slideshow',
+  galleryPause: 'Pause',
+  galleryPrev: 'Previous photo',
+  galleryNext: 'Next photo',
+  galleryBrowse: 'Browse photos',
+  galleryHint: 'Swipe to see more',
+  roomTypeShown: 'Your room type',
 }
 
 export type Key = keyof typeof en
@@ -301,6 +316,21 @@ const ru: Dict = {
   paidInFull: 'Оплачено полностью',
   refundDue: 'К возврату',
   settleAtDesk: 'Пожалуйста, оплатите остаток на стойке регистрации перед отъездом.',
+
+  galleryTitle: 'Посмотрите отель',
+  gallerySub: 'Номера, ресторан и лобби: {n} фото',
+  galleryAll: 'Все',
+  galleryRooms: 'Номера',
+  galleryDining: 'Ресторан',
+  gallerySpaces: 'Лобби и залы',
+  galleryClose: 'Закрыть',
+  galleryPlay: 'Слайд-шоу',
+  galleryPause: 'Пауза',
+  galleryPrev: 'Предыдущее фото',
+  galleryNext: 'Следующее фото',
+  galleryBrowse: 'Смотреть фото',
+  galleryHint: 'Листайте, чтобы увидеть больше',
+  roomTypeShown: 'Ваш тип номера',
 }
 
 // TODO: review by a native Tajik speaker.
@@ -445,6 +475,21 @@ const tg: Dict = {
   paidInFull: 'Пурра пардохт шудааст',
   refundDue: 'Барои баргардонидан',
   settleAtDesk: 'Лутфан пеш аз рафтан боқимондаро дар мизи қабул пардохт кунед.',
+
+  galleryTitle: 'Меҳмонхонаро тамошо кунед',
+  gallerySub: 'Ҳуҷраҳо, тарабхона ва толор: {n} акс',
+  galleryAll: 'Ҳама',
+  galleryRooms: 'Ҳуҷраҳо',
+  galleryDining: 'Тарабхона',
+  gallerySpaces: 'Толорҳо',
+  galleryClose: 'Пӯшидан',
+  galleryPlay: 'Слайд-шоу',
+  galleryPause: 'Таваққуф',
+  galleryPrev: 'Акси қаблӣ',
+  galleryNext: 'Акси навбатӣ',
+  galleryBrowse: 'Аксҳоро тамошо кунед',
+  galleryHint: 'Барои дидани бештар ангушт кашед',
+  roomTypeShown: 'Навъи ҳуҷраи шумо',
 }
 
 export const translations: Record<Lang, Dict> = { en, ru, tg }

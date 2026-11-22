@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLang } from '../i18n'
+import { useLang, useT } from '../i18n'
 import type { Lang } from '../translations'
 import { Brand } from '../ui'
 import { SLIDES } from './gallery'
@@ -40,12 +40,13 @@ function Dial({ time }: { time: string }) {
  * Full-screen photo slideshow shown when the welcome screen has been idle: slow zoom-and-drift,
  * cross-fades, a trilingual caption, the Dushanbe time and four world clocks. Any tap returns to Welcome.
  */
-export function Screensaver({ onWake }: { onWake: () => void }) {
+export function Screensaver({ onWake, onBrowse }: { onWake: () => void; /** Open the photo gallery at this photo. */ onBrowse?: (index: number) => void }) {
   const [index, setIndex] = useState(0)
   const [prev, setPrev] = useState<number | null>(null)
   const [leaving, setLeaving] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const lang = useLang()
+  const t = useT()
   const woke = useRef(false)
 
   useEffect(() => {
@@ -117,6 +118,7 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
       </div>
 
       <div className="ss-lower">
+        <div className="flex items-end justify-between gap-4">
         <div className="ss-caption-wrap">
           <div key={index} className="ss-caption rounded-2xl bg-forest-deep/60 px-6 py-5 backdrop-blur-md">
             <div className="flex items-center gap-3">
@@ -133,6 +135,28 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
               <div className="ss-progress h-full bg-gold-light" style={{ animationDuration: `${SLIDE_MS}ms` }} />
             </div>
           </div>
+        </div>
+        {onBrowse && (
+          <button
+            type="button"
+            className="ss-browse flex min-h-16 shrink-0 cursor-pointer items-center gap-3 rounded-2xl bg-cream px-7 text-lg font-semibold text-forest shadow-[0_18px_40px_-16px_rgb(0_0_0/0.6)] transition active:scale-[0.97]"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (woke.current) return
+              woke.current = true
+              onBrowse(index)
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden="true">
+              <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />
+              <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" />
+              <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" />
+              <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
+            </svg>
+            {t('galleryBrowse')}
+          </button>
+        )}
         </div>
         <div className="ss-clock-rail">
           {CLOCKS.map((c) => {

@@ -9,6 +9,8 @@ import { fmtDay, LANGS, type Lang } from '../translations'
 import { dushanbeTime, hasLobbyWifiPairing, useWifiVoucher, wifiVoucherText } from './frontdesk'
 import { AnimatedCheck, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, Spinner, WifiIcon } from '../ui'
 import { Shell } from './Shell'
+import { roomTypePhoto } from './gallery'
+import './gallery.css'
 
 export interface Details {
   phone: string
@@ -463,12 +465,15 @@ export function Done({
   breakfast,
   config,
   room: initialRoom,
+  roomType,
   checkinId,
 }: {
   onFinish: () => void
   breakfast: boolean
   config: TabletConfig | null
   room: string | null
+  /** eZee room type ("Deluxe Double"...): shows a photo of that kind of room. */
+  roomType?: string | null
   /** The check-in just created: used to fetch the room and the stay's Wi-Fi. */
   checkinId?: string | null
 }) {
@@ -481,6 +486,8 @@ export function Done({
   // Give guests time to scan the Wi-Fi code before the screen resets.
   const n = useCountdown(45, onFinish)
   const showBreakfast = breakfast && !!config?.breakfast_hours
+  const photo = roomTypePhoto(roomType)
+  const lang = useLang()
 
   return (
     <Shell
@@ -500,7 +507,23 @@ export function Done({
             <h2 className="text-6xl text-forest">{t('doneTitle')}</h2>
             <p className="mt-1 text-2xl font-medium text-ink">{t('handoffDoneSub')}</p>
           </div>
-          {room && (
+          {room && photo && (
+            <figure
+              className="room-photo ring-grow relative ml-auto h-[176px] w-[300px] shrink-0 overflow-hidden rounded-3xl bg-forest shadow-[0_20px_50px_-24px_rgb(14_59_46/0.9)]"
+              style={{ animationDelay: '200ms' }}
+            >
+              <img src={photo.src} alt="" decoding="async" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
+              <span className="absolute inset-0 bg-gradient-to-t from-forest-deep/95 via-forest-deep/40 to-transparent" aria-hidden="true" />
+              <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 px-6 pb-4 text-cream">
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</span>
+                  <span className="block truncate text-sm text-cream/85" title={t('roomTypeShown')}>{photo[lang]}</span>
+                </span>
+                <span className="font-serif text-6xl font-semibold leading-none">{room}</span>
+              </figcaption>
+            </figure>
+          )}
+          {room && !photo && (
             <div className="ring-grow ml-auto shrink-0 rounded-3xl bg-forest px-9 py-5 text-center text-cream shadow-[0_20px_50px_-24px_rgb(14_59_46/0.9)]" style={{ animationDelay: '200ms' }}>
               <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</p>
               <p className="font-serif text-6xl font-semibold">{room}</p>

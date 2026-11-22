@@ -1,11 +1,12 @@
 // Development-only: shows tablet screens with fixture data, without pairing a tablet.
-// Open /dev/tablet?screen=done&lang=ru&bill=due. Screens: welcome, details, signature (&policy=0 for none), help, done, cofind, checkout, codone (add &due=1), saver, settings. Not included in production builds.
+// Open /dev/tablet?screen=done&lang=ru&bill=due. Screens: welcome, details, signature (&policy=0 for none), help, done, cofind, checkout, codone (add &due=1), saver, gallery (&at=<photo index>), settings. Done takes &type=<room type> for the room photo. Not included in production builds.
 import { useState } from 'react'
 import { LangContext, SetLangContext } from '../i18n'
 import { tablet } from '../lib/device'
 import type { Invoice, PublicReservation, TabletConfig } from '../lib/types'
 import { Checkout, CheckoutDone, CheckoutFind } from '../tablet/Checkout'
 import { Screensaver } from '../tablet/Screensaver'
+import { Gallery } from '../tablet/PhotoGallery'
 import { TabletSettings } from '../tablet/Setup'
 import { DeskModeContext } from '../tablet/Shell'
 import { DetailsStep, Done, NeedHelp, SignatureStep, emptyDetails } from '../tablet/Steps'
@@ -103,7 +104,7 @@ export default function TabletPreview() {
   const view = (() => {
     switch (screen) {
       case 'welcome':
-        return <Welcome lang={lang} setLang={setLang} hotelName={config.hotel_name} onCheckout={noop} onSettings={noop} />
+        return <Welcome lang={lang} setLang={setLang} hotelName={config.hotel_name} onCheckout={noop} onSettings={noop} onGallery={noop} />
       case 'details':
         return <DetailsStep value={details} onChange={setDetails} greetName="Eriksson" onNotMe={noop} onNext={noop} />
       case 'signature':
@@ -117,11 +118,18 @@ export default function TabletPreview() {
       case 'settings':
         return <TabletSettings device={{ id: 'x', name: 'Lobby tablet 1', secret: '', camera: 'user' }} hotel={config.hotel_name} online onClose={noop} />
       case 'saver':
-        return <Screensaver onWake={noop} />
+        return <Screensaver onWake={noop} onBrowse={noop} />
+      case 'gallery':
+        return (
+          <>
+            <Welcome lang={lang} setLang={setLang} hotelName={config.hotel_name} onCheckout={noop} onSettings={noop} onGallery={noop} />
+            <Gallery key={key} start={Number(q.get('at') ?? 0)} onClose={again} />
+          </>
+        )
       case 'checkout':
         return <Checkout key={key} stay={stay} reviewUrl={config.review_url} shuttle onBack={again} onComplete={async () => again()} />
       default:
-        return <Done key={key} onFinish={again} breakfast config={config} room={null} checkinId="fixture" />
+        return <Done key={key} onFinish={again} breakfast config={config} room={null} roomType={q.get('type') ?? 'Deluxe Double'} checkinId="fixture" />
     }
   })()
   return (

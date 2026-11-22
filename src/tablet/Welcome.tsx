@@ -3,6 +3,7 @@ import { useT } from '../i18n'
 import { LANGS, type Lang } from '../translations'
 import { inKioskApp } from '../lib/kiosk'
 import { VisitorWifi } from './frontdesk'
+import { GalleryTile } from './PhotoGallery'
 import { ArrowRight, COLORS, Emblem, ExpandIcon } from '../ui'
 
 function useFullscreenAvailable() {
@@ -39,12 +40,15 @@ export function Welcome({
   setLang,
   onCheckout,
   onSettings,
+  onGallery,
   hotelName,
 }: {
   lang: Lang
   setLang: (l: Lang) => void
   onCheckout: () => void
   onSettings: () => void
+  /** Opens the hotel photo gallery. */
+  onGallery?: () => void
   hotelName: string
 }) {
   const t = useT()
@@ -128,6 +132,8 @@ export function Welcome({
           </span>
           <ArrowRight className="h-6 w-6 shrink-0" />
         </button>
+
+        {onGallery && <GalleryTile onOpen={onGallery} className="rise mt-4" style={{ animationDelay: '460ms' }} />}
 
         <VisitorWifi />
 

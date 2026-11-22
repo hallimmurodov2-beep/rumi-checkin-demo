@@ -11,6 +11,7 @@ import { DetailsStep, Done, NeedHelp, SignatureStep, emptyDetails, type Details 
 import { Welcome } from '../tablet/Welcome'
 import { Screensaver } from '../tablet/Screensaver'
 import { SLIDES } from '../tablet/gallery'
+import { Gallery } from '../tablet/PhotoGallery'
 import { DeskModeContext } from '../tablet/Shell'
 import { COLORS, Emblem } from '../ui'
 
@@ -122,6 +123,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const [handoff, setHandoff] = useState<Handoff | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [saver, setSaver] = useState(false)
+  // Hotel photo gallery open on top of Welcome (index of the first photo), or null.
+  const [gallery, setGallery] = useState<number | null>(null)
   // Reception scans passports with its own scanner; the tablet never reads them.
   const deskMode = true
   const saverAfter = config?.screensaver_seconds ?? 45
@@ -214,6 +217,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
         if (!alive || !h) return
         const p = h.passport
         setSaver(false)
+        setGallery(null)
         setLang(h.language ?? 'en')
         setHandoff(h)
         setReservation(h.reservation)
@@ -250,7 +254,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
 
   // Screensaver: hotel photos after a quiet spell on the Welcome screen. A tap brings Welcome back.
   useEffect(() => {
-    if (step !== 'welcome' || saver || settingsOpen || saverAfter <= 0) return
+    if (step !== 'welcome' || saver || settingsOpen || gallery !== null || saverAfter <= 0) return
     let last = Date.now()
     const touch = () => (last = Date.now())
     const evts = ['pointerdown', 'keydown', 'touchstart']
@@ -265,7 +269,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
       evts.forEach((e) => window.removeEventListener(e, touch))
       window.clearInterval(id)
     }
-  }, [step, saver, settingsOpen, saverAfter])
+  }, [step, saver, settingsOpen, gallery, saverAfter])
 
   // Idle reset: any step except Welcome returns to Welcome after the idle limit without touch.
   useEffect(() => {
@@ -324,6 +328,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
             hotelName={config?.hotel_name ?? 'The Rumi Hotel & Residences'}
             onCheckout={() => go('coFind')}
             onSettings={() => setSettingsOpen(true)}
+            onGallery={() => setGallery(0)}
           />
         )}
         {step === 'help' && <NeedHelp onStart={reset} title={stay ? tr('coTitle') : undefined} />}
@@ -347,7 +352,14 @@ function Kiosk({ device }: { device: StoredDevice }) {
           />
         )}
         {step === 'done' && (
-          <Done onFinish={reset} breakfast={!!reservation?.breakfast} config={config} room={reservation?.room_number ?? null} checkinId={checkinId} />
+          <Done
+            onFinish={reset}
+            breakfast={!!reservation?.breakfast}
+            config={config}
+            room={reservation?.room_number ?? null}
+            roomType={reservation?.room_type ?? null}
+            checkinId={checkinId}
+          />
         )}
         {step === 'coFind' && (
           <CheckoutFind
@@ -388,7 +400,28 @@ function Kiosk({ device }: { device: StoredDevice }) {
 
         {settingsOpen && <TabletSettings device={device} hotel={config?.hotel_name} online={online} onClose={() => setSettingsOpen(false)} />}
 
-        {saver && step === 'welcome' && <Screensaver onWake={() => setSaver(false)} />}
+        {gallery !== null && step === 'welcome' && (
+          <Gallery
+            start={gallery}
+            onClose={() => setGallery(null)}
+            onIdle={() => {
+              setGallery(null)
+              setLang('en')
+              setSaver(true)
+            }}
+            idleMs={Math.max(idleLimit, 90) * 1000}
+          />
+        )}
+
+        {saver && step === 'welcome' && (
+          <Screensaver
+            onWake={() => setSaver(false)}
+            onBrowse={(i) => {
+              setGallery(i)
+              setSaver(false)
+            }}
+          />
+        )}
 
         {warn && (
           <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/55" role="dialog" aria-modal="true" aria-labelledby="idle-title">

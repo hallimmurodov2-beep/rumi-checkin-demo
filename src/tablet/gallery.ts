@@ -2,28 +2,31 @@
 // converted from assets/ by sharp). Captions in English, Russian and Tajik.
 // TODO: review the Tajik captions with a native speaker.
 
+export type Category = 'rooms' | 'dining' | 'spaces'
+
 export interface Slide {
   src: string
   en: string
   ru: string
   tg: string
+  cat: Category
 }
 
 const CAPTIONS = {
-  entrance: ['Entrance', 'Вход', 'Даромадгоҳ'],
-  lobby: ['Lobby', 'Лобби', 'Толори қабул'],
-  double: ['Deluxe Double Room', 'Делюкс с двуспальной кроватью', 'Ҳуҷраи Deluxe бо кати дунафара'],
-  twin: ['Deluxe Twin Room', 'Делюкс с двумя кроватями', 'Ҳуҷраи Deluxe бо ду кат'],
-  suite: ['Executive Suite', 'Представительский люкс', 'Люкси Executive'],
-  restaurant: ['Restaurant', 'Ресторан', 'Тарабхона'],
-  buffet: ['Breakfast buffet', 'Шведский стол', 'Мизи наҳорӣ'],
-  corridor: ['Guest floors', 'Жилые этажи', 'Ошёнаҳои меҳмонон'],
-  conference: ['Conference hall', 'Конференц-зал', 'Толори конфронс'],
+  entrance: ['Entrance', 'Вход', 'Даромадгоҳ', 'spaces'],
+  lobby: ['Lobby', 'Лобби', 'Толори қабул', 'spaces'],
+  double: ['Deluxe Double Room', 'Делюкс с двуспальной кроватью', 'Ҳуҷраи Deluxe бо кати дунафара', 'rooms'],
+  twin: ['Deluxe Twin Room', 'Делюкс с двумя кроватями', 'Ҳуҷраи Deluxe бо ду кат', 'rooms'],
+  suite: ['Executive Suite', 'Представительский люкс', 'Люкси Executive', 'rooms'],
+  restaurant: ['Restaurant', 'Ресторан', 'Тарабхона', 'dining'],
+  buffet: ['Breakfast buffet', 'Шведский стол', 'Мизи наҳорӣ', 'dining'],
+  corridor: ['Guest floors', 'Жилые этажи', 'Ошёнаҳои меҳмонон', 'spaces'],
+  conference: ['Conference hall', 'Конференц-зал', 'Толори конфронс', 'spaces'],
 } as const
 
 const s = (file: string, key: keyof typeof CAPTIONS): Slide => {
-  const [en, ru, tg] = CAPTIONS[key]
-  return { src: `/gallery/${file}.webp`, en, ru, tg }
+  const [en, ru, tg, cat] = CAPTIONS[key]
+  return { src: `/gallery/${file}.webp`, en, ru, tg, cat }
 }
 
 // Alternates public spaces and rooms so the loop never shows two similar shots in a row.
@@ -45,3 +48,16 @@ export const SLIDES: Slide[] = [
   s('deluxe-double-room2', 'double'),
   s('conference-hall1', 'conference'),
 ]
+
+/** Photo of a room type, for the check-in Done screen. Matches eZee names like "Deluxe Double" or "Executive Suite". */
+export function roomTypePhoto(roomType: string | null | undefined): Slide | null {
+  const t = (roomType ?? '').toLowerCase()
+  const file = /suite|люкс/.test(t)
+    ? 'executive-suite1'
+    : /twin|2 ?beds|двумя/.test(t)
+      ? 'deluxe-twin-room'
+      : /double|king|queen|двусп/.test(t)
+        ? 'deluxe-double-room'
+        : null
+  return file ? SLIDES.find((sl) => sl.src === `/gallery/${file}.webp`) ?? null : null
+}

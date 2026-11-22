@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type FocusEvent, type ReactNode } from 'react'
 import { SetLangContext, useLang, useT } from '../i18n'
 import { LANGS, type Key } from '../translations'
 import { ArrowLeft, Brand, Button, CheckIcon } from '../ui'
@@ -114,6 +114,11 @@ export function Shell({
   children: ReactNode
 }) {
   const t = useT()
+  // When the keyboard opens the screen shrinks: bring the field being typed in back into view.
+  const keepFieldVisible = (e: FocusEvent<HTMLElement>) => {
+    const el = e.target
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) window.setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+  }
   return (
     <div className="flex h-full flex-col">
       <header className="vt-header flex items-center justify-between gap-6 border-b border-line bg-paper px-8 py-3.5 xl:px-10">
@@ -124,7 +129,7 @@ export function Shell({
           <Clock />
         </div>
       </header>
-      <main className="vt-main screen-in flex min-h-0 flex-1 flex-col overflow-y-auto px-8 py-6 xl:px-10">{children}</main>
+      <main onFocus={keepFieldVisible} className="vt-main screen-in flex min-h-0 flex-1 flex-col overflow-y-auto px-8 py-6 xl:px-10">{children}</main>
       <footer className="vt-footer flex min-h-[96px] items-center justify-between gap-4 border-t border-line bg-paper px-8 py-3.5 xl:px-10">
         {hideBack || !onBack ? (
           <span />

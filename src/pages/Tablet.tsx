@@ -5,7 +5,6 @@ import { ApiError } from '../lib/supabase'
 import { transition } from '../lib/transition'
 import type { MrzData, PublicReservation, TabletConfig } from '../lib/types'
 import { translations, type Lang } from '../translations'
-import { Checkout, CheckoutDone, CheckoutFind, type Due } from '../tablet/Checkout'
 import { PairTablet, TabletSettings } from '../tablet/Setup'
 import { DetailsStep, Done, NeedHelp, SignatureStep, emptyDetails, type Details } from '../tablet/Steps'
 import { Welcome } from '../tablet/Welcome'
@@ -16,7 +15,8 @@ import { DeskModeContext } from '../tablet/Shell'
 import { COLORS, Emblem } from '../ui'
 
 // Check-in is started by reception (front desk app -> POST /v1/handoffs), never from the tablet.
-type Step = 'welcome' | 'help' | 'details' | 'signature' | 'done' | 'coFind' | 'checkout' | 'coDone'
+// Check-out happens in eZee: reception pushes the bill to this screen (FolioOverlay in frontdesk.tsx).
+type Step = 'welcome' | 'help' | 'details' | 'signature' | 'done'
 
 const IDLE_WARN = 10
 
@@ -116,9 +116,6 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const [mrz, setMrz] = useState<MrzData | null>(null)
   const [reservation, setReservation] = useState<PublicReservation | null>(null)
   const [details, setDetails] = useState<Details>(emptyDetails)
-  const [stay, setStay] = useState<PublicReservation | null>(null)
-  const [due, setDue] = useState<Due | null>(null)
-  const [stayShuttle, setStayShuttle] = useState(false)
   const [checkinId, setCheckinId] = useState<string | null>(null)
   const [handoff, setHandoff] = useState<Handoff | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -176,7 +173,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
     return () => window.clearInterval(id)
   }, [step])
 
-  // Bumped on every reset: a check-in or check-out that finishes after the guest walked away
+  // Bumped on every reset: a check-in that finishes after the guest walked away
   // must not open its Done screen for the next person.
   const session = useRef(0)
   const clearGuest = useCallback(() => {
@@ -186,9 +183,6 @@ function Kiosk({ device }: { device: StoredDevice }) {
     setMrz(null)
     setReservation(null)
     setDetails(emptyDetails)
-    setStay(null)
-    setDue(null)
-    setStayShuttle(false)
     setIdleLeft(idleLimit)
   }, [idleLimit])
 
@@ -201,12 +195,6 @@ function Kiosk({ device }: { device: StoredDevice }) {
     }, 'back')
     ;(document.activeElement as HTMLElement | null)?.blur?.()
   }, [clearGuest])
-
-  const toWelcome = () =>
-    transition(() => {
-      clearGuest()
-      setStep('welcome')
-    }, 'back')
 
   // Reception scanned a passport and sent the booking to this tablet: open it for the guest.
   const idleForHandoff = step === 'welcome'
@@ -336,12 +324,11 @@ function Kiosk({ device }: { device: StoredDevice }) {
             lang={lang}
             setLang={setLang}
             hotelName={config?.hotel_name ?? 'The Rumi Hotel & Residences'}
-            onCheckout={() => go('coFind')}
             onSettings={() => setSettingsOpen(true)}
             onGallery={() => setGallery(0)}
           />
         )}
-        {step === 'help' && <NeedHelp onStart={reset} title={stay ? tr('coTitle') : undefined} />}
+        {step === 'help' && <NeedHelp onStart={reset} />}
         {step === 'details' && (
           <DetailsStep
             value={details}
@@ -371,39 +358,6 @@ function Kiosk({ device }: { device: StoredDevice }) {
             checkinId={checkinId}
           />
         )}
-        {step === 'coFind' && (
-          <CheckoutFind
-            onBack={toWelcome}
-            onFound={(r, shuttle) => {
-              setStay(r)
-              setStayShuttle(shuttle)
-              go('checkout')
-            }}
-          />
-        )}
-        {step === 'checkout' && stay && (
-          <Checkout
-            stay={stay}
-            reviewUrl={config?.review_url ?? ''}
-            shuttle={stayShuttle}
-            onBack={() => go('coFind', 'back')}
-            onComplete={async (rating, feedback, owed) => {
-              const mine = session.current
-              try {
-                await tablet.submitCheckout(stay.id, rating, feedback)
-                if (session.current !== mine) return
-                setDue(owed)
-                go('coDone')
-              } catch (e) {
-                if (session.current !== mine) return
-                // Reception checked the guest out at the desk in the meantime.
-                if (e instanceof ApiError && e.code === 'reservation_unavailable') go('help')
-                else throw e
-              }
-            }}
-          />
-        )}
-        {step === 'coDone' && <CheckoutDone onFinish={reset} due={due} />}
 
         {!online && (
           <div role="alert" className="slide-down fixed left-1/2 top-3 z-40 -translate-x-1/2 rounded-full bg-ink px-5 py-2 text-sm font-medium text-cream shadow-lg">

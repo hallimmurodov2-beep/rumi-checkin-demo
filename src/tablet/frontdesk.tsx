@@ -8,7 +8,7 @@
 //    it is shown full screen as page images.
 import { useEffect, useRef, useState } from 'react'
 import { useLang } from '../i18n'
-import { QrCode } from '../ui'
+import { ArrowRight, Brand, QrCode, WifiIcon } from '../ui'
 
 export const LOBBY_WIFI_ENDPOINT = 'https://menu.therumihotel.com:8844/wifi/lobby-tablet'
 const LOBBY_WIFI_TOKEN = 'rumi-lobby-wifi-token'
@@ -136,9 +136,11 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
           dialog.current?.showModal()
           setOpen(true)
         }}
-        className="mt-3 min-h-14 rounded-xl border border-line bg-cream px-6 text-left text-lg font-semibold text-forest"
+        className="mt-3 flex min-h-16 w-full shrink-0 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-white px-6 text-left text-lg font-semibold text-forest transition active:scale-[0.99]"
       >
-        {t[0]}
+        <WifiIcon />
+        <span className="flex-1">{t[0]}</span>
+        <ArrowRight className="h-5 w-5" />
       </button>
       <dialog
         ref={dialog}
@@ -299,18 +301,48 @@ export function FolioOverlay() {
     }
   }, [])
   if (!pages.length) return null
+  return <FolioPages pages={pages} zoom={zoom} onZoom={() => setZoom(!zoom)} />
+}
+
+/** The invoice as the guest sees it. Sits outside the language setting, so its title is in all three languages. */
+export function FolioPages({ pages, zoom, onZoom }: { pages: string[]; zoom: boolean; onZoom: () => void }) {
   return (
-    <section aria-label="Invoice" className="fixed inset-0 z-[200] flex flex-col bg-forest-deep text-cream">
-      <header className="flex items-center justify-between px-6 py-3">
-        <strong>The Rumi · Invoice</strong>
-        <button type="button" className="rounded border px-4 py-2" onClick={() => setZoom(!zoom)}>
-          {zoom ? '100%' : '150%'}
-        </button>
+    <section aria-label="Invoice" className="fade-in fixed inset-0 z-[200] flex flex-col bg-forest-deep text-cream">
+      <header className="flex shrink-0 items-center justify-between gap-6 border-b border-gold-light/20 px-8 py-3.5">
+        <Brand tone="light" />
+        <p className="text-center">
+          <span className="block font-serif text-3xl font-semibold leading-tight">Your invoice</span>
+          <span className="block text-sm text-gold-light">
+            <span lang="ru">Ваш счёт</span>
+            <span className="mx-2 text-cream/50" aria-hidden="true">/</span>
+            <span lang="tg">Ҳисобнома</span>
+          </span>
+        </p>
+        <div className="flex items-center gap-4">
+          {pages.length > 1 && (
+            <span className="font-serif text-2xl font-semibold tabular-nums" aria-label={`${pages.length} pages`}>
+              {pages.length} <span className="text-base text-gold-light">pp.</span>
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onZoom}
+            aria-pressed={zoom}
+            aria-label={zoom ? 'Make smaller' : 'Make larger'}
+            className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-xl bg-cream text-forest shadow-lg transition active:scale-95"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="h-6 w-6" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="M15.5 15.5L21 21M8 10.5h5" />
+              {!zoom && <path d="M10.5 8v5" />}
+            </svg>
+          </button>
+        </div>
       </header>
-      <div className="flex-1 overflow-auto">
-        <div style={{ width: zoom ? '150%' : '100%' }}>
+      <div className="min-h-0 flex-1 overflow-auto overscroll-contain px-6 py-6">
+        <div className="mx-auto space-y-5" style={{ width: zoom ? 1240 : 'min(860px, 100%)' }}>
           {pages.map((p, i) => (
-            <img key={i} alt={'Invoice · ' + (i + 1)} className="mx-auto mb-2 block w-full max-w-[1500px]" src={'data:image/png;base64,' + p} />
+            <img key={i} alt={'Invoice · ' + (i + 1)} className="block w-full rounded-md bg-white shadow-[0_20px_50px_-20px_rgb(0_0_0/0.8)]" src={'data:image/png;base64,' + p} />
           ))}
         </div>
       </div>

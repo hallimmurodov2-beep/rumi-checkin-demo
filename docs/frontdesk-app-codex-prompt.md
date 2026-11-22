@@ -1,5 +1,7 @@
 # Codex prompt: connect the Front Desk app to The Rumi check-in tablet
 
+> **Update 2026-11-23:** the tablet no longer has a check-out screen. Anything below about tablet check-out, `invoice.requested`, `checkout.created`, `feedback.created` or the tablet showing a bill no longer happens, so don't build it. Invoices reach the tablet through the owner's eZee button (folio station), and feedback through his mobile app. After a check-out in eZee, still send `status: checked_out`.
+
 **How to use this file:** open the Front Desk app's repository in Codex and paste everything below the line as the task. Codex will look through the app first, then build the connection. Before it runs, have the tablet admin create the **API key** and **signing secret** (tablet admin → Settings → Front desk app connection) and put them in the Front Desk app's server environment yourself. Never paste them into the chat.
 
 ---

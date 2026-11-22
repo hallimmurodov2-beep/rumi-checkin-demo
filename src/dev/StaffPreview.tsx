@@ -27,8 +27,6 @@ const checkin = (id: string, rid: string, extra: Partial<Checkin> = {}): Checkin
 const data: StaffData = {
   reservations,
   checkins: [checkin('c1', 'r1'), checkin('c2', 'r4', { status: 'approved', approved_at: iso(1400), created_at: iso(1410), shuttle: false })],
-  checkouts: [{ id: 'o1', reservation_id: 'r3', device_id: 'd1', rating: 4, key_returned: false, created_at: iso(30) }],
-  feedback: [{ id: 'f1', reservation_id: 'r3', rating: 2, comment: 'Fixture comment: the room was warm at night.', resolved: false, resolved_by: null, created_at: iso(30) }],
   devices: [
     { id: 'd1', name: 'Lobby tablet 1', pairing_code: null, pairing_expires_at: null, paired_at: iso(9000), last_seen_at: iso(0.5), revoked: false, created_at: iso(9000) },
     { id: 'd2', name: 'Lobby tablet 2', pairing_code: 'ABCD2345', pairing_expires_at: iso(-10), paired_at: null, last_seen_at: null, revoked: false, created_at: iso(5) },

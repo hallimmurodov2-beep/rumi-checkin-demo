@@ -71,11 +71,8 @@ Do these in order. Section numbers refer to `docs/frontdesk-app-codex-prompt.md`
    - The tablet already gets the Wi-Fi login QR from your `/wifi/lobby-tablet` endpoint (the "Visitors Wi-Fi" pairing). The check-in Done screen reuses that same voucher, so nothing more is needed if the lobby pairing is done.
    - For a personal Wi-Fi per guest, send `wifi` with the reservation or handoff (§6). That one wins.
 8. **Hotel policy** (§6b): publish the rulebook per language with `PUT /v1/policy/{en|ru|tg}` and `{ "body_md": "…" }`, or let the admin upload the `.md` file in the tablet admin.
-9. **The bill** (§7): on `invoice.requested`, send the eZee folio with `PUT /v1/reservations/{ref}/invoice` within a few seconds.
-   - The tablet's check-out screen shows it, with optional rating, early-departure and shuttle notes.
-   - Your folio-station overlay still works for invoices that reception pushes as images.
-10. **Check-outs and feedback** (§8): handle `checkout.created` and `feedback.created`. After a desk check-out, send `status: checked_out`.
-11. **Catch-up and status screen** (§9) and **tests** (§10).
+9. **Bills and feedback are not part of this connection.** The tablet no longer has a check-out screen (removed 2026-11-23). Your eZee button keeps pushing invoices to the folio station, and your mobile app keeps collecting feedback. Skip §7 and §8 of the guides, except: after a guest checks out in eZee, send `status: checked_out`.
+10. **Catch-up and status screen** (§9) and **tests** (§10).
 
 ---
 
@@ -87,7 +84,6 @@ Do these in order. Section numbers refer to `docs/frontdesk-app-codex-prompt.md`
    - The tablet should switch from the Welcome screen to "Welcome, <Surname>" within about 2 seconds, in the guest's language.
    - Fill in the details and sign. Your app receives `checkin.created` and approves it.
    - The Done screen shows the room number and the Wi-Fi QR.
-4. Check out the test guest on the tablet. Your app receives `invoice.requested`, sends the bill, and the bill appears on the check-out screen.
-5. Delete the test booking afterwards (tablet admin, Arrivals → Edit → Delete).
+4. Delete the test booking afterwards (tablet admin, Arrivals → Edit → Delete).
 
 The full request and response shapes, error codes and webhook payloads are in `docs/partner-api.md` and `docs/frontdesk-app-codex-prompt.md`.

@@ -73,7 +73,6 @@ function HotelPanel({ settings, isAdmin, reload }: { settings: HotelSettings | n
           />
           The network name is hidden
         </label>
-        <Field label="Public review link" type="url" {...f('review_url')} hint="Google or TripAdvisor review page. Shown as a QR code to guests who rate 4-5." className="sm:col-span-2" />
         <Field label="Photo screensaver after (seconds)" type="number" min={0} max={600} {...f('screensaver_seconds')} hint="Hotel photos appear on the Welcome screen after this long without a touch. 0 turns it off." />
         <Field label="Idle reset (seconds)" type="number" min={30} max={300} {...f('idle_seconds')} hint="Tablet returns to the start after this long without a touch." />
         <Field label="Keep guest data (days after departure)" type="number" min={1} max={3650} {...f('retention_days')} hint="Passport details, contacts and signatures are deleted automatically after this." />
@@ -238,10 +237,9 @@ function EzeePanel({ integration: s, log, isAdmin, reload, now }: { integration:
     >
       <div className="grid gap-5 p-5 md:grid-cols-2">
         <div className="space-y-3">
-          {toggle('ezee_enabled', 'Sync automatically', 'Every 3 minutes and right after each tablet check-in or check-out.')}
+          {toggle('ezee_enabled', 'Sync automatically', 'Every 3 minutes and right after each tablet check-in.')}
           {toggle('push_guest_data', 'Send tablet check-ins to eZee', 'Guest details, passport number, signature and extra guests are added to the eZee booking.')}
           {toggle('auto_checkin', 'Also check the guest in on eZee', 'Only when eZee already has a clean room assigned. Off: reception checks the guest in on eZee after seeing the passport.')}
-          {toggle('push_checkout', 'Send tablet check-outs to eZee', 'If the bill is not settled, eZee refuses and reception finishes it at the desk.')}
         </div>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between gap-3"><dt className="text-muted">Bookings received</dt><dd>{s.last_pull_at ? timeAgo(s.last_pull_at, now) : 'Never'}</dd></div>
@@ -349,7 +347,7 @@ function PartnerPanel({ partner: p, isAdmin, reload, now }: { partner: PartnerSe
     >
       <div className="space-y-5 p-5">
         <p className="text-sm text-muted">
-          Connects the tablet to the owner's own front desk app: every tablet check-in, check-out and feedback is sent to it instantly, and it can send bookings
+          Connects the tablet to the owner's own front desk app: every tablet check-in is sent to it instantly, and it can send bookings
           and room assignments back. The full guide for the app's developer is in <span className="font-mono">docs/partner-api.md</span>.
         </p>
         <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">

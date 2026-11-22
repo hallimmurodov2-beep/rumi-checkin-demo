@@ -1,5 +1,5 @@
 import { rpc, ApiError } from './supabase'
-import type { InvoiceResult, Policy, PublicReservation, TabletConfig, WifiInfo } from './types'
+import type { Policy, PublicReservation, TabletConfig, WifiInfo } from './types'
 
 // A paired tablet keeps a random secret in local storage. The database only
 // stores its SHA-256 hash; every tablet call proves itself with the secret.
@@ -92,10 +92,6 @@ export const tablet = {
   findByName: (surname: string, given: string) => call<Lookup>('find_reservation_by_name', { p_surname: surname, p_given: given }),
   submitCheckin: (reservationId: string, p: CheckinPayload) =>
     call<{ id: string; desk_code: string }>('submit_checkin', { p_reservation_id: reservationId, p }),
-  findStay: (room: string, surname: string) =>
-    call<Lookup & { shuttle?: boolean }>('find_stay_for_checkout', { p_room: room, p_surname: surname }),
-  submitCheckout: (reservationId: string, rating: number | null, comment: string) =>
-    call<string>('submit_checkout', { p_reservation_id: reservationId, p_rating: rating, p_comment: comment }),
   /** Wi-Fi for a check-in this tablet just finished (the stay's own network, or the hotel's). */
   wifi: (checkinId: string) => call<WifiInfo | null>('tablet_wifi', { p_checkin_id: checkinId }),
   /** The hotel policy in this language (English fallback), or null when none is published. */
@@ -103,9 +99,6 @@ export const tablet = {
   /** Room, status and Wi-Fi for a check-in this tablet just finished. */
   checkinInfo: (checkinId: string) =>
     call<{ status: string; room_number: string | null; wifi: WifiInfo | null } | null>('tablet_checkin_info', { p_checkin_id: checkinId }),
-  /** The guest's bill. With request=true the front desk app is asked for an up-to-date one. */
-  invoice: (reservationId: string, request = false) =>
-    call<InvoiceResult>('tablet_invoice', { p_reservation_id: reservationId, p_request: request }),
 }
 
 export interface CheckinPayload {

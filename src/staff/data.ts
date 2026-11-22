@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import type { Checkin, CheckinGuest, Checkout, Device, Feedback, HotelSettings, IntegrationSettings, PartnerSettings, Profile, Reservation, SyncLogEntry } from '../lib/types'
+import type { Checkin, CheckinGuest, Device, HotelSettings, IntegrationSettings, PartnerSettings, Profile, Reservation, SyncLogEntry } from '../lib/types'
 
 /** Today's date at the hotel (Dushanbe), as YYYY-MM-DD. */
 export function hotelToday(offsetDays = 0): string {
@@ -70,8 +70,6 @@ const CHECKIN_LIST_COLUMNS =
 export interface StaffData {
   reservations: Reservation[]
   checkins: Checkin[]
-  checkouts: Checkout[]
-  feedback: Feedback[]
   devices: Device[]
   settings: HotelSettings | null
   profiles: Profile[]
@@ -85,14 +83,12 @@ export interface StaffData {
   reload: (table?: Table) => void
 }
 
-type Table = 'reservations' | 'checkins' | 'checkouts' | 'feedback' | 'devices' | 'settings' | 'profiles' | 'guests' | 'integration'
+type Table = 'reservations' | 'checkins' | 'devices' | 'settings' | 'profiles' | 'guests' | 'integration'
 
 /** Everything the front desk sees, kept current with Supabase Realtime. */
 export function useStaffData(isAdmin: boolean): StaffData {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
-  const [checkouts, setCheckouts] = useState<Checkout[]>([])
-  const [feedback, setFeedback] = useState<Feedback[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [settings, setSettings] = useState<HotelSettings | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -128,18 +124,6 @@ export function useStaffData(isAdmin: boolean): StaffData {
         .limit(1000)
       if (error) throw error
       setCheckins(data as unknown as Checkin[])
-    },
-    checkouts: async () => {
-      const since = new Date(Date.now() - 30 * 86_400_000).toISOString()
-      const { data, error } = await supabase.from('checkouts').select('*').gte('created_at', since).order('created_at', { ascending: false })
-      if (error) throw error
-      setCheckouts(data as Checkout[])
-    },
-    feedback: async () => {
-      const since = new Date(Date.now() - 120 * 86_400_000).toISOString()
-      const { data, error } = await supabase.from('feedback').select('*').gte('created_at', since).order('created_at', { ascending: false })
-      if (error) throw error
-      setFeedback(data as Feedback[])
     },
     devices: async () => {
       const { data, error } = await supabase.from('devices').select('*').order('created_at')
@@ -195,7 +179,7 @@ export function useStaffData(isAdmin: boolean): StaffData {
       .finally(() => alive && setLoading(false))
 
     const channel = supabase.channel('front-desk')
-    for (const t of ['reservations', 'checkins', 'checkouts', 'feedback', 'devices'] as const) {
+    for (const t of ['reservations', 'checkins', 'devices'] as const) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => reload(t))
     }
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'checkin_guests' }, () => reload('guests'))
@@ -224,7 +208,7 @@ export function useStaffData(isAdmin: boolean): StaffData {
     }
   }, [reload])
 
-  return { reservations, checkins, checkouts, feedback, devices, settings, profiles, guests, integration, partner, syncLog, loading, error, live, reload }
+  return { reservations, checkins, devices, settings, profiles, guests, integration, partner, syncLog, loading, error, live, reload }
 }
 
 export function deviceOnline(d: Device, now = Date.now()) {

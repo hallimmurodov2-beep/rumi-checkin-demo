@@ -4,7 +4,7 @@ import { LANGS, type Lang } from '../translations'
 import { inKioskApp } from '../lib/kiosk'
 import { VisitorWifi } from './frontdesk'
 import { GalleryTile } from './PhotoGallery'
-import { ArrowRight, COLORS, Emblem, ExpandIcon } from '../ui'
+import { COLORS, Emblem, ExpandIcon } from '../ui'
 
 function useFullscreenAvailable() {
   const check = () => {
@@ -38,14 +38,12 @@ function enterFullscreen() {
 export function Welcome({
   lang,
   setLang,
-  onCheckout,
   onSettings,
   onGallery,
   hotelName,
 }: {
   lang: Lang
   setLang: (l: Lang) => void
-  onCheckout: () => void
   onSettings: () => void
   /** Opens the hotel photo gallery. */
   onGallery?: () => void
@@ -89,7 +87,7 @@ export function Welcome({
         <p className="rise relative mt-4 text-sm tracking-[0.2em] text-gold-light" style={{ animationDelay: '520ms' }}>DUSHANBE</p>
       </section>
 
-      <section className="relative flex flex-1 flex-col justify-center px-12 xl:px-16">
+      <section className="relative flex min-h-0 flex-1 flex-col px-12 py-9 xl:px-14">
         <p className="eyebrow rise" style={{ animationDelay: '150ms' }}>{t('chooseLanguage')}</p>
         <div className="rise mt-4 grid grid-cols-3 gap-3" style={{ animationDelay: '220ms' }} role="group" aria-label={t('chooseLanguage')}>
           {LANGS.map((l) => (
@@ -110,7 +108,7 @@ export function Welcome({
         </div>
 
         {/* Check-in starts at reception: the front desk app scans the passport and opens it on this screen. */}
-        <div className="rise mt-10 flex items-center gap-6 rounded-2xl bg-forest px-8 py-6 text-cream shadow-[0_16px_40px_-20px_rgb(14_59_46/0.9)]" style={{ animationDelay: '300ms' }}>
+        <div className="rise mt-5 flex shrink-0 items-center gap-6 rounded-2xl bg-forest px-8 py-5 text-cream shadow-[0_16px_40px_-20px_rgb(14_59_46/0.9)]" style={{ animationDelay: '300ms' }}>
           <span className="handoff-card flex h-20 w-14 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg bg-gold-light/15 text-gold-light" aria-hidden="true">
             <span className="emblem h-7 w-7" style={{ backgroundColor: 'currentColor' }} />
             <span className="h-0.5 w-7 rounded-full bg-gold-light/50" />
@@ -120,20 +118,7 @@ export function Welcome({
             <span className="mt-1 block text-base text-gold-light">{t('checkinAtDeskSub')}</span>
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onCheckout}
-          style={{ animationDelay: '380ms' }}
-          className="rise mt-4 flex min-h-20 cursor-pointer items-center justify-between gap-4 rounded-2xl border-2 border-forest bg-white px-8 text-left text-forest transition hover:bg-cream active:scale-[0.99]"
-        >
-          <span>
-            <span className="block text-xl font-semibold">{t('checkOut')}</span>
-            <span className="block text-sm text-muted">{t('checkOutSub')}</span>
-          </span>
-          <ArrowRight className="h-6 w-6 shrink-0" />
-        </button>
-
-        {onGallery && <GalleryTile onOpen={onGallery} className="rise mt-4" style={{ animationDelay: '460ms' }} />}
+        {onGallery && <GalleryTile onOpen={onGallery} className="rise mt-4 min-h-0 flex-1" style={{ animationDelay: '380ms' }} />}
 
         <VisitorWifi />
 
@@ -141,7 +126,7 @@ export function Welcome({
           <button
             type="button"
             onClick={enterFullscreen}
-            className="absolute bottom-4 right-6 flex min-h-14 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-medium text-muted hover:bg-forest/5 hover:text-forest"
+            className="absolute right-6 top-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-medium text-muted hover:bg-forest/5 hover:text-forest"
           >
             <ExpandIcon /> Full screen
           </button>

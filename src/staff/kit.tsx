@@ -91,17 +91,6 @@ export function Chip({ children, className = 'border-line bg-white text-muted' }
   return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${className}`}>{children}</span>
 }
 
-export function Stars({ n }: { n: number | null }) {
-  if (!n) return <span className="text-sm text-muted">No rating</span>
-  return (
-    <span className="inline-flex items-center" role="img" aria-label={`${n} out of 5`}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <StarIcon key={i} filled={i <= n} className="h-4.5 w-4.5" />
-      ))}
-    </span>
-  )
-}
-
 /* Forms -------------------------------------------------------------------- */
 
 export function Field({ label, hint, className = '', ...p }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }) {

@@ -3,7 +3,7 @@
 Self check-in for The Rumi Hotel & Residences, Dushanbe.
 
 - **Guest tablet** (`/tablet`): guests check in or out in English, Russian or Tajik. Passports are scanned by reception, and the tablet shows the guest their booking.
-- **Front desk** (`/staff`): staff see each tablet check-in live, check the passport, assign the room and hand over the key. They also manage arrivals, in-house guests, check-outs, feedback, tablets and the team.
+- **Front desk** (`/staff`): staff see each tablet check-in live, check the passport, assign the room and hand over the key. They also manage arrivals, in-house guests, tablets and the team.
 
 Stack: Vite, React, TypeScript, Tailwind CSS v4 and Supabase (Postgres, Auth, Realtime), hosted on Vercel. The tablet is an installable web app (PWA): it runs full screen in landscape and keeps the screen awake.
 
@@ -56,7 +56,7 @@ npm run build    # type-check and production build
 ```
 
 - `/dev/staff` (development only) shows the front-desk UI with fixture data, so you can work on screens without signing in. It is not included in production builds.
-- `/dev/tablet` (development only) shows the tablet's Done and Check-out screens with fixture data: `/dev/tablet?screen=done&wifi=stay` or `/dev/tablet?screen=checkout&lang=ru&bill=due` (`bill` can be `due`, `paid`, `slow` or `none`).
+- `/dev/tablet` (development only) shows the tablet screens with fixture data: `/dev/tablet?screen=done&wifi=stay` or `/dev/tablet?screen=folio`.
 - The Supabase URL and publishable key are in `src/lib/supabase.ts`; you can override them with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. The publishable key is designed to be public; access is enforced in the database.
 - The database schema, row-level security and functions are applied as Supabase migrations: `core_schema`, `device_secrets_and_rpcs`, `fix_unaccent_and_schedule_purge`, `cyrillic_name_matching`, `ezee_sync_and_companions`, `tablet_config_retention`, `partner_app_integration`, `fix_partner_event_trigger`, `desk_passport_mode_and_screensaver`, `desk_to_tablet_handoffs`, `checkin_without_consent_checkbox` and `wifi_qr_and_checkout_invoices`.
 - `npm test` covers the eZee request and response mapping (`tests/ezee.test.ts`) and the Wi-Fi QR text and the partner API's bill and Wi-Fi checks (`tests/partner.test.ts`).
@@ -86,7 +86,7 @@ The front desk server (`menu.therumihotel.com:8844`) also gives the tablet two t
 
 The hotel's own front desk app, which already talks to eZee, connects to the tablet through the **partner API**, the Supabase Edge Function `supabase/functions/partner-api`:
 
-- **Webhooks:** the tablet sends every check-in (passport details, additional guests, signature), check-out and feedback to the app instantly. Each webhook is signed with HMAC-SHA256 and retried automatically if delivery fails.
+- **Webhooks:** the tablet sends every check-in (passport details, additional guests, signature) to the app instantly. Each webhook is signed with HMAC-SHA256 and retried automatically if delivery fails.
 - **API:** the app sends bookings and room numbers to the tablet, approves or sends back tablet check-ins, and can list check-ins, check-outs and feedback.
 - **Wi-Fi and bills:** the app sets the guest Wi-Fi shown as a QR code after check-in (hotel-wide, or a personal voucher per stay), and sends each guest's full bill, which the tablet shows at check-out. When a guest starts checking out, the app receives `invoice.requested` and answers with the current bill.
 - **Setup:** in Settings → **Front desk app connection**, create the API key and signing secret, enter the app's webhook address, then press **Send test event**.
@@ -102,7 +102,6 @@ Reception keeps working in eZee FrontDesk. The tablet syncs with it through eZee
 - **eZee → tablet:** arrivals from yesterday to tomorrow, plus every stay departing in the next 30 days. That includes the room number, rate plan (used to detect breakfast) and status. Guests can type the eZee booking number or their channel voucher number (for example Booking.com).
 - **Tablet → eZee:** when a guest finishes on the tablet, eZee's `UploadDocument` call adds their name, date of birth, phone, email, passport number and expiry, and signature to the booking. Additional guests are added with `AddSharer`.
 - **Check-in on eZee:** off by default. Reception checks the passport and checks the guest in on eZee as usual. When eZee reports the guest as arrived, the tablet check-in is closed automatically. You can turn on "Also check the guest in on eZee" in Settings; it only works when eZee already has a clean room assigned.
-- **Check-out:** a tablet check-out calls `GuestCheckOut`. If the bill isn't settled, eZee refuses and the sync log says so, so reception finishes the check-out at the desk.
 - **Ratings and private feedback** stay in this app, because eZee has no API for them.
 
 **Turning it on:**
@@ -122,7 +121,6 @@ The request formats follow eZee's published connectivity docs. Some fields in th
 - **Signature** is labelled with the guest's name and the date.
 - **Room number** is shown on the confirmation and done screens when eZee has already assigned one.
 - **Wi-Fi QR:** the Done screen shows the guest network with a QR code that phones join by scanning. If the front desk app sent a personal Wi-Fi for the stay, that one is shown instead, marked "Just for your stay". The screen stays up for 45 seconds so guests have time to scan.
-- **Bill at check-out:** the check-out screen asks the front desk app for the guest's current bill and shows every charge, taxes, payments and the balance. A balance due asks the guest to settle at the desk; a settled bill shows "Paid in full". With no front desk app connected, the tablet says the bill is ready at the desk.
 - **Self-updating:** every build stamps a new id into `sw.js`, so an installed tablet notices each deploy within 30 minutes and reloads while it's on the welcome screen. It also refreshes itself once a night at about 04:00.
 
 ## Known limits

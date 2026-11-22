@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { fmtDate, hotelToday, type StaffData } from '../data'
+import { deviceOnline, fmtDate, hotelToday, type StaffData } from '../data'
 import { Btn, Empty, Kpi, PageHead, Panel, StatusChip } from '../kit'
 import { CheckinRow } from './Queue'
 import type { View } from '../StaffApp'
@@ -11,11 +11,11 @@ export function TodayView({ data, now, go, openCheckin }: { data: StaffData; now
   const expected = arrivals.filter((r) => r.status === 'expected')
   const waiting = data.checkins.filter((c) => c.status === 'waiting')
   const inHouse = data.reservations.filter((r) => r.status === 'in_house')
+  const online = data.devices.filter((d) => deviceOnline(d, now)).length
   const arrived = arrivals.filter((r) => r.status === 'in_house' || r.status === 'checked_out')
   const departing = inHouse.filter((r) => r.departure_date === today)
   const overdue = inHouse.filter((r) => r.departure_date < today)
   const leaving = [...overdue, ...departing]
-  const openFeedback = data.feedback.filter((f) => !f.resolved).length
   // Hotel time (Dushanbe), whatever time zone the computer is set to.
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dushanbe', hour: '2-digit', hourCycle: 'h23' }).format(now))
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -27,7 +27,7 @@ export function TodayView({ data, now, go, openCheckin }: { data: StaffData; now
         <Kpi label="Waiting at desk" value={waiting.length} sub="Tablet check-ins" onClick={() => go('queue')} />
         <Kpi label="Arrivals today" value={`${arrived.length} of ${arrivals.length}`} sub={`arrived, ${expected.length} still expected`} onClick={() => go('arrivals')} />
         <Kpi label="In house" value={inHouse.length} sub={`${departing.length} leaving today${overdue.length ? `, ${overdue.length} overdue` : ''}`} onClick={() => go('inhouse')} />
-        <Kpi label="Open feedback" value={openFeedback} sub={openFeedback === 1 ? 'Guest comment to follow up' : 'Guest comments to follow up'} onClick={() => go('feedback')} />
+        <Kpi label="Tablets online" value={`${online} of ${data.devices.length}`} sub="In the lobby" onClick={() => go('settings')} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.3fr_1fr]">
@@ -63,7 +63,7 @@ export function TodayView({ data, now, go, openCheckin }: { data: StaffData; now
               </ul>
             )}
           </Panel>
-          <Panel title={`Leaving today (${leaving.length})`} action={<Btn tone="ghost" onClick={() => go('checkouts')}>Check-outs</Btn>}>
+          <Panel title={`Leaving today (${leaving.length})`} action={<Btn tone="ghost" onClick={() => go('inhouse')}>In house</Btn>}>
             {leaving.length === 0 ? (
               <Empty>No departures due.</Empty>
             ) : (

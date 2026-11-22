@@ -87,6 +87,13 @@ html:has(.kiosk), body:has(.kiosk) { overscroll-behavior: none; overflow: hidden
   .rotate-hint { display: flex; }
 }
 
+/* On-screen keyboard open (the WebView shrinks): drop the header and tighten the footer so the fields stay visible. */
+@media (max-height: 560px) and (orientation: landscape) {
+  .kiosk .vt-header { display: none; }
+  .kiosk .vt-main { padding-block: 0.75rem; }
+  .kiosk .vt-footer { min-height: 0; padding-block: 0.375rem; }
+}
+
 /* ---- Screen transitions (View Transitions API) --------------------------- */
 .vt-header { view-transition-name: tablet-header; }
 .vt-main { view-transition-name: tablet-main; }

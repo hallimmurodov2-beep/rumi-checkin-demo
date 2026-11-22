@@ -352,7 +352,7 @@ export function Gallery({
               aria-current={k === i}
               className={`gl-thumb relative h-[68px] w-[102px] shrink-0 cursor-pointer overflow-hidden rounded-lg ${k === i ? 'is-active' : ''}`}
             >
-              <img src={s.src} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
+              <img src={s.thumb} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
             </button>
           ))}
         </div>
@@ -362,7 +362,7 @@ export function Gallery({
 }
 
 /** Welcome-screen tile: a slow cross-fade of a few photos that opens the gallery. */
-const TILE_PHOTOS = ['lobby', 'deluxe-double-room', 'restaurant', 'executive-suite1', 'entrance'].map((f) => `/gallery/${f}.webp`)
+const TILE_PHOTOS = ['second-floor', 'deluxe-king-room', 'pool', 'restaurant', 'lobby', 'executive-suite1'].map((f) => `/gallery/${f}.webp`)
 
 export function GalleryTile({ onOpen, className = '', style }: { onOpen: () => void; className?: string; style?: CSSProperties }) {
   const t = useT()
@@ -388,7 +388,7 @@ export function GalleryTile({ onOpen, className = '', style }: { onOpen: () => v
           className={`gl-tile-photo absolute inset-0 h-full w-full object-cover ${j === k ? 'is-on' : ''}`}
         />
       ))}
-      <span className="absolute inset-0 bg-gradient-to-r from-forest-deep/95 via-forest-deep/60 to-forest-deep/5" aria-hidden="true" />
+      <span className="absolute inset-0 bg-gradient-to-t from-forest-deep/95 via-forest-deep/35 to-transparent" aria-hidden="true" />
       <span className="relative flex w-full items-end justify-between gap-4 px-8 py-6">
         <span>
           <span className="block font-serif text-3xl font-semibold leading-tight">{t('galleryTitle')}</span>

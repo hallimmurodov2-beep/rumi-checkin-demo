@@ -122,25 +122,6 @@ export interface SyncLogEntry {
   message: string | null
 }
 
-export interface Checkout {
-  id: string
-  reservation_id: string
-  device_id: string | null
-  rating: number | null
-  key_returned: boolean
-  created_at: string
-}
-
-export interface Feedback {
-  id: string
-  reservation_id: string | null
-  rating: number
-  comment: string
-  resolved: boolean
-  resolved_by: string | null
-  created_at: string
-}
-
 export interface Device {
   id: string
   name: string
@@ -221,41 +202,6 @@ export interface WifiInfo {
   qr_payload?: string | null
   note?: string | null
   per_stay?: boolean
-}
-
-export interface InvoiceLine {
-  date: string | null
-  description: string
-  quantity: number | null
-  unit_price: number | null
-  amount: number
-  category?: string | null
-}
-
-/** The guest's bill, sent by the front desk app (PUT /v1/reservations/{ref}/invoice). */
-export interface Invoice {
-  invoice_number: string | null
-  currency: string
-  issued_at: string
-  guest_name?: string | null
-  lines: InvoiceLine[]
-  taxes: { name: string; amount: number }[]
-  payments: { date: string | null; method: string; amount: number }[]
-  prices_include_tax: boolean
-  subtotal: number
-  tax_total: number
-  total: number
-  paid: number
-  balance: number
-  note?: string | null
-}
-
-export interface InvoiceResult {
-  invoice: Invoice | null
-  received_at: string | null
-  requested_at: string | null
-  /** False when no front desk app is connected, so there is nothing to wait for. */
-  can_request: boolean
 }
 
 /** The hotel policy (rulebook) the guest reads before signing. */

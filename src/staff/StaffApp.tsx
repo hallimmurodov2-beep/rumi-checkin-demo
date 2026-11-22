@@ -8,10 +8,10 @@ import { Login } from './Login'
 import { ArrivalsView } from './views/Arrivals'
 import { CheckinDrawer, QueueView } from './views/Queue'
 import { SettingsView } from './views/Settings'
-import { CheckoutsView, FeedbackView, InHouseView } from './views/Stays'
+import { InHouseView } from './views/Stays'
 import { TodayView } from './views/Today'
 
-export type View = 'today' | 'arrivals' | 'queue' | 'inhouse' | 'checkouts' | 'feedback' | 'settings'
+export type View = 'today' | 'arrivals' | 'queue' | 'inhouse' | 'settings'
 
 function Loading() {
   return (
@@ -66,8 +66,6 @@ const ICONS: Record<View, string> = {
   arrivals: 'M4 7h16M4 12h16M4 17h10',
   queue: 'M9 4h6l1 2h3v14H5V6h3zM9 12l2 2 4-4',
   inhouse: 'M4 20V8l8-4 8 4v12M9 20v-6h6v6',
-  checkouts: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
-  feedback: 'M4 5h16v11H8l-4 4z',
   settings: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z',
 }
 
@@ -90,7 +88,6 @@ export function DeskUI({ profile, data }: { profile: Profile; data: StaffData })
   }, [])
 
   const waiting = data.checkins.filter((c) => c.status === 'waiting')
-  const openFeedback = data.feedback.filter((f) => !f.resolved).length
   const inHouse = data.reservations.filter((r) => r.status === 'in_house').length
   const online = data.devices.filter((d) => deviceOnline(d, now)).length
 
@@ -118,8 +115,6 @@ export function DeskUI({ profile, data }: { profile: Profile; data: StaffData })
     { id: 'queue', label: 'Tablet check-ins', count: waiting.length, highlight: waiting.length > 0 },
     { id: 'arrivals', label: 'Arrivals' },
     { id: 'inhouse', label: 'In house', count: inHouse },
-    { id: 'checkouts', label: 'Check-outs' },
-    { id: 'feedback', label: 'Feedback', count: openFeedback, highlight: openFeedback > 0 },
     { id: 'settings', label: 'Settings' },
   ]
 
@@ -226,10 +221,6 @@ export function DeskUI({ profile, data }: { profile: Profile; data: StaffData })
             <QueueView data={data} now={now} openId={openId} setOpenId={setOpenId} />
           ) : view === 'inhouse' ? (
             <InHouseView data={data} openCheckin={openCheckin} />
-          ) : view === 'checkouts' ? (
-            <CheckoutsView data={data} />
-          ) : view === 'feedback' ? (
-            <FeedbackView data={data} now={now} />
           ) : (
             <SettingsView data={data} isAdmin={isAdmin} profile={profile} now={now} />
           )}

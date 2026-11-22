@@ -64,7 +64,7 @@ export function Login({ recovery, onRecovered }: { recovery?: boolean; onRecover
         <div className="rise relative">
           <p className="text-sm font-semibold tracking-[0.2em] text-gold-light">FRONT DESK</p>
           <h1 className="mt-3 text-6xl leading-[1.05]">Self check-in, managed from one screen.</h1>
-          <p className="mt-5 max-w-md text-lg text-cream/80">Arrivals, tablet check-ins, passport review, check-outs and guest feedback, live.</p>
+          <p className="mt-5 max-w-md text-lg text-cream/80">Arrivals, tablet check-ins and passport review, live.</p>
         </div>
         <p className="relative text-sm text-cream/60">The Rumi Hotel &amp; Residences · Dushanbe</p>
       </aside>

@@ -6,6 +6,8 @@ export type Category = 'rooms' | 'dining' | 'spaces' | 'wellness'
 
 export interface Slide {
   src: string
+  /** Small copy for the filmstrip (public/gallery/thumbs, 240x160). */
+  thumb: string
   en: string
   ru: string
   tg: string
@@ -32,7 +34,7 @@ const CAPTIONS = {
 
 const s = (file: string, key: keyof typeof CAPTIONS, portrait = false): Slide => {
   const [en, ru, tg, cat] = CAPTIONS[key]
-  return { src: `/gallery/${file}.webp`, en, ru, tg, cat, portrait }
+  return { src: `/gallery/${file}.webp`, thumb: `/gallery/thumbs/${file}.webp`, en, ru, tg, cat, portrait }
 }
 
 // Alternates public spaces and rooms so the loop never shows two similar shots in a row.

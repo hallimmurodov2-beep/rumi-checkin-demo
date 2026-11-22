@@ -1,9 +1,8 @@
-import { useMemo, useState } from 'react'
-import { errorCode, supabase } from '../../lib/supabase'
+import { useMemo } from 'react'
 import type { Checkin, Reservation } from '../../lib/types'
 import { CarIcon, CheckIcon } from '../../ui'
-import { fmtDate, fmtTime, hotelToday, nightsBetween, timeAgo, type StaffData } from '../data'
-import { Btn, Chip, Empty, Modal, PageHead, Panel, Stars, errorText, useToast } from '../kit'
+import { fmtDate, hotelToday, nightsBetween, type StaffData } from '../data'
+import { Btn, Chip, Empty, PageHead, Panel } from '../kit'
 
 function latestApproved(checkins: Checkin[]) {
   const m = new Map<string, Checkin>()
@@ -33,23 +32,11 @@ function exportRegistration(rows: { r: Reservation; c?: Checkin }[]) {
 }
 
 export function InHouseView({ data, openCheckin }: { data: StaffData; openCheckin: (id: string) => void }) {
-  const toast = useToast()
-  const [checkout, setCheckout] = useState<Reservation | null>(null)
   const today = hotelToday()
   const approved = useMemo(() => latestApproved(data.checkins), [data.checkins])
   const guests = data.reservations
     .filter((r) => r.status === 'in_house')
     .sort((a, b) => (a.room_number ?? '').localeCompare(b.room_number ?? '', undefined, { numeric: true }))
-
-  const doCheckout = async (r: Reservation) => {
-    const { error } = await supabase.from('reservations').update({ status: 'checked_out' }).eq('id', r.id)
-    if (error) return toast(errorText(errorCode(error)), 'error')
-    await supabase.from('checkouts').insert({ reservation_id: r.id, rating: null, key_returned: true })
-    toast(`${r.guest_name} checked out`)
-    data.reload('reservations')
-    data.reload('checkouts')
-    setCheckout(null)
-  }
 
   return (
     <>
@@ -70,7 +57,7 @@ export function InHouseView({ data, openCheckin }: { data: StaffData; openChecki
             <table className="w-full min-w-[680px] text-left text-[15px]">
               <thead className="border-b border-line bg-cream/60 text-xs tracking-wider text-label">
                 <tr>
-                  {['ROOM', 'GUEST', 'DEPARTURE', 'PASSPORT', ''].map((h) => (
+                  {['ROOM', 'GUEST', 'DEPARTURE', 'PASSPORT'].map((h) => (
                     <th key={h} scope="col" className="px-5 py-3 font-semibold">{h}</th>
                   ))}
                 </tr>
@@ -102,9 +89,6 @@ export function InHouseView({ data, openCheckin }: { data: StaffData; openChecki
                           <span className="text-sm text-muted">Checked in at desk</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <Btn onClick={() => setCheckout(r)}>Check out</Btn>
-                      </td>
                     </tr>
                   )
                 })}
@@ -113,135 +97,6 @@ export function InHouseView({ data, openCheckin }: { data: StaffData; openChecki
           </div>
         )}
       </Panel>
-      {checkout && (
-        <Modal
-          title="Check out at the desk"
-          onClose={() => setCheckout(null)}
-          footer={
-            <>
-              <Btn onClick={() => setCheckout(null)}>Cancel</Btn>
-              <Btn tone="primary" onClick={() => doCheckout(checkout)}>Check out and take key</Btn>
-            </>
-          }
-        >
-          <p>
-            Check out <span className="font-semibold">{checkout.guest_name}</span> from room {checkout.room_number}? Settle the bill in eZee as usual.
-          </p>
-        </Modal>
-      )}
-    </>
-  )
-}
-
-export function CheckoutsView({ data }: { data: StaffData }) {
-  const toast = useToast()
-  const byId = useMemo(() => new Map(data.reservations.map((r) => [r.id, r])), [data.reservations])
-  const today = hotelToday()
-  const departing = data.reservations.filter((r) => r.status === 'in_house' && r.departure_date <= today)
-
-  const toggleKey = async (id: string, v: boolean) => {
-    const { error } = await supabase.from('checkouts').update({ key_returned: v }).eq('id', id)
-    if (error) return toast(errorText(errorCode(error)), 'error')
-    data.reload('checkouts')
-  }
-
-  return (
-    <>
-      <PageHead title="Check-outs" sub="Tablet and desk check-outs from the last 30 days." />
-      {departing.length > 0 && (
-        <Panel title={`Still to check out today (${departing.length})`} className="mb-6">
-          <ul className="divide-y divide-line">
-            {departing.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                <span>
-                  <span className="font-medium">{r.guest_name}</span> <span className="text-muted">· room {r.room_number}</span>
-                </span>
-                <span className="text-sm text-muted">Due {fmtDate(r.departure_date)}</span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      )}
-      <Panel>
-        {data.checkouts.length === 0 ? (
-          <Empty>No check-outs yet.</Empty>
-        ) : (
-          <ul className="divide-y divide-line">
-            {data.checkouts.map((c) => {
-              const r = byId.get(c.reservation_id)
-              return (
-                <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
-                  <div>
-                    <div className="font-medium">{r?.guest_name ?? 'Guest'}</div>
-                    <div className="text-sm text-muted">
-                      Room {r?.room_number ?? '—'} · {fmtDate(c.created_at)} {fmtTime(c.created_at)} · {c.device_id ? 'Tablet' : 'Desk'}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Stars n={c.rating} />
-                    <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-                      <input type="checkbox" checked={c.key_returned} onChange={(e) => toggleKey(c.id, e.target.checked)} className="h-5 w-5 accent-forest" />
-                      Key returned
-                    </label>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </Panel>
-    </>
-  )
-}
-
-export function FeedbackView({ data, now }: { data: StaffData; now: number }) {
-  const toast = useToast()
-  const byId = useMemo(() => new Map(data.reservations.map((r) => [r.id, r])), [data.reservations])
-  const [showResolved, setShowResolved] = useState(false)
-  const list = data.feedback.filter((f) => showResolved || !f.resolved)
-  const toggle = async (id: string, resolved: boolean) => {
-    const { data: u } = await supabase.auth.getUser()
-    const { error } = await supabase.from('feedback').update({ resolved, resolved_by: resolved ? u.user?.id ?? null : null }).eq('id', id)
-    if (error) return toast(errorText(errorCode(error)), 'error')
-    data.reload('feedback')
-  }
-  return (
-    <>
-      <PageHead
-        title="Guest feedback"
-        sub="Private feedback from check-out ratings of 1 to 3. Guests who rate 4 or 5 see the public review QR code."
-        action={
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-            <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} className="h-5 w-5 accent-forest" />
-            Show resolved
-          </label>
-        }
-      />
-      {list.length === 0 ? (
-        <Panel>
-          <Empty>No open feedback. Well done.</Empty>
-        </Panel>
-      ) : (
-        <ul className="space-y-3">
-          {list.map((f) => {
-            const r = f.reservation_id ? byId.get(f.reservation_id) : undefined
-            return (
-              <li key={f.id} className={`card fade-in !rounded-2xl p-5 transition ${f.resolved ? 'opacity-60' : ''}`}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium">
-                    {r?.guest_name ?? 'Guest'} <span className="font-normal text-muted">· room {r?.room_number ?? '—'} · {timeAgo(f.created_at, now)}</span>
-                  </span>
-                  <Stars n={f.rating} />
-                </div>
-                <p className="mt-2 whitespace-pre-wrap text-ink">{f.comment || <span className="text-muted">(no comment)</span>}</p>
-                <Btn className="mt-3" tone={f.resolved ? 'ghost' : 'secondary'} onClick={() => toggle(f.id, !f.resolved)}>
-                  {f.resolved ? 'Reopen' : 'Mark as resolved'}
-                </Btn>
-              </li>
-            )
-          })}
-        </ul>
-      )}
     </>
   )
 }

@@ -1,5 +1,7 @@
 # Connecting your front desk app to The Rumi check-in tablet
 
+> **Update 2026-11-23:** the tablet no longer has a check-out screen. Anything below about tablet check-out, `invoice.requested`, `checkout.created`, `feedback.created` or the tablet showing a bill no longer happens, so don't build it. Invoices reach the tablet through the owner's eZee button (folio station), and feedback through his mobile app. After a check-out in eZee, still send `status: checked_out`.
+
 This guide is for the developer of the hotel's own front desk app. When you finish, your app will:
 
 - **receive** every tablet check-in, check-out and guest feedback instantly (webhooks)

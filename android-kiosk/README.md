@@ -132,7 +132,7 @@ adb shell am start -a android.settings.SETTINGS                    # refused (er
 adb logcat -d -s RumiKiosk | grep -i "failed"                      # no policy failures
 ```
 
-Then tap the top-right corner 5 times for the PIN screen, and run `adb reboot` to see it come back locked. Keep a Wi-Fi network the tablet already knows, because Android 16 and 17 may ask for network permissions again after a factory reset.
+Then tap the top-right corner 5 times for the PIN screen, and run `adb reboot` to see it come back locked.
 
 ## Security notes
 

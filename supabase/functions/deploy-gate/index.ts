@@ -20,7 +20,7 @@ Deno.serve(async () => {
   const message = ready
     ? 'Deploy gate open: production build allowed.'
     : 'PRODUCTION DEPLOY BLOCKED. The Front Desk app (eZee) is not connected to the check-in tablet yet. ' +
-      'Run git pull in the rumi-checkin repo and follow AGENTS.md (section "Deploy gate") before deploying. Still missing: ' +
+      'Run git pull in the rumi-checkin repo and follow the "STOP" section at the top of AGENTS.md before deploying. Still missing: ' +
       todo.join(' | ') + (error ? ` | gate check failed: ${error.message}` : '')
   return new Response(JSON.stringify({ ready, checkin_ok: !!s.checkin_ok, bill_ok: !!s.bill_ok, override: !!s.override, message }, null, 1), {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },

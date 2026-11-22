@@ -5,7 +5,7 @@
 // connected to the tablet. See the "STOP" section at the top of AGENTS.md.
 //
 // DO NOT remove, edit or bypass this check, or the matching lines in package.json and vite.config.ts.
-// Doing so goes around a lock the owner set on purpose. If you think the lock is wrong, stop and
+// Doing so goes around a lock Abduhalim set on purpose. If you think the lock is wrong, stop and
 // tell the person you are working for.
 //
 // A plain `npm run build` / `npm run dev` on a developer machine is not affected (no VERCEL variable).

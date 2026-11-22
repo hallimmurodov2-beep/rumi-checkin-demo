@@ -34,7 +34,7 @@ The tablet returns to the welcome screen after 60 seconds without a touch, with 
 ### Installing on the tablet
 
 - **iPad (Safari):** open `/tablet` → Share → **Add to Home Screen**. Lock the iPad to the app with Guided Access (Settings → Accessibility → Guided Access, then triple-click the top button).
-- **Android (Chrome):** open `/tablet` → ⋮ → **Install app**. Lock it with screen pinning (Settings → Security → App pinning).
+- **Android (Chrome):** open `/tablet` → ⋮ → **Install app**. Lock it with screen pinning (Settings → Security → App pinning).x
 - **Hidden tablet settings:** press and hold the emblem on the welcome screen for 3 seconds. From there you can see the connection and app version, reload the app, or unpair the tablet.
 
 ## Security and privacy

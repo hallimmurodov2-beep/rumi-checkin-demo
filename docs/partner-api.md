@@ -24,6 +24,10 @@ In the tablet admin (`https://rumi-checkin.vercel.app/staff` → **Settings → 
 
 You give the admin one thing: your app's **webhook address** (an `https://` URL that accepts `POST`). The admin enters it, switches on **Send tablet events**, and presses **Send test event**.
 
+API Key - rumi_c443dbb4c3fb72ccdac3e5791432d1eeebc9a0fcfd833d09
+Signing secret - whsec_99c5e02762371cda50351cdaabdd0fb319f17dfab9b107c1
+API Adress - https://qlvlmgrslqexmqmzpuko.supabase.co/functions/v1/partner-api
+
 Keep the key and the secret on your server only (environment variables). Never put them in a browser page or a mobile app.
 
 ---

@@ -27,6 +27,13 @@ Guest tablet (`/tablet`) and front-desk staff app (`/staff`) for The Rumi Hotel 
 - `supabase/functions/partner-api`: REST API + signed webhooks for the owner's front desk app. Guide: `docs/partner-api.md`; Codex integration prompt: `docs/frontdesk-app-codex-prompt.md`.
 - Migrations are not in the repo; they live in Supabase (`list_migrations`). Read live function definitions with `pg_get_functiondef` before changing one.
 
+## Production deploy gate (added 2026-11-22)
+
+- Vercel project setting "Ignored Build Step" calls the `deploy-gate` Edge Function before each build. Production builds are skipped until it returns `"ready": true`; preview builds always run.
+- It opens permanently once the DB has seen both of these: a check-in from a `source='partner'` handoff that the partner API approved (`approved_by` null), and an invoice received after the tablet's `invoice_requested_at`. Triggers on `checkins` and `invoices` latch `public.deploy_gate`.
+- **Owner override** (emergencies, or to deploy your own fixes before the integration is done). Run this in the Supabase SQL editor: `update public.deploy_gate set override = true, override_note = '<why>' where id = 1;`. Set it back to `false` afterwards.
+- `AGENTS.md` ("STOP") tells the owner's Codex how to open it.
+
 ## Conventions
 
 - The owner's Codex also works on this repo (see `AGENTS.md`, `CODEX-CONNECT-FRONTDESK.md`). Before deploying, check that production wasn't deployed from another copy: list the Vercel deployments, and if the newest has no git commit, diff its bundles against `main` and port its changes first (this happened on 2026-11-22).

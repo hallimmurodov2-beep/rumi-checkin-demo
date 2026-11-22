@@ -1,8 +1,7 @@
 {
-  "rewrites": [{ "source": "/((?!assets/|icons/|ocr/|sw.js|manifest.webmanifest|emblem).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!assets/|icons/|sw.js|manifest.webmanifest|emblem).*)", "destination": "/index.html" }],
   "headers": [
     { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-    { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
-    { "source": "/ocr/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }] }
+    { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] }
   ]
 }

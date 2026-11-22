@@ -2,7 +2,7 @@
 
 Self check-in for The Rumi Hotel & Residences, Dushanbe.
 
-- **Guest tablet** (`/tablet`): guests check in or out in English, Russian or Tajik. The passport is read with the tablet camera.
+- **Guest tablet** (`/tablet`): guests check in or out in English, Russian or Tajik. Passports are scanned by reception, and the tablet shows the guest their booking.
 - **Front desk** (`/staff`): staff see each tablet check-in live, check the passport, assign the room and hand over the key. They also manage arrivals, in-house guests, check-outs, feedback, tablets and the team.
 
 Stack: Vite, React, TypeScript, Tailwind CSS v4 and Supabase (Postgres, Auth, Realtime), hosted on Vercel. The tablet is an installable web app (PWA): it runs full screen in landscape and keeps the screen awake.
@@ -10,8 +10,8 @@ Stack: Vite, React, TypeScript, Tailwind CSS v4 and Supabase (Postgres, Auth, Re
 ## How it works
 
 1. Front desk adds the day's bookings under **Arrivals**, by hand or by importing a CSV.
-2. A guest taps **Check in** on the tablet and holds the passport photo page up to the camera. The tablet reads the MRZ (the two lines of `<<<` text) on the device and validates the ICAO check digits. The photo never leaves the tablet; only the parsed fields are sent.
-3. The passport name is matched to an expected booking for today. If there's no single match, the guest enters the booking number and surname instead, which also works for guests without a passport. Cyrillic surnames are transliterated, so Петрова matches a booking for Petrova.
+2. A guest taps **Check in** and hands the passport to the receptionist, who scans it in the front desk app. That app sends the booking to the tablet (`POST /v1/handoffs`), which opens it in the guest's language within about 2 seconds. Guests who prefer can find the booking by name or booking number on the tablet.
+3. Cyrillic surnames are transliterated, so Петрова matches a booking for Petrova.
 4. The guest confirms the booking and adds a phone number, email and airport-shuttle choice. They tick the consent box and sign on screen.
 5. The check-in appears instantly in **Tablet check-ins** at the desk. Staff check the passport against the details, enter the room number and tap **Approve & give key**. The guest is now **In house**.
 6. To check out, the guest enters their room number and surname on the tablet and rates the stay. A rating of 4–5 shows a QR code for the public review link. A rating of 1–3 opens a private feedback box that only staff see.
@@ -34,13 +34,13 @@ The tablet returns to the welcome screen after 60 seconds without a touch, with 
 
 - **iPad (Safari):** open `/tablet` → Share → **Add to Home Screen**. Lock the iPad to the app with Guided Access (Settings → Accessibility → Guided Access, then triple-click the top button).
 - **Android (Chrome):** open `/tablet` → ⋮ → **Install app**. Lock it with screen pinning (Settings → Security → App pinning).
-- **Hidden tablet settings:** press and hold the emblem on the welcome screen for 3 seconds. From there you can switch between the front and back camera (use the one facing the guest) or unpair the tablet.
+- **Hidden tablet settings:** press and hold the emblem on the welcome screen for 3 seconds. From there you can unpair the tablet.
 
 ## Security and privacy
 
 - Staff sign in with Supabase Auth (email and password). Every table has row-level security: only `staff` and `admin` accounts can read guest data, and pending accounts see nothing.
 - Tablets have **no direct table access**. A paired tablet holds a random 256-bit secret, and the database stores only its SHA-256 hash. Every tablet action is a database function that checks the secret first. Tablets can look up a single booking by booking number and surname, or by passport name, and only for arrivals from yesterday to tomorrow. They cannot list bookings or read past check-ins.
-- **Passport images are never stored or uploaded.** OCR runs on the tablet. Stored fields: name, nationality, document number and type, date of birth, sex, expiry, phone, email, shuttle choice, consent time and the signature image.
+- **Passport images are never stored or uploaded.** The tablet never scans passports; reception does. Stored fields: name, nationality, document number and type, date of birth, sex, expiry, phone, email, shuttle choice, consent time and the signature image.
 - **Retention:** a scheduled job (`pg_cron`, daily at 03:15) erases passport details, contacts and signatures once a stay ended more than *N* days ago. The default is 90 days; change it in Settings.
 - **Registration export:** In house → **Export registration CSV** produces the passport details of in-house guests for foreign-guest registration.
 - The Supabase security advisor lists the tablet and staff functions as "callable by anon/authenticated". That is intended, because each function checks the tablet secret or the staff role itself.
@@ -50,7 +50,7 @@ The tablet returns to the welcome screen after 60 seconds without a touch, with 
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # MRZ parser tests (ICAO specimens and real OCR output)
+npm test         # eZee request/response mapping tests
 npm run build    # type-check and production build
 ```
 
@@ -106,11 +106,9 @@ The request formats follow eZee's published connectivity docs. Some fields in th
 ## Tablet details
 
 - **Reception sends the booking to the tablet:** the receptionist scans the passport in the front desk app, which calls `POST /v1/handoffs`. Within about 2 seconds the tablet opens "Welcome, Anna — is this your booking?" in the guest's language, picked from the passport nationality, and the guest confirms, fills in details and signs. In the admin app, Arrivals → **Send to tablet** does the same, for testing.
-- **Passport scanning (Settings):** the default is **At reception**. The tablet skips the camera, finds the booking by name or booking number, and gives the guest a check-in number (such as `P17`) to show at the desk with the passport. Reception scans passports with its own scanner into eZee. Switch to **On the tablet camera** to read passports on the tablet instead.
+- **Passports** are scanned only at reception. The tablet never reads them. (The earlier tablet-camera mode was removed; it's in the git history if you ever want it back.)
 - **Photo screensaver:** after 45 seconds without a touch on the Welcome screen (configurable in Settings, 0 turns it off), the tablet shows the hotel photos from `public/gallery`. Each photo slowly zooms, cross-fades into the next and has an English, Russian and Tajik caption, and the clock is shown. One tap returns to Welcome. To change the photos, replace the files in `public/gallery` (WebP, about 1024 px wide) and update `src/tablet/gallery.ts`.
 
-- **Passport reading** runs entirely on the tablet. The OCR engine and English model are served from this site (`public/ocr`, copied from npm at build time), so no third-party CDN is involved. While the passport is partly in view, the tablet says "Almost there" and doesn't time out.
-- **Additional guests:** for bookings with more than one adult, the tablet asks for each other adult's passport. Guests can skip this, and the front desk handles the rest.
 - **Privacy notice** in all three languages, linked from the consent box. It shows the retention period from Settings.
 - **Signature** is labelled with the guest's name and the date.
 - **Room number** is shown on the confirmation and done screens when eZee has already assigned one.

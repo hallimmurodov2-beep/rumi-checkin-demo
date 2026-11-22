@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
-import { usePassportScanner } from '../lib/scanner'
 import { ApiError } from '../lib/supabase'
 import type { MrzData, PublicReservation, TabletConfig } from '../lib/types'
 import { fmtDay, LANGS, type Lang } from '../translations'
@@ -16,127 +15,6 @@ export interface Details {
   consent: boolean
 }
 export const emptyDetails: Details = { phone: '', email: '', shuttle: null, consent: false }
-
-/* ------------------------------ 1. Passport scan ------------------------- */
-
-function Corner({ pos }: { pos: string }) {
-  return <span aria-hidden="true" className={`absolute h-9 w-9 border-gold-light ${pos}`} />
-}
-
-export function Scan({
-  facing,
-  onBack,
-  onRead,
-  onNoPassport,
-  companion,
-}: {
-  facing: 'user' | 'environment'
-  onBack: () => void
-  onRead: (m: MrzData) => void
-  onNoPassport?: () => void
-  /** Scanning an additional guest on the same booking. */
-  companion?: boolean
-}) {
-  const t = useT()
-  const video = useRef<HTMLVideoElement>(null)
-  const guide = useRef<HTMLDivElement>(null)
-  const { state, result, almost } = usePassportScanner(video, guide, facing, true)
-  const [tip, setTip] = useState(false)
-
-  useEffect(() => {
-    if (state !== 'scanning') return
-    const id = window.setTimeout(() => setTip(true), 12_000)
-    return () => window.clearTimeout(id)
-  }, [state])
-
-  useEffect(() => {
-    if (state === 'found' && result) {
-      const id = window.setTimeout(() => onRead(result), 1100)
-      return () => window.clearTimeout(id)
-    }
-  }, [state, result, onRead])
-
-  return (
-    <Shell step={companion ? 1 : 0} onBack={onBack}>
-      <div className="flex min-h-0 flex-1 items-center gap-10">
-        <div className="relative aspect-[4/3] w-[56%] shrink-0 overflow-hidden rounded-3xl bg-forest-deep shadow-[0_30px_60px_-30px_rgb(10_42_33/0.8)]">
-          <video
-            ref={video}
-            playsInline
-            muted
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${state === 'scanning' || state === 'found' ? 'opacity-100' : 'opacity-0'}`}
-            style={facing === 'user' ? { transform: 'scaleX(-1)' } : undefined}
-          />
-          {/* Dim everything outside the guide */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div
-              ref={guide}
-              className={`relative aspect-[1.42/1] w-[80%] rounded-2xl shadow-[0_0_0_9999px_rgb(10_42_33/0.55)] transition-[outline-color] duration-300 ${almost && state === 'scanning' ? 'outline outline-4 outline-offset-4 outline-gold-light/70' : 'outline-0 outline-transparent'}`}
-            >
-              <Corner pos="-left-1 -top-1 rounded-tl-2xl border-l-4 border-t-4" />
-              <Corner pos="-right-1 -top-1 rounded-tr-2xl border-r-4 border-t-4" />
-              <Corner pos="-bottom-1 -left-1 rounded-bl-2xl border-b-4 border-l-4" />
-              <Corner pos="-bottom-1 -right-1 rounded-br-2xl border-b-4 border-r-4" />
-              <div className="breathe absolute inset-x-4 bottom-4 h-[26%] rounded-lg border-2 border-dashed border-gold-light/70" aria-hidden="true">
-                <div className="flex h-full flex-col justify-center gap-1 px-3 font-mono text-[11px] leading-4 tracking-[0.2em] text-gold-light/70">
-                  <span>P&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>
-                  <span>&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>
-                </div>
-              </div>
-              {state === 'scanning' && (
-                <div aria-hidden="true" className="scan-line absolute inset-x-6 h-0.5 rounded-full bg-gold-light shadow-[0_0_16px_3px_#ECCD78]" />
-              )}
-            </div>
-          </div>
-          {state === 'starting' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-gold-light">
-              <Spinner className="h-8 w-8" />
-              <span className="text-sm font-medium">{t('cameraStarting')}</span>
-            </div>
-          )}
-          {state === 'found' && result && (
-            <div className="pop-in absolute inset-0 flex flex-col items-center justify-center gap-4 bg-forest-deep/85 text-center">
-              <AnimatedCheck size="h-20 w-20" />
-              <span className="text-xl font-semibold text-cream">{t('passportRead')}</span>
-              <span className="font-serif text-3xl font-semibold text-gold-light">
-                {result.givenNames} {result.surname}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1">
-          <h2 className="text-5xl leading-tight text-forest">{companion ? t('scanGuestTitle') : t('passportTitle')}</h2>
-          {state === 'unavailable' ? (
-            <div className="mt-5">
-              <ErrorNote>{t('cameraUnavailable')}</ErrorNote>
-              {onNoPassport && (
-                <Button className="mt-6 w-full" onClick={onNoPassport}>
-                  {t('noPassport')}
-                </Button>
-              )}
-            </div>
-          ) : (
-            <>
-              <p className="mt-3 text-xl leading-relaxed text-muted">{t('passportHint')}</p>
-              <p className="mt-6 flex min-h-7 items-center gap-3 font-medium text-forest" role="status">
-                {state === 'scanning' && <Spinner className="h-5 w-5 text-gold" />}
-                {state === 'scanning' ? (almost ? t('scanAlmost') : t('scanning')) : state === 'found' ? t('passportRead') : ''}
-              </p>
-              {tip && state === 'scanning' && !almost && <p className="fade-in mt-2 text-muted">{t('scanTip')}</p>}
-              {onNoPassport && (
-                <Button variant="ghost" className="mt-6 w-full" onClick={onNoPassport} disabled={state === 'found'}>
-                  {t('noPassport')}
-                </Button>
-              )}
-            </>
-          )}
-          <p className="mt-6 border-t border-line pt-4 text-sm leading-relaxed text-muted">{t('privacyNote')}</p>
-        </div>
-      </div>
-    </Shell>
-  )
-}
 
 /* -------------------- 1a. Waiting for reception to scan ----------------- */
 
@@ -433,72 +311,6 @@ export function NeedHelp({ onBack, onStart, step = 1 }: { onBack?: () => void; o
         <Button className="mt-10" onClick={onStart}>
           {t('backToStart')}
         </Button>
-      </div>
-    </Shell>
-  )
-}
-
-/* -------------------------- 2b. Other guests ----------------------------- */
-
-export function OtherGuests({
-  lead,
-  companions,
-  adults,
-  notice,
-  onScan,
-  onRemove,
-  onBack,
-  onNext,
-}: {
-  lead: string
-  companions: MrzData[]
-  adults: number
-  notice: string | null
-  onScan: () => void
-  onRemove: (i: number) => void
-  onBack: () => void
-  onNext: () => void
-}) {
-  const t = useT()
-  const done = 1 + companions.length
-  const complete = done >= adults
-  return (
-    <Shell step={1} onBack={onBack} action={<Button onClick={onNext}>{t('continue')}</Button>}>
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center">
-        <h2 className="text-5xl text-forest">{t('guestsTitle')}</h2>
-        <p className="mt-2 text-lg text-muted">{t('guestsText', { n: adults })}</p>
-        <div className="mt-6 flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-line" aria-hidden="true">
-            <div className="h-full rounded-full bg-forest transition-[width] duration-500" style={{ width: `${Math.min(100, (done / adults) * 100)}%` }} />
-          </div>
-          <span className="text-sm font-medium text-forest">{t('guestsCount', { n: done, total: adults })}</span>
-        </div>
-        <ul className="card mt-5 divide-y divide-line">
-          <li className="flex min-h-16 items-center gap-4 px-6 py-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-forest text-gold-light"><CheckIcon className="h-4 w-4" /></span>
-            <span className="flex-1 text-lg font-medium">{lead} <span className="font-normal text-muted">({t('you')})</span></span>
-          </li>
-          {companions.map((c, i) => (
-            <li key={c.documentNumber} className="fade-in flex min-h-16 items-center gap-4 px-6 py-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-forest text-gold-light"><CheckIcon className="h-4 w-4" /></span>
-              <span className="flex-1 text-lg font-medium">
-                {c.givenNames} {c.surname} <span className="font-normal text-muted">· {c.nationality}</span>
-              </span>
-              <Button variant="ghost" className="!min-h-14 !px-4 !text-base" onClick={() => onRemove(i)}>
-                {t('remove')}
-              </Button>
-            </li>
-          ))}
-        </ul>
-        {notice && <div className="mt-4"><ErrorNote>{notice}</ErrorNote></div>}
-        {!complete && (
-          <>
-            <Button variant="secondary" className="mt-6" onClick={onScan}>
-              {t('scanNext')}
-            </Button>
-            <p className="mt-3 text-muted">{t('guestsLater')}</p>
-          </>
-        )}
       </div>
     </Shell>
   )

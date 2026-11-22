@@ -1,8 +1,8 @@
 // Offline support for The Rumi self check-in app.
 // Navigations: network first, fall back to the cached app shell.
-// Same-origin assets (including the OCR engine in /ocr) and Google Fonts: serve from cache, refresh in the background.
+// Same-origin assets and Google Fonts: serve from cache, refresh in the background.
 // API calls to Supabase are never cached.
-const CACHE = 'rumi-v4'
+const CACHE = 'rumi-v5'
 const SHELL = ['/', '/emblem.svg', '/manifest.webmanifest', '/icons/icon-192.png']
 
 self.addEventListener('install', (e) => {

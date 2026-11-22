@@ -1,5 +1,5 @@
 import { rpc, ApiError } from './supabase'
-import type { MrzData, PublicReservation, TabletConfig } from './types'
+import type { PublicReservation, TabletConfig } from './types'
 
 // A paired tablet keeps a random secret in local storage. The database only
 // stores its SHA-256 hash; every tablet call proves itself with the secret.
@@ -115,23 +115,5 @@ export interface CheckinPayload {
   shuttle: boolean
   consent: boolean
   signature_png: string
-  companions?: Partial<CheckinPayload>[]
   handoff_id?: string
-}
-
-export function mrzPayload(m: MrzData | null): Partial<CheckinPayload> {
-  if (!m) return { doc_source: 'none' }
-  return {
-    doc_source: 'mrz',
-    doc_type: m.docType,
-    issuing_country: m.issuingCountry,
-    nationality: m.nationality,
-    surname: m.surname,
-    given_names: m.givenNames,
-    document_number: m.documentNumber,
-    birth_date: m.birthDate,
-    sex: m.sex,
-    expiry_date: m.expiryDate,
-    mrz_valid: m.valid,
-  }
 }

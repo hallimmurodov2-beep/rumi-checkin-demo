@@ -78,7 +78,6 @@ export function PairTablet() {
 /** Staff-only sheet, opened by holding the emblem on the welcome screen for 3 seconds. */
 export function TabletSettings({ device, onClose }: { device: StoredDevice; onClose: () => void }) {
   const [confirmUnpair, setConfirmUnpair] = useState(false)
-  const setCamera = (camera: StoredDevice['camera']) => saveDevice({ ...device, camera })
   return (
     <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-6" role="dialog" aria-modal="true" aria-labelledby="ts-title">
       <div className="pop-in card w-full max-w-xl p-8">
@@ -88,28 +87,6 @@ export function TabletSettings({ device, onClose }: { device: StoredDevice; onCl
           <dt className="eyebrow">This tablet</dt>
           <dd className="text-xl font-medium">{device.name}</dd>
         </dl>
-        <fieldset className="mt-6">
-          <legend className="eyebrow">Camera for passport scanning</legend>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            {(
-              [
-                ['user', 'Front camera'],
-                ['environment', 'Back camera'],
-              ] as const
-            ).map(([v, label]) => (
-              <button
-                key={v}
-                type="button"
-                aria-pressed={device.camera === v}
-                onClick={() => setCamera(v)}
-                className={`min-h-14 cursor-pointer rounded-xl border-2 font-medium transition ${device.camera === v ? 'border-forest bg-forest text-cream' : 'border-line bg-white'}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-sm text-muted">Use the camera that faces the guest.</p>
-        </fieldset>
         <div className="mt-8 flex items-center justify-between gap-4 border-t border-line pt-6">
           <Button
             variant="secondary"

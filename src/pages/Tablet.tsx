@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { LangContext } from '../i18n'
-import { getDevice, mrzPayload, tablet, type Handoff, type StoredDevice } from '../lib/device'
-import { reconcileNames } from '../lib/mrz'
-import { warmUpOcr } from '../lib/scanner'
+import { getDevice, tablet, type Handoff, type StoredDevice } from '../lib/device'
 import { ApiError } from '../lib/supabase'
 import { transition } from '../lib/transition'
 import type { MrzData, PublicReservation, TabletConfig } from '../lib/types'
 import { translations, type Lang } from '../translations'
 import { Checkout, CheckoutDone, CheckoutFind } from '../tablet/Checkout'
 import { PairTablet, TabletSettings } from '../tablet/Setup'
-import { Confirm, DetailsStep, Done, FindBooking, NeedHelp, OtherGuests, Scan, SignatureStep, WaitForDesk, emptyDetails, type Details } from '../tablet/Steps'
+import { Confirm, DetailsStep, Done, FindBooking, NeedHelp, SignatureStep, WaitForDesk, emptyDetails, type Details } from '../tablet/Steps'
 import { Welcome } from '../tablet/Welcome'
 import { Screensaver } from '../tablet/Screensaver'
 import { SLIDES } from '../tablet/gallery'
@@ -18,13 +16,10 @@ import { COLORS, Emblem } from '../ui'
 
 type Step =
   | 'welcome'
-  | 'scan'
   | 'find'
   | 'confirm'
   | 'help'
   | 'waitDesk'
-  | 'guests'
-  | 'scanGuest'
   | 'details'
   | 'signature'
   | 'done'
@@ -131,15 +126,14 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const [reservation, setReservation] = useState<PublicReservation | null>(null)
   const [findMultiple, setFindMultiple] = useState(false)
   const [details, setDetails] = useState<Details>(emptyDetails)
-  const [companions, setCompanions] = useState<MrzData[]>([])
   const [guestNotice, setGuestNotice] = useState<string | null>(null)
   const [stay, setStay] = useState<PublicReservation | null>(null)
   const [deskCode, setDeskCode] = useState<string | null>(null)
   const [handoff, setHandoff] = useState<Handoff | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [saver, setSaver] = useState(false)
-  // Reception scans passports with its own scanner unless the admin switched the tablet camera on.
-  const deskMode = (config?.passport_mode ?? 'desk') === 'desk'
+  // Reception scans passports with its own scanner; the tablet never reads them.
+  const deskMode = true
   const saverAfter = config?.screensaver_seconds ?? 45
   const idleLimit = config?.idle_seconds ?? 60
   const [idleLeft, setIdleLeft] = useState(idleLimit)
@@ -157,8 +151,6 @@ function Kiosk({ device }: { device: StoredDevice }) {
           setConfig(c)
           if (!warmed) {
             warmed = true
-            // Warm up the passport reader only when this tablet scans passports itself.
-            if (c.passport_mode === 'tablet') warmUpOcr().catch(() => {})
             // Load the screensaver photos in the background so the first slideshow is smooth.
             SLIDES.forEach((sl) => {
               const img = new Image()
@@ -194,7 +186,6 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const clearGuest = () => {
     setHandoff(null)
     setDeskCode(null)
-    setCompanions([])
     setGuestNotice(null)
     setMrz(null)
     setReservation(null)
@@ -211,8 +202,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
       setReservation(null)
       setFindMultiple(false)
       setDetails(emptyDetails)
-      setCompanions([])
-      setGuestNotice(null)
+        setGuestNotice(null)
       setDeskCode(null)
       setHandoff(null)
       setStay(null)
@@ -316,48 +306,16 @@ function Kiosk({ device }: { device: StoredDevice }) {
     }
   }, [step, reset, idleLimit])
 
-  const onPassportRead = useCallback(
-    async (m: MrzData) => {
-      setMrz(m)
-      try {
-        const res = await tablet.findByName(m.surname, m.givenNames)
-        if (res.status === 'found') {
-          setReservation(res.reservation)
-          setMrz(reconcileNames(m, res.reservation.guest_name))
-          go('confirm')
-          return
-        }
-        setFindMultiple(true)
-      } catch {
-        setFindMultiple(true)
-      }
-      go('find')
-    },
-    [go],
-  )
-
-  const addCompanion = useCallback(
-    (m: MrzData) => {
-      const dup = m.documentNumber === mrz?.documentNumber || companions.some((c) => c.documentNumber === m.documentNumber)
-      if (dup) setGuestNotice(translations[lang].alreadyScanned)
-      else setCompanions((c) => [...c, m])
-      go('guests', 'back')
-    },
-    [mrz, companions, lang, go],
-  )
-
   const submitCheckin = async (signature: string) => {
     if (!reservation) return
     try {
       const res = await tablet.submitCheckin(reservation.id, {
         language: lang,
-        ...mrzPayload(mrz),
         phone: details.phone.trim(),
         email: details.email.trim(),
         shuttle: details.shuttle === 'yes',
         consent: details.consent,
         signature_png: signature,
-        companions: companions.map((c) => mrzPayload(c)),
         handoff_id: handoff?.id,
       } as Parameters<typeof tablet.submitCheckin>[1])
       setDeskCode(deskMode && !handoff ? res?.desk_code ?? null : null)
@@ -382,22 +340,10 @@ function Kiosk({ device }: { device: StoredDevice }) {
             hotelName={config?.hotel_name ?? 'The Rumi Hotel & Residences'}
             onStart={() => {
               setFindMultiple(false)
-              go(deskMode ? 'waitDesk' : 'scan')
+              go('waitDesk')
             }}
             onCheckout={() => go('coFind')}
             onSettings={() => setSettingsOpen(true)}
-          />
-        )}
-        {step === 'scan' && (
-          <Scan
-            facing={device.camera}
-            onBack={toWelcome}
-            onRead={onPassportRead}
-            onNoPassport={() => {
-              setMrz(null)
-              setFindMultiple(false)
-              go('find')
-            }}
           />
         )}
         {step === 'find' && (
@@ -405,12 +351,10 @@ function Kiosk({ device }: { device: StoredDevice }) {
             deskMode={deskMode}
             initialSurname={mrz?.surname ?? ''}
             multiple={findMultiple}
-            onBack={() => (deskMode ? go('waitDesk', 'back') : go('scan', 'back'))}
-            onScan={deskMode ? undefined : () => go('scan', 'back')}
+            onBack={() => go('waitDesk', 'back')}
             onHelp={() => go('help')}
             onFound={(r) => {
               setReservation(r)
-              setMrz((m) => (m ? reconcileNames(m, r.guest_name) : m))
               go('confirm')
             }}
           />
@@ -419,8 +363,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
           <Confirm
             reservation={reservation}
             mrz={mrz}
-            onBack={handoff ? undefined : () => go(mrz && !findMultiple ? 'scan' : 'find', 'back')}
-            onYes={() => go(reservation.adults > 1 && !deskMode ? 'guests' : 'details')}
+            onBack={handoff ? undefined : () => go('find', 'back')}
+            onYes={() => go('details')}
             onNo={() => {
               if (handoff) tablet.declineHandoff(handoff.id).catch(() => {})
               go('help')
@@ -445,31 +389,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
             onChange={setDetails}
             retentionDays={config?.retention_days ?? 90}
             deskMode={deskMode}
-            onBack={() => go(reservation && reservation.adults > 1 && !deskMode ? 'guests' : 'confirm', 'back')}
-            onNext={() => go('signature')}
-          />
-        )}
-        {step === 'guests' && reservation && (
-          <OtherGuests
-            lead={mrz ? titleCase(`${mrz.givenNames} ${mrz.surname}`) : reservation.guest_name}
-            companions={companions}
-            adults={reservation.adults}
-            notice={guestNotice}
-            onScan={() => {
-              setGuestNotice(null)
-              go('scanGuest')
-            }}
-            onRemove={(i) => setCompanions((c) => c.filter((_, j) => j !== i))}
             onBack={() => go('confirm', 'back')}
-            onNext={() => go('details')}
-          />
-        )}
-        {step === 'scanGuest' && (
-          <Scan
-            companion
-            facing={device.camera}
-            onBack={() => go('guests', 'back')}
-            onRead={addCompanion}
+            onNext={() => go('signature')}
           />
         )}
         {step === 'signature' && (

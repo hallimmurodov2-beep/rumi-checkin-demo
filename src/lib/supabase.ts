@@ -6,7 +6,19 @@ import { createClient } from '@supabase/supabase-js'
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? 'https://qlvlmgrslqexmqmzpuko.supabase.co'
 export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_O3pm6Hq6yphZWEf5UtqV4Q_CfwcE__i'
 
+/**
+ * Every request gives up after 25 s. On a half-open lobby Wi-Fi connection a request can otherwise hang
+ * for minutes, and the tablet's handoff polling waits for the previous call before starting the next.
+ */
+const timedFetch: typeof fetch = (input, init) => {
+  const limit = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(25_000) : null
+  if (!limit) return fetch(input, init)
+  const signal = init?.signal ? (typeof AbortSignal.any === 'function' ? AbortSignal.any([init.signal, limit]) : init.signal) : limit
+  return fetch(input, { ...init, signal })
+}
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  global: { fetch: timedFetch },
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   realtime: { params: { eventsPerSecond: 5 } },
 })
@@ -15,7 +27,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 export function errorCode(e: unknown): string {
   const msg = ((e as { message?: string })?.message ?? String(e)).trim()
   if (/^[a-z_]{3,}$/.test(msg)) return msg
-  if (/fetch|network|load failed/i.test(msg)) return 'network'
+  if (/fetch|network|load failed|abort|timed? ?out/i.test(msg)) return 'network'
   if (/invalid login credentials/i.test(msg)) return 'invalid_login'
   if (/email not confirmed/i.test(msg)) return 'email_not_confirmed'
   return 'unknown_error'

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { LangContext, SetLangContext } from '../i18n'
 import { getDevice, tablet, type Handoff, type StoredDevice } from '../lib/device'
 import { ApiError } from '../lib/supabase'
@@ -176,7 +176,11 @@ function Kiosk({ device }: { device: StoredDevice }) {
     return () => window.clearInterval(id)
   }, [step])
 
+  // Bumped on every reset: a check-in or check-out that finishes after the guest walked away
+  // must not open its Done screen for the next person.
+  const session = useRef(0)
   const clearGuest = useCallback(() => {
+    session.current++
     setHandoff(null)
     setCheckinId(null)
     setMrz(null)
@@ -185,7 +189,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
     setStay(null)
     setDue(null)
     setStayShuttle(false)
-  }, [])
+    setIdleLeft(idleLimit)
+  }, [idleLimit])
 
   // Back to Welcome in English with everything the guest entered cleared.
   const reset = useCallback(() => {
@@ -261,6 +266,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
     evts.forEach((e) => window.addEventListener(e, touch, { passive: true }))
     const id = window.setInterval(() => {
       if (Date.now() - last >= saverAfter * 1000) {
+        // A native <dialog> (Visitors Wi-Fi) would stay on top of the screensaver.
+        document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach((d) => d.close())
         setLang('en')
         setSaver(true)
       }
@@ -295,6 +302,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
 
   const submitCheckin = async (signature: string, policyId: string | null) => {
     if (!reservation) return
+    const mine = session.current
     try {
       const res = await tablet.submitCheckin(reservation.id, {
         language: lang,
@@ -305,9 +313,11 @@ function Kiosk({ device }: { device: StoredDevice }) {
         handoff_id: handoff?.id,
         policy_id: policyId ?? undefined,
       } as Parameters<typeof tablet.submitCheckin>[1])
+      if (session.current !== mine) return
       setCheckinId(res?.id ?? null)
       go('done')
     } catch (e) {
+      if (session.current !== mine) return
       if (e instanceof ApiError && e.code === 'reservation_unavailable') go('help')
       throw e
     }
@@ -378,11 +388,14 @@ function Kiosk({ device }: { device: StoredDevice }) {
             shuttle={stayShuttle}
             onBack={() => go('coFind', 'back')}
             onComplete={async (rating, feedback, owed) => {
+              const mine = session.current
               try {
                 await tablet.submitCheckout(stay.id, rating, feedback)
+                if (session.current !== mine) return
                 setDue(owed)
                 go('coDone')
               } catch (e) {
+                if (session.current !== mine) return
                 // Reception checked the guest out at the desk in the meantime.
                 if (e instanceof ApiError && e.code === 'reservation_unavailable') go('help')
                 else throw e
@@ -444,6 +457,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
               <p className="mt-1 text-muted">{tr('idleTouch')}</p>
               <button
                 type="button"
+                autoFocus
+                onClick={() => setIdleLeft(idleLimit)}
                 className="mt-6 min-h-16 w-full cursor-pointer rounded-xl bg-forest px-6 text-lg font-medium text-cream hover:bg-forest-deep"
               >
                 {tr('stillHere')}

@@ -16,9 +16,10 @@ const FOLIO_BASE = 'https://menu.therumihotel.com:8844/wifi/folio/'
 const FOLIO_TOKEN = 'rumi-folio-station-v1'
 
 const WIFI_TEXT = {
-  en: ['Visitors Wi-Fi', 'Connect to The Rumi Hotel, then scan the code.', 'Code valid until', 'Loading…', 'Wi-Fi code temporarily unavailable', 'Close'],
-  ru: ['Wi-Fi для посетителей', 'Подключитесь к сети The Rumi Hotel и отсканируйте код.', 'Код действует до', 'Загрузка…', 'Код Wi-Fi временно недоступен', 'Закрыть'],
-  tg: ['Wi-Fi барои меҳмонон', 'Ба шабакаи The Rumi Hotel пайваст шавед ва рамзро скан кунед.', 'Рамз амал мекунад то', 'Бор шуда истодааст…', 'Рамзи Wi-Fi муваққатан дастнорас аст', 'Пӯшидан'],
+  // 6-8: the one-time pairing form (reception types the code; shown in the guest's language too).
+  en: ['Visitors Wi-Fi', 'Connect to The Rumi Hotel, then scan the code.', 'Code valid until', 'Loading…', 'Wi-Fi code temporarily unavailable', 'Close', 'Pairing code from reception', 'Pair tablet', 'Check the code and the connection to the Rumi network.'],
+  ru: ['Wi-Fi для посетителей', 'Подключитесь к сети The Rumi Hotel и отсканируйте код.', 'Код действует до', 'Загрузка…', 'Код Wi-Fi временно недоступен', 'Закрыть', 'Код привязки с ресепшена', 'Привязать планшет', 'Проверьте код и связь с сетью Rumi.'],
+  tg: ['Wi-Fi барои меҳмонон', 'Ба шабакаи The Rumi Hotel пайваст шавед ва рамзро скан кунед.', 'Рамз амал мекунад то', 'Бор шуда истодааст…', 'Рамзи Wi-Fi муваққатан дастнорас аст', 'Пӯшидан', 'Рамзи пайвасткунӣ аз мизи қабул', 'Планшетро пайваст кунед', 'Рамз ва пайвастшавӣ ба шабакаи Rumi-ро санҷед.'],
 } as const
 
 export const dushanbeTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dushanbe', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
@@ -156,12 +157,12 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
               pair()
             }}
           >
-            <label>
-              Код привязки с ресепшена
-              <input className="my-2 w-full rounded border p-2" inputMode="numeric" maxLength={8} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
+            <label className="block text-sm font-medium">
+              {t[6]}
+              <input className="field my-2 tracking-[0.3em]" inputMode="numeric" maxLength={8} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
             </label>
-            <button type="submit">Привязать планшет</button>
-            {pairError && <p role="status">Проверьте код и связь с сетью Rumi.</p>}
+            <button type="submit" className="min-h-14 w-full cursor-pointer rounded-xl bg-forest px-5 font-semibold text-cream">{t[7]}</button>
+            {pairError && <p role="status" className="mt-2 text-sm text-danger">{t[8]}</p>}
           </form>
         ) : voucher ? (
           <>

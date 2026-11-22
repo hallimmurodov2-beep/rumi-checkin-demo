@@ -79,7 +79,18 @@ export function DetailsStep({
         </div>
         <div>
           <label htmlFor="phone" className="eyebrow block">{t('phone')}{opt}</label>
-          <input id="phone" type="tel" inputMode="tel" autoComplete="off" placeholder="+992" className="field mt-2" value={value.phone} onChange={(e) => onChange({ ...value, phone: e.target.value })} />
+          <input
+            id="phone"
+            type="tel"
+            inputMode="tel"
+            enterKeyHint="next"
+            autoComplete="off"
+            placeholder="+992"
+            className="field mt-2"
+            value={value.phone}
+            onChange={(e) => onChange({ ...value, phone: e.target.value })}
+            onKeyDown={(e) => e.key === 'Enter' && document.getElementById('email')?.focus()}
+          />
         </div>
         <div>
           <label htmlFor="email" className="eyebrow block">{t('email')}{opt}</label>
@@ -90,6 +101,8 @@ export function DetailsStep({
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
+            enterKeyHint="done"
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             placeholder="name@example.com"
             aria-invalid={emailBad}
             aria-describedby={emailBad ? 'email-err' : undefined}
@@ -188,6 +201,14 @@ export function SignatureStep({
     const setup = () => {
       const dpr = window.devicePixelRatio || 1
       const r = c.getBoundingClientRect()
+      // Keep what the guest already drew when the box changes size (the policy loading, a language switch).
+      let prev: HTMLCanvasElement | null = null
+      if (length.current > 0 && c.width && c.height) {
+        prev = document.createElement('canvas')
+        prev.width = c.width
+        prev.height = c.height
+        prev.getContext('2d')!.drawImage(c, 0, 0)
+      }
       c.width = Math.round(r.width * dpr)
       c.height = Math.round(r.height * dpr)
       const ctx = c.getContext('2d')!
@@ -196,6 +217,13 @@ export function SignatureStep({
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
       ctx.strokeStyle = '#17221D'
+      if (prev) {
+        ctx.save()
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+        ctx.drawImage(prev, 0, 0)
+        ctx.restore()
+        return
+      }
       length.current = 0
       setSigned(false)
     }
@@ -265,11 +293,11 @@ export function SignatureStep({
     setSigned(false)
   }
   const finish = async () => {
-    if (!signed || busy) return
+    if (!signed || busy || policy === 'loading') return
     setBusy(true)
     setFailed(false)
     try {
-      await onSubmit(exportSignature(canvas.current!), policy && policy !== 'loading' ? policy.id : null)
+      await onSubmit(exportSignature(canvas.current!), policy ? policy.id : null)
     } catch (e) {
       if (!(e instanceof ApiError && e.code === 'reservation_unavailable')) setFailed(true)
       setBusy(false)
@@ -281,7 +309,7 @@ export function SignatureStep({
       step={3}
       onBack={busy ? undefined : onBack}
       action={
-        <Button disabled={!signed || busy} onClick={finish}>
+        <Button disabled={!signed || busy || policy === 'loading'} onClick={finish}>
           {busy && <Spinner />}
           {busy ? t('sending') : t('finish')}
         </Button>
@@ -480,8 +508,10 @@ export function Done({
   const t = useT()
   const { room, perStay, fallback } = useDoneInfo(config, checkinId, initialRoom)
   const paired = hasLobbyWifiPairing()
-  const { voucher } = useWifiVoucher(paired && !perStay)
-  const wifi = perStay ?? (paired ? null : fallback)
+  const { voucher, state: voucherState } = useWifiVoucher(paired && !perStay)
+  // The lobby voucher server is down or the pairing was revoked: show the hotel Wi-Fi from Settings instead of nothing.
+  const voucherFailed = voucherState === 'error' || voucherState === 'unpaired'
+  const wifi = perStay ?? (paired && !voucherFailed ? null : fallback)
   const showWifi = !!wifi || !!voucher
   // Give guests time to scan the Wi-Fi code before the screen resets.
   const n = useCountdown(45, onFinish)

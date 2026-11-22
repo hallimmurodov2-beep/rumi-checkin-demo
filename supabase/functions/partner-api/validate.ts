@@ -2,7 +2,12 @@
 // `npm test` can run it under Node (tests/partner.test.ts).
 
 export const STATUSES = ['expected', 'pending_desk', 'in_house', 'checked_out', 'cancelled', 'no_show']
-export const isDate = (s: unknown) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+// A real calendar date in YYYY-MM-DD (rejects 2026-02-31).
+export const isDate = (s: unknown) =>
+  typeof s === 'string' &&
+  /^\d{4}-\d{2}-\d{2}$/.test(s) &&
+  !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) &&
+  new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s
 export const normRef = (s: string) => s.trim().toUpperCase().replace(/\s+/g, '')
 export const str = (v: unknown, max: number) => (v === undefined || v === null ? null : String(v).trim().slice(0, max) || null)
 

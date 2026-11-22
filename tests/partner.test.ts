@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert'
-import { cleanInvoice, cleanWifi } from '../supabase/functions/partner-api/validate.ts'
+import { cleanInvoice, cleanWifi, isDate } from '../supabase/functions/partner-api/validate.ts'
 import { wifiQrText } from '../src/lib/wifi.ts'
 
 /* ---- Wi-Fi QR text: what phones read when a guest scans the code ---- */
@@ -76,5 +76,14 @@ assert.match(cleanInvoice({ ...base, taxes: [{ amount: 3 }] }).error!, /taxes\[0
 assert.match(cleanInvoice({ ...base, payments: [{ method: 'Cash', amount: 'lots' }] }).error!, /payments\[0\]/)
 assert.match(cleanInvoice({ ...base, issued_at: 'yesterday' }).error!, /issued_at/)
 assert.match(cleanInvoice('nope').error!, /object/)
+
+/* ---- Dates from the front desk app ---- */
+
+assert.equal(isDate('2026-11-22'), true)
+assert.equal(isDate('2028-02-29'), true) // leap day
+assert.equal(isDate('2026-02-31'), false) // no such day
+assert.equal(isDate('2026-13-01'), false)
+assert.equal(isDate('22.11.2026'), false)
+assert.equal(isDate(undefined), false)
 
 console.log('partner tests passed')

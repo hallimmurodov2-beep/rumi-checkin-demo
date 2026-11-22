@@ -201,7 +201,16 @@ export function useStaffData(isAdmin: boolean): StaffData {
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'checkin_guests' }, () => reload('guests'))
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'integration_settings' }, () => reload('integration'))
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'partner_settings' }, () => reload('integration'))
-    channel.subscribe((status) => alive && setLive(status === 'SUBSCRIBED'))
+    // Changes made while the live connection was down are never replayed: reload everything when it comes back.
+    let connectedBefore = false
+    channel.subscribe((status) => {
+      if (!alive) return
+      setLive(status === 'SUBSCRIBED')
+      if (status === 'SUBSCRIBED') {
+        if (connectedBefore) reload()
+        connectedBefore = true
+      }
+    })
 
     // Tablet heartbeats update last_seen_at; refresh device status regularly.
     const id = window.setInterval(() => reload('devices'), 30_000)

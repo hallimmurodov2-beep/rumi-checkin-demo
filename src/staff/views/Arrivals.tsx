@@ -333,14 +333,19 @@ export function ArrivalsView({ data }: { data: StaffData }) {
   const toast = useToast()
   const today = hotelToday()
   const tablets = data.devices.filter((d) => d.paired_at && !d.revoked)
+  const [sending, setSending] = useState<string | null>(null)
   const sendToTablet = async (r: Reservation, deviceId?: string) => {
+    if (sending) return
     const dev = deviceId ?? (tablets.length === 1 ? tablets[0].id : undefined)
     if (!dev) return toast(tablets.length ? 'Choose a tablet.' : 'No paired tablet.', 'error')
+    setSending(r.id)
     try {
       await rpc('staff_send_to_tablet', { p_reservation_id: r.id, p_device_id: dev })
       toast(`${r.guest_name} sent to ${tablets.find((t) => t.id === dev)?.name ?? 'tablet'}`)
     } catch (e) {
       toast(errorText(e instanceof ApiError ? e.code : 'unknown_error'), 'error')
+    } finally {
+      setSending(null)
     }
   }
 
@@ -437,11 +442,12 @@ export function ArrivalsView({ data }: { data: StaffData }) {
                       <div className="flex justify-end gap-2">
                         {r.status === 'expected' && r.arrival_date <= today && tablets.length > 0 && (
                           tablets.length === 1 ? (
-                            <Btn tone="gold" onClick={() => sendToTablet(r)} title="Shows this booking on the tablet for the guest to confirm and sign">Send to tablet</Btn>
+                            <Btn tone="gold" disabled={sending === r.id} onClick={() => sendToTablet(r)} title="Shows this booking on the tablet for the guest to confirm and sign">{sending === r.id ? 'Sending…' : 'Send to tablet'}</Btn>
                           ) : (
                             <select
                               aria-label={`Send ${r.guest_name} to a tablet`}
                               value=""
+                              disabled={sending === r.id}
                               onChange={(e) => e.target.value && sendToTablet(r, e.target.value)}
                               className="min-h-11 rounded-lg border border-line bg-gold-light px-2 text-sm font-medium"
                             >

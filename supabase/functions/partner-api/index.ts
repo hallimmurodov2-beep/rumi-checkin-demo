@@ -99,21 +99,27 @@ function shapeCheckin(c: any) {
   }
 }
 
+/** Throws on a failed query, so a database hiccup is never mistaken for "record deleted". */
+function must<T>(r: { data: T; error: { message: string } | null }): T {
+  if (r.error) throw new Error(r.error.message)
+  return r.data
+}
+
 async function loadCheckin(id: string, withSignature: boolean) {
-  const { data } = await db
+  const data = must(await db
     .from('checkins')
     .select(`${CHECKIN_FIELDS}${withSignature ? ', signature_png' : ''}, reservations!inner(${RES_FIELDS}), checkin_guests(*)`)
     .eq('id', id)
-    .maybeSingle()
+    .maybeSingle())
   return data ? shapeCheckin(data) : null
 }
 
 async function loadHandoff(id: string) {
-  const { data } = await db
+  const data = must(await db
     .from('tablet_handoffs')
     .select(`id, status, created_at, expires_at, language, checkin_id, devices(id, name), reservations(${RES_FIELDS})`)
     .eq('id', id)
-    .maybeSingle()
+    .maybeSingle())
   if (!data) return null
   // deno-lint-ignore no-explicit-any
   const d = data as any
@@ -123,13 +129,16 @@ async function loadHandoff(id: string) {
 /* ---------------------------------------------------------------- webhooks */
 
 async function eventData(event: string, subjectId: string) {
-  if (event.startsWith('checkin.')) return { checkin: await loadCheckin(subjectId, true) }
+  if (event.startsWith('checkin.')) {
+    const checkin = await loadCheckin(subjectId, true)
+    return checkin ? { checkin } : null
+  }
   if (event === 'checkout.created') {
-    const { data } = await db.from('checkouts').select(`id, created_at, rating, key_returned, device_id, reservations!inner(${RES_FIELDS})`).eq('id', subjectId).maybeSingle()
+    const data = must(await db.from('checkouts').select(`id, created_at, rating, key_returned, device_id, reservations!inner(${RES_FIELDS})`).eq('id', subjectId).maybeSingle())
     return data ? { checkout: { id: data.id, created_at: data.created_at, rating: data.rating, key_returned: data.key_returned, from_tablet: !!data.device_id, reservation: data.reservations } } : null
   }
   if (event === 'feedback.created') {
-    const { data } = await db.from('feedback').select(`id, created_at, rating, comment, reservations(${RES_FIELDS})`).eq('id', subjectId).maybeSingle()
+    const data = must(await db.from('feedback').select(`id, created_at, rating, comment, reservations(${RES_FIELDS})`).eq('id', subjectId).maybeSingle())
     return data ? { feedback: { id: data.id, created_at: data.created_at, rating: data.rating, comment: data.comment, reservation: data.reservations } } : null
   }
   if (event === 'handoff.declined') {
@@ -137,7 +146,7 @@ async function eventData(event: string, subjectId: string) {
     return h ? { handoff: h } : null
   }
   if (event === 'invoice.requested') {
-    const { data } = await db.from('reservations').select(`${RES_FIELDS}, invoice_requested_at`).eq('id', subjectId).maybeSingle()
+    const data = must(await db.from('reservations').select(`${RES_FIELDS}, invoice_requested_at`).eq('id', subjectId).maybeSingle())
     if (!data) return null
     const { invoice_requested_at, ...reservation } = data
     return { invoice_request: { requested_at: invoice_requested_at, reservation } }
@@ -165,7 +174,16 @@ async function deliver() {
 
   let delivered = 0
   for (const ev of pending ?? []) {
-    const data = await eventData(ev.event, ev.subject_id)
+    let data: Awaited<ReturnType<typeof eventData>>
+    try {
+      data = await eventData(ev.event, ev.subject_id)
+    } catch (e) {
+      // Database error while reading the event: try again later rather than dropping it.
+      const msg = `Could not read event data: ${e instanceof Error ? e.message : String(e)}`
+      await db.from('webhook_outbox').update({ last_error: msg, next_attempt_at: new Date(Date.now() + 2 * 60_000).toISOString() }).eq('id', ev.id)
+      await log(ev.event, false, msg)
+      continue
+    }
     if (!data) {
       await db.from('webhook_outbox').update({ delivered_at: new Date().toISOString(), last_error: 'Record no longer exists' }).eq('id', ev.id)
       continue
@@ -318,11 +336,14 @@ async function api(req: Request, path: string, url: URL) {
     if (m[2] === 'approve') {
       const room = typeof body.room_number === 'string' ? body.room_number.trim() : ''
       if (!room) return fail(400, 'room_required', 'room_number is required')
-      await db.from('checkins').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', c.id)
-      await db.from('reservations').update({ status: 'in_house', room_number: room.slice(0, 10) }).eq('id', c.reservation_id)
+      // Only if still waiting: staff may have handled it in the meantime.
+      const done = must(await db.from('checkins').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', c.id).eq('status', 'waiting').select('id'))
+      if (!done?.length) return fail(409, 'already_handled', 'Check-in was handled by someone else')
+      must(await db.from('reservations').update({ status: 'in_house', room_number: room.slice(0, 10) }).eq('id', c.reservation_id))
     } else {
-      await db.from('checkins').update({ status: 'rejected' }).eq('id', c.id)
-      await db.from('reservations').update({ status: 'expected' }).eq('id', c.reservation_id).eq('status', 'pending_desk')
+      const done = must(await db.from('checkins').update({ status: 'rejected' }).eq('id', c.id).eq('status', 'waiting').select('id'))
+      if (!done?.length) return fail(409, 'already_handled', 'Check-in was handled by someone else')
+      must(await db.from('reservations').update({ status: 'expected' }).eq('id', c.reservation_id).eq('status', 'pending_desk'))
     }
     return json({ checkin: await loadCheckin(c.id, false) })
   }
@@ -349,8 +370,17 @@ async function api(req: Request, path: string, url: URL) {
       const now = current.get(String(r.booking_ref).toUpperCase().replace(/\s+/g, ''))
       if (r.status === 'expected' && (now === 'pending_desk' || now === 'in_house')) delete r.status
     }
-    const { error } = await db.from('reservations').upsert(rows, { onConflict: 'booking_ref' })
-    if (error) return fail(400, 'save_failed', error.message)
+    // A bulk upsert sends every column any row has, and sets it to NULL on rows that left it out.
+    // So save rows that carry the same fields together: a field a booking omits is left as it is.
+    const groups = new Map<string, Record<string, unknown>[]>()
+    for (const r of rows) {
+      const k = Object.keys(r).sort().join(',')
+      groups.set(k, [...(groups.get(k) ?? []), r])
+    }
+    for (const g of groups.values()) {
+      const { error } = await db.from('reservations').upsert(g, { onConflict: 'booking_ref' })
+      if (error) return fail(400, 'save_failed', error.message)
+    }
     return json({ ok: true, saved: rows.length })
   }
 

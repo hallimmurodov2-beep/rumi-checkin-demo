@@ -272,7 +272,7 @@ export function Checkout({
       title={t('coTitle')}
       onBack={busy ? undefined : onBack}
       action={
-        <Button disabled={busy} onClick={complete}>
+        <Button disabled={busy || bill.status === 'loading'} onClick={complete}>
           {busy && <Spinner />}
           {busy ? t('sending') : t('confirmCheckout')}
         </Button>

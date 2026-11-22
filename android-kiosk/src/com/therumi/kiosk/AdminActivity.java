@@ -29,6 +29,9 @@ import android.widget.Toast;
  * exposes Android. Closes itself after 90 seconds without a touch.
  */
 public class AdminActivity extends Activity {
+    /** True while the admin menu is on screen (the kiosk's foreground guard leaves it alone). */
+    static volatile boolean visible;
+
     private static final int MAINTENANCE_MIN = 15;
     private static final int UNLOCK = 0, NEW_PIN = 1, REPEAT_PIN = 2;
 
@@ -63,6 +66,7 @@ public class AdminActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        visible = true;
         WindowInsetsController c = getWindow().getInsetsController();
         if (c != null && !Policy.inMaintenance(this)) {
             c.hide(WindowInsets.Type.systemBars());
@@ -73,6 +77,7 @@ public class AdminActivity extends Activity {
 
     @Override
     protected void onPause() {
+        visible = false;
         h.removeCallbacks(timeout);
         super.onPause();
     }

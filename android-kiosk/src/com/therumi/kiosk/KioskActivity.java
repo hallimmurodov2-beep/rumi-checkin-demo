@@ -57,8 +57,11 @@ public class KioskActivity extends Activity {
     static final String EXTRA_RELOAD = "reload";
     /** `adb shell am start -n com.therumi.kiosk/.KioskActivity --es set_initial_pin 1234` (only when no PIN is set yet). */
     static final String EXTRA_INITIAL_PIN = "set_initial_pin";
+    /** `adb shell am start -n com.therumi.kiosk/.KioskActivity --ez clear_web_data true`: forget the cached web app (this also unpairs the check-in tablet). */
+    static final String EXTRA_CLEAR_WEB = "clear_web_data";
 
     private static final long HEALTH_MS = 60_000;
+    private static final long GUARD_MS = 700;
     private static final long MAX_RETRY_MS = 60_000;
 
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -109,6 +112,7 @@ public class KioskActivity extends Activity {
         watchNetwork();
         load();
         h.postDelayed(health, HEALTH_MS);
+        h.postDelayed(guard, GUARD_MS);
     }
 
     @Override
@@ -168,7 +172,14 @@ public class KioskActivity extends Activity {
             }
             i.removeExtra(EXTRA_INITIAL_PIN);
         }
-        if (fromNew && i.getBooleanExtra(EXTRA_RELOAD, false)) {
+        if (fromNew && (i.getBooleanExtra(EXTRA_RELOAD, false) || i.getBooleanExtra(EXTRA_CLEAR_WEB, false))) {
+            if (i.getBooleanExtra(EXTRA_CLEAR_WEB, false)) {
+                Log.i(Policy.TAG, "Clearing cached web data");
+                android.webkit.WebStorage.getInstance().deleteAllData();
+                CookieManager.getInstance().removeAllCookies(null);
+                if (web != null) web.clearCache(true);
+                i.removeExtra(EXTRA_CLEAR_WEB);
+            }
             i.removeExtra(EXTRA_RELOAD);
             Policy.apply(this);
             recreateWebView();
@@ -397,6 +408,30 @@ public class KioskActivity extends Activity {
             return "{\"version\":\"" + versionName() + "\",\"owner\":" + Policy.isOwner(KioskActivity.this) + ",\"locked\":" + locked + "}";
         }
     }
+
+    /**
+     * Foreground guard. Some system screens can still slip in front of a locked app (for example the
+     * Samsung keyboard's own settings page from its toolbar). If anything other than the kiosk or its
+     * admin menu is in front, pull the kiosk back within a second.
+     */
+    private final Runnable guard = new Runnable() {
+        @Override
+        public void run() {
+            boolean awake = getSystemService(android.os.PowerManager.class).isInteractive();
+            if (awake && !resumed && !AdminActivity.visible && !Policy.inMaintenance(KioskActivity.this) && Policy.isOwner(KioskActivity.this)) {
+                Log.w(Policy.TAG, "Another screen is in front, bringing the kiosk back");
+                startActivity(new Intent(KioskActivity.this, KioskActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+            }
+            // Back in front but no longer locked (something knocked us out of lock task): lock again.
+            if (resumed && awake && !Policy.inMaintenance(KioskActivity.this) && Policy.isOwner(KioskActivity.this) && !inLockTask()) {
+                Log.w(Policy.TAG, "Lock task was off, locking again");
+                Policy.apply(KioskActivity.this);
+                updateLockState();
+            }
+            h.postDelayed(this, GUARD_MS);
+        }
+    };
 
     /** Every minute: if the page has gone blank (no app rendered), reload it. */
     private final Runnable health = new Runnable() {

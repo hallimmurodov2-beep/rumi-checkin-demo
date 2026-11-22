@@ -9,6 +9,7 @@ The app is the tablet's **device owner** (Android Enterprise). It uses that to:
 - **Lock Task Mode:** the tablet is locked to this app. No home or recent-apps buttons, notification shade, status bar, power menu or lock screen. Other apps can't open.
 - **Home screen:** the app replaces the Samsung launcher, so Android opens it after every restart. A boot receiver opens it as well.
 - **Screen:** always on while plugged in, landscape, with no system bars.
+- **Foreground guard:** some system screens can still slip in front of a locked app, for example the Samsung keyboard's own settings page from its toolbar key. If anything other than the kiosk is in front, the kiosk pulls itself back within a second, and locks again if the lock was knocked off.
 - **Blocked:** safe mode (which would start Android without the kiosk), new users, SD cards, pop-ups from other apps, and Android's "app isn't responding" dialogs.
 - **System updates:** only installed between 02:00 and 04:00.
 - **Time:** time zone fixed to Asia/Dushanbe, network time on.
@@ -45,7 +46,7 @@ Both ask for the **admin PIN**. After 5 wrong PINs the menu locks for 5 minutes.
 ## Setting up a tablet (from scratch)
 
 1. **Factory reset** the tablet. In setup, connect to Wi-Fi.
-   - **Skip** Google and Samsung account sign-in. Android refuses a kiosk owner if any account exists.
+   - **Skip** Google and Samsung account sign-in. Android refuses a kiosk owner if any account exists. If Samsung setup signed in a Samsung account anyway, remove it first (Settings → Accounts and backup → Manage accounts → Samsung account → Remove account → Sign out; it asks for that account's password).
    - **Don't set a screen lock.**
 2. **Developer options:** Settings → About tablet → Software information → tap **Build number** 7 times.
 3. **USB debugging:** Developer options → turn on **USB debugging**. Connect the cable and allow this computer.
@@ -103,6 +104,7 @@ adb shell dpm list-owners                                          # is the kios
 adb shell dumpsys activity activities | grep mLockTaskModeState    # LOCKED = kiosk is locked
 adb logcat -s RumiKiosk                                            # what the kiosk is doing
 adb shell am start -n com.therumi.kiosk/.KioskActivity --ez reload true
+adb shell am start -n com.therumi.kiosk/.KioskActivity --ez clear_web_data true   # forget the cached web app (also unpairs the check-in tablet)
 adb exec-out screencap -p > screen.png
 ```
 

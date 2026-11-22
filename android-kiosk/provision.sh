@@ -47,6 +47,9 @@ if [ -n "$PIN" ]; then
   echo "Admin PIN set (only applies if no PIN was set before; change it later in the admin menu)"
 fi
 
+# Never show Android's one-time "This app is using the full screen" tip to guests.
+"$ADB" shell settings put secure immersive_mode_confirmations confirmed >/dev/null 2>&1 || true
+
 # Samsung: stop charging at 85% to protect a battery that is plugged in all day (ignored elsewhere).
 "$ADB" shell settings put global protect_battery 1 >/dev/null 2>&1 || true
 

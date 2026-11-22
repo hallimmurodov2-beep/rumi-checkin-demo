@@ -31,7 +31,7 @@
             android:launchMode="singleTask"
             android:lockTaskMode="if_whitelisted"
             android:screenOrientation="sensorLandscape"
-            android:resizeableActivity="false"
+            android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -49,7 +49,7 @@
             android:name=".AdminActivity"
             android:exported="false"
             android:screenOrientation="sensorLandscape"
-            android:resizeableActivity="false"
+            android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|locale|layoutDirection" />
 
         <receiver

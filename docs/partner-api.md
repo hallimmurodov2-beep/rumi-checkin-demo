@@ -5,6 +5,8 @@ This guide is for the developer of the hotel's own front desk app. When you fini
 - **receive** every tablet check-in, check-out and guest feedback instantly (webhooks)
 - **send** today's bookings to the tablet, so guests can find their reservation
 - **tell** the tablet when reception has checked a guest in (room number) or out
+- **set** the guest Wi-Fi the tablet shows as a QR code when check-in is done
+- **send** each guest's full bill, which the tablet shows at check-out
 
 The tablet app stays separate. Your app is still the one that talks to eZee FrontDesk.
 
@@ -85,7 +87,8 @@ POST /v1/reservations/{ref}/status ►  e.g. checked_out after paying at the des
 1. **Every few minutes, or whenever bookings change,** send arrivals for yesterday to tomorrow plus everyone in house, with room numbers when known.
 2. **On `checkin.created`,** show the guest in your reception queue with the `desk_code`. Reception compares the passport details with the real passport, gives the key and does the check-in on eZee as you do today. Then call **approve** with the room number.
 3. **When something happens at the desk** (walk-in check-in, early departure, no-show), call **status**.
-4. **On `checkout.created`,** the guest left the key and checked out on the tablet. Settle the bill in eZee as usual. `feedback.created` carries private comments from ratings of 1 to 3.
+4. **On `invoice.requested`,** a guest has just opened check-out on the tablet. Read their folio from eZee and send it with `PUT /v1/reservations/{booking_ref}/invoice` within a few seconds; the tablet waits up to 20 seconds for it.
+5. **On `checkout.created`,** the guest left the key and checked out on the tablet. Settle the bill in eZee as usual. `feedback.created` carries private comments from ratings of 1 to 3.
 
 ---
 
@@ -182,6 +185,64 @@ Use this when it's the wrong booking or the details don't match. The booking bec
 
 Setting `in_house` also closes any tablet check-in that is still waiting. Use `checked_out` after a desk check-out, and `cancelled` or `no_show` as needed.
 
+### Guest Wi-Fi: `GET /v1/wifi` and `PUT /v1/wifi`
+
+The hotel's guest network. The tablet shows it on the Done screen with a QR code that phones join by scanning.
+
+```json
+{ "ssid": "Rumi-Guest", "password": "welcome2026", "security": "WPA", "hidden": false }
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `ssid` | yes | Network name, up to 64 characters. |
+| `password` | unless `security` is `nopass` | Up to 63 characters. |
+| `security` | no | `WPA` (WPA/WPA2/WPA3), `WEP` or `nopass`. Defaults to `WPA` when a password is given. |
+| `hidden` | no | `true` if the network name is not broadcast. |
+| `qr_payload` | no | Exact text to encode instead of the standard `WIFI:T:WPA;S:…;P:…;;`, for example a hotspot login link. |
+
+This replaces what the admin typed in Settings. Response: `{ "wifi": { … } }`.
+
+### Wi-Fi for one stay: `PUT /v1/reservations/{booking_ref}/wifi`
+
+For a personal voucher from your hotspot system. Same body as `/v1/wifi`, plus an optional `note` (up to 140 characters, such as "Valid until 25 Nov, 12:00"). The tablet shows it instead of the hotel network, marked "Just for your stay". `GET` returns it; `DELETE` removes it. You can also send `wifi` inside a reservation in `PUT /v1/reservations` or in the `reservation` of `POST /v1/handoffs`.
+
+The Done screen checks for a per-stay network for about 20 seconds after check-in, so you can create it on `checkin.created` and still have it shown.
+
+### The guest's bill: `PUT /v1/reservations/{booking_ref}/invoice`
+
+Shown in full on the tablet's check-out screen. Send it whenever the folio changes, and always in answer to the `invoice.requested` webhook.
+
+```json
+{
+  "invoice_number": "INV-2026-00123",
+  "currency": "TJS",
+  "issued_at": "2026-11-24T08:05:00Z",
+  "lines": [
+    { "date": "2026-11-21", "description": "Deluxe Double, room and breakfast", "quantity": 1, "unit_price": 950, "amount": 950 },
+    { "date": "2026-11-22", "description": "Minibar", "quantity": 3, "unit_price": 25, "amount": 75 }
+  ],
+  "taxes": [{ "name": "VAT 15%", "amount": 153.75 }],
+  "prices_include_tax": false,
+  "payments": [{ "date": "2026-11-21", "method": "Visa •••• 4242", "amount": 500 }],
+  "note": "Thank you for staying with us"
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `currency` | yes | ISO 4217 code: `TJS`, `USD`, `EUR` … |
+| `lines` | yes | 1 to 300 charges. Each needs `description` and `amount` (or `unit_price`, multiplied by `quantity`, default 1). `date` is optional, `YYYY-MM-DD`. |
+| `taxes` | no | `{ name, amount }`. |
+| `prices_include_tax` | no | `true` if line amounts already include the taxes listed. Then `total` = sum of lines. Otherwise `total` = lines + taxes. |
+| `payments` | no | Deposits and payments already made: `{ date, method, amount }`. Never send full card numbers; `Visa •••• 4242` is fine. |
+| `subtotal`, `tax_total`, `total`, `paid`, `balance` | no | Worked out from the lines, taxes and payments when left out. Send them when your figures differ (rounding, discounts), and the tablet shows yours. |
+| `invoice_number`, `issued_at`, `guest_name`, `note` | no | Shown on the bill (`note` up to 300 characters). |
+
+A positive `balance` shows "Balance due" and asks the guest to settle at the desk. `0` shows "Paid in full". Negative shows "To be refunded". Amounts are rounded to 2 decimals.
+
+Response `200`: `{ "invoice": { … as stored … }, "received_at": "…" }`. `GET` returns the stored bill (`404 no_invoice` if none); `DELETE` removes it. Errors: `400 invalid_invoice` with a `detail` that names the field.
+
 ### Check-outs and feedback
 
 ```
@@ -202,6 +263,7 @@ The tablet sends a `POST` to your webhook address for each event:
 | `checkout.created` | A guest checked out on the tablet. |
 | `feedback.created` | A guest rated the stay 1 to 3 and left private feedback. |
 | `handoff.declined` | The guest tapped "Not my booking" on a booking your app sent. Contains `data.handoff`. |
+| `invoice.requested` | A guest opened check-out on the tablet. Contains `data.invoice_request { requested_at, reservation }`. Answer with `PUT /v1/reservations/{booking_ref}/invoice`. Sent at most once every 2 minutes per stay. |
 | `ping` | The admin pressed **Send test event**. |
 
 **Headers:**
@@ -255,7 +317,7 @@ X-Rumi-Signature: sha256=5f2c...
 }
 ```
 
-- `document.source` is `mrz` when the passport was read by the camera (with `check_digits_valid`), or `none` when the guest used the booking number. In that case reception must enter the passport details.
+- `document.source` is `desk` when your app sent the passport details with the handoff, or `none` when the guest found the booking on the tablet. In that case reception must scan the passport and fill in the details.
 - `checkout.created` contains `data.checkout { id, created_at, rating, key_returned, from_tablet, reservation }`.
 - `feedback.created` contains `data.feedback { id, created_at, rating, comment, reservation }`.
 
@@ -338,9 +400,12 @@ curl -X PUT -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" 
   -d '[{"booking_ref":"TEST-1","guest_name":"Test Guest","arrival_date":"2026-11-21","departure_date":"2026-11-22"}]'
 
 curl -H "Authorization: Bearer $KEY" "$RUMI/v1/checkins?status=waiting"
+
+curl -X PUT -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  $RUMI/v1/wifi -d '{"ssid":"Rumi-Guest","password":"welcome2026"}'
 ```
 
-On the tablet, tap **Check in → No passport? Use your booking number** and enter `TEST-1` and the surname `Guest`. Your webhook receives `checkin.created`. Then approve it:
+On the tablet, tap **Check in → Find my booking myself → Booking number** and enter `TEST-1` and the surname `Guest`. Your webhook receives `checkin.created`. Then approve it:
 
 ```bash
 curl -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \

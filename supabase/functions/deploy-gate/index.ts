@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     await db.rpc('deploy_gate_record', { p_source: src, p_env: q.get('env') ?? '', p_sha: sha, p_ready: ready })
   }
   const todo: string[] = []
-  if (!s.checkin_ok) todo.push('CHECK-IN: no check-in yet that started from a Front Desk app handoff (POST /v1/handoffs), whose checkin.created webhook reached the Front Desk app server (the webhook address set in the tablet admin; the built-in self-test receiver does not count), and that the Front Desk app then approved (POST /v1/checkins/{id}/approve)')
+  if (!s.checkin_ok) todo.push('CHECK-IN: no check-in yet that started from a Front Desk app handoff (POST /v1/handoffs), whose checkin.created webhook reached the Front Desk server at therumihotel.com (the webhook address in the tablet admin must be an https address on therumihotel.com; the built-in self-test receiver does not count), and that the Front Desk app then approved (POST /v1/checkins/{id}/approve)')
   if (!s.bill_ok) todo.push('CHECK-OUT BILL: the Front Desk app server has not yet received an invoice.requested webhook and answered it with the eZee folio (PUT /v1/reservations/{ref}/invoice)')
   const message = ready
     ? 'Deploy gate open: builds allowed.'

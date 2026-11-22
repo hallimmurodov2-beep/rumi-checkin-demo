@@ -63,7 +63,7 @@ npm run build    # type-check and production build
 
 ## Deploy
 
-The project is deployed on Vercel from the GitHub repo. `vercel.json` rewrites app routes to `index.html` and serves `sw.js` uncached.
+The project is deployed on Vercel (project `rumi-checkin-demo`). Pushing to GitHub does not start a build by itself; deploy with the command below, or create a production deployment from the pushed commit in Vercel. `vercel.json` rewrites app routes to `index.html` and serves `sw.js` uncached. Database migrations and the Edge Functions are deployed to Supabase separately.
 
 ```bash
 npx vercel --prod

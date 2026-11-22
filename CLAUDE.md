@@ -6,7 +6,7 @@ Guest tablet (`/tablet`) and front-desk staff app (`/staff`) for The Rumi Hotel 
 
 - Vite + React 19 + TypeScript + Tailwind v4, Supabase (Postgres, Auth, Realtime, Edge Functions), hosted on Vercel.
 - `npm run dev` (the `rumi-dev` preview config serves on port 5199), `npm run build` (type-check + build), `npm test` (eZee mapping tests).
-- **Deploy:** pushing `main` to GitHub deploys the front end on Vercel. Database and Edge Function changes are NOT deployed by a push: apply them to Supabase project `qlvlmgrslqexmqmzpuko` (migrations via the Supabase connection; the local Supabase CLI token lacks deploy rights for this project, so deploy Edge Functions through the Supabase connection too).
+- **Deploy:** pushing `main` does NOT trigger a Vercel build (no Git auto-deploy on project `rumi-checkin-demo`). Push, then create a production deployment from the pushed commit (Vercel connection `create_deployment` with the GitHub source, or `npx vercel --prod` where the CLI is signed in). Confirm by checking that `https://rumi-checkin.vercel.app/sw.js` shows the new build id. Database and Edge Function changes are NOT deployed by a push: apply them to Supabase project `qlvlmgrslqexmqmzpuko` (migrations via the Supabase connection; the local Supabase CLI token lacks deploy rights for this project, so deploy Edge Functions through the Supabase connection too).
 
 ## Where things live
 

@@ -1,7 +1,7 @@
 import type { WifiInfo } from './types'
 
 // Special characters must be escaped in the Wi-Fi QR format.
-const esc = (s: string) => s.replace(/([\;,:"])/g, '\\$1')
+const esc = (s: string) => s.replace(/([\\;,:"])/g, '\\$1')
 
 /**
  * Text for a Wi-Fi QR code. Phones (iOS camera, Android) offer to join the network when they scan it:

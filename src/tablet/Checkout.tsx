@@ -76,6 +76,9 @@ export function CheckoutFind({ onBack, onFound }: { onBack: () => void; onFound:
 
 /* ------------------------------ The bill ------------------------------- */
 
+/** A balance the guest still has to settle at the desk. */
+export type Due = { amount: number; currency: string }
+
 type BillState = { status: 'loading' | 'ready' | 'none'; invoice: Invoice | null; updating: boolean }
 
 /**
@@ -235,7 +238,7 @@ export function Checkout({
   stay: PublicReservation
   reviewUrl: string
   onBack: () => void
-  onComplete: (rating: number, feedback: string) => Promise<void>
+  onComplete: (rating: number, feedback: string, due: Due | null) => Promise<void>
 }) {
   const t = useT()
   const lang = useLang()
@@ -249,7 +252,8 @@ export function Checkout({
     setBusy(true)
     setFailed(false)
     try {
-      await onComplete(rating, rating <= 3 ? text.trim() : '')
+      const inv = bill.invoice
+      await onComplete(rating, rating <= 3 ? text.trim() : '', inv && inv.balance > 0.004 ? { amount: inv.balance, currency: inv.currency } : null)
     } catch {
       setFailed(true)
       setBusy(false)
@@ -342,9 +346,10 @@ export function Checkout({
   )
 }
 
-export function CheckoutDone({ onFinish }: { onFinish: () => void }) {
+export function CheckoutDone({ onFinish, due = null }: { onFinish: () => void; due?: Due | null }) {
   const t = useT()
-  const n = useCountdown(12, onFinish)
+  const n = useCountdown(due ? 20 : 12, onFinish)
+  const fmt = useMoney(due?.currency ?? 'TJS')
   return (
     <Shell
       title={t('coTitle')}
@@ -360,6 +365,12 @@ export function CheckoutDone({ onFinish }: { onFinish: () => void }) {
         <AnimatedCheck size="h-24 w-24" />
         <h2 className="rise mt-6 text-6xl text-forest" style={{ animationDelay: '120ms' }}>{t('thanksTitle')}</h2>
         <p className="rise mt-3 max-w-xl text-xl text-muted" style={{ animationDelay: '200ms' }}>{t('thanksSub')}</p>
+        {due && (
+          <div className="rise mt-8 rounded-2xl bg-gold-light/40 px-8 py-5" style={{ animationDelay: '300ms' }}>
+            <p className="eyebrow">{t('dueAtDesk')}</p>
+            <p className="mt-1 text-4xl font-semibold tabular-nums text-ink">{fmt(due.amount)}</p>
+          </div>
+        )}
       </div>
     </Shell>
   )

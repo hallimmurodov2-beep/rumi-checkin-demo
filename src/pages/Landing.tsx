@@ -41,7 +41,7 @@ export default function Landing() {
         <p className="eyebrow rise mt-6" style={{ animationDelay: '80ms' }}>Self check-in</p>
         <h1 className="rise mt-3 text-5xl leading-tight text-forest sm:text-6xl" style={{ animationDelay: '140ms' }}>Arrive, scan, and settle in</h1>
         <p className="rise mt-5 max-w-xl text-lg text-muted" style={{ animationDelay: '200ms' }}>
-          Guests check in on the lobby tablet in English, Russian or Tajik. The front desk sees each arrival instantly, checks the passport and hands over the key.
+          Guests check in on the lobby tablet in English, Russian or Tajik. Reception scans the passport, the booking appears on the tablet, and the front desk sees each arrival instantly and hands over the key.
         </p>
         <div className="rise mt-10 flex w-full flex-col gap-4 sm:flex-row sm:justify-center" style={{ animationDelay: '260ms' }}>
           <Link
@@ -66,7 +66,7 @@ export default function Landing() {
           <p className="text-sm font-semibold tracking-[0.2em] text-gold-light">SET UP ON A TABLET</p>
           <h2 className="mt-2 text-4xl">Install it like an app</h2>
           <p className="mt-3 max-w-2xl text-cream/90">
-            The tablet screen installs to the home screen, opens full screen in landscape, keeps the screen awake and reads passports with the camera.
+            The tablet screen installs to the home screen, opens full screen in landscape, keeps the screen awake and shows each guest their booking once reception has scanned the passport.
           </p>
           <div className="mt-8 grid gap-5 md:grid-cols-2">
             {steps.map((s) => (

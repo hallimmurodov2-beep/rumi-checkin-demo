@@ -212,7 +212,7 @@ export function Confirm({
   const lang = useLang()
   const expired = mrz?.expiryDate ? mrz.expiryDate < new Date().toISOString().slice(0, 10) : false
   return (
-    <Shell step={1} onBack={onBack} hideBack={!onBack}>
+    <Shell step={1} onBack={onBack} hideBack={!onBack} noLang={!!onLang}>
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center">
         {greetName && (
           <div className="mb-1 flex items-center justify-between gap-4">

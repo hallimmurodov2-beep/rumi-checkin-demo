@@ -6,3 +6,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** Build id (yyyymmddhhmmss) stamped in by vite.config.ts; also in sw.js. */
+declare const __APP_BUILD__: string

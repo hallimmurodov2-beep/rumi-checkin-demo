@@ -43,7 +43,8 @@ export interface Checkin {
   device_id: string | null
   created_at: string
   language: Lang
-  doc_source: 'mrz' | 'manual' | 'none'
+  /** desk: passport details came from reception's scan (front desk app); none: guest found the booking on the tablet. */
+  doc_source: 'mrz' | 'manual' | 'none' | 'desk'
   doc_type: string | null
   issuing_country: string | null
   nationality: string | null

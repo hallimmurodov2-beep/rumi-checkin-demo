@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node tests/ezee.test.ts"
+    "test": "node tests/ezee.test.ts && node tests/partner.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",

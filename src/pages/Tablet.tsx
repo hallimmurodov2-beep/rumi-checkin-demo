@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { LangContext } from '../i18n'
+import { LangContext, SetLangContext } from '../i18n'
 import { getDevice, tablet, type Handoff, type StoredDevice } from '../lib/device'
 import { ApiError } from '../lib/supabase'
 import { transition } from '../lib/transition'
 import type { MrzData, PublicReservation, TabletConfig } from '../lib/types'
 import { translations, type Lang } from '../translations'
-import { Checkout, CheckoutDone, CheckoutFind } from '../tablet/Checkout'
+import { Checkout, CheckoutDone, CheckoutFind, type Due } from '../tablet/Checkout'
 import { PairTablet, TabletSettings } from '../tablet/Setup'
 import { Confirm, DetailsStep, Done, FindBooking, NeedHelp, SignatureStep, WaitForDesk, emptyDetails, type Details } from '../tablet/Steps'
 import { Welcome } from '../tablet/Welcome'
@@ -127,6 +127,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
   const [findMultiple, setFindMultiple] = useState(false)
   const [details, setDetails] = useState<Details>(emptyDetails)
   const [stay, setStay] = useState<PublicReservation | null>(null)
+  const [due, setDue] = useState<Due | null>(null)
   const [deskCode, setDeskCode] = useState<string | null>(null)
   const [checkinId, setCheckinId] = useState<string | null>(null)
   const [handoff, setHandoff] = useState<Handoff | null>(null)
@@ -192,6 +193,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
     setFindMultiple(false)
     setDetails(emptyDetails)
     setStay(null)
+    setDue(null)
   }, [])
 
   // Back to Welcome in English with everything the guest entered cleared.
@@ -325,6 +327,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
 
   return (
     <LangContext.Provider value={lang}>
+      <SetLangContext.Provider value={setLang}>
       <DeskModeContext.Provider value={deskMode}>
       <div className="h-full" lang={lang}>
         {step === 'welcome' && (
@@ -419,9 +422,10 @@ function Kiosk({ device }: { device: StoredDevice }) {
             stay={stay}
             reviewUrl={config?.review_url ?? ''}
             onBack={() => go('coFind', 'back')}
-            onComplete={async (rating, feedback) => {
+            onComplete={async (rating, feedback, owed) => {
               try {
                 await tablet.submitCheckout(stay.id, rating, feedback)
+                setDue(owed)
                 go('coDone')
               } catch (e) {
                 // Reception checked the guest out at the desk in the meantime.
@@ -431,7 +435,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
             }}
           />
         )}
-        {step === 'coDone' && <CheckoutDone onFinish={reset} />}
+        {step === 'coDone' && <CheckoutDone onFinish={reset} due={due} />}
 
         {!online && (
           <div role="alert" className="slide-down fixed left-1/2 top-3 z-40 -translate-x-1/2 rounded-full bg-ink px-5 py-2 text-sm font-medium text-cream shadow-lg">
@@ -439,7 +443,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
           </div>
         )}
 
-        {settingsOpen && <TabletSettings device={device} onClose={() => setSettingsOpen(false)} />}
+        {settingsOpen && <TabletSettings device={device} hotel={config?.hotel_name} online={online} onClose={() => setSettingsOpen(false)} />}
 
         {saver && step === 'welcome' && <Screensaver onWake={() => setSaver(false)} />}
 
@@ -473,6 +477,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
         )}
       </div>
       </DeskModeContext.Provider>
+      </SetLangContext.Provider>
     </LangContext.Provider>
   )
 }

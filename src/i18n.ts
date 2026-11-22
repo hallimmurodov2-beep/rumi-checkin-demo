@@ -3,6 +3,9 @@ import { translations, type Key, type Lang } from './translations'
 
 export const LangContext = createContext<Lang>('en')
 
+/** Lets any tablet screen switch the guest's language (set by the kiosk page). */
+export const SetLangContext = createContext<((l: Lang) => void) | null>(null)
+
 export function useLang(): Lang {
   return useContext(LangContext)
 }

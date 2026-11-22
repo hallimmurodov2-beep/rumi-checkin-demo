@@ -76,16 +76,37 @@ export function PairTablet() {
 }
 
 /** Staff-only sheet, opened by holding the emblem on the welcome screen for 3 seconds. */
-export function TabletSettings({ device, onClose }: { device: StoredDevice; onClose: () => void }) {
+export function TabletSettings({ device, hotel, online, onClose }: { device: StoredDevice; hotel?: string; online: boolean; onClose: () => void }) {
   const [confirmUnpair, setConfirmUnpair] = useState(false)
+  const build = typeof __APP_BUILD__ === 'string' ? __APP_BUILD__ : 'dev'
+  const version = /^\d{14}$/.test(build) ? `${build.slice(0, 4)}-${build.slice(4, 6)}-${build.slice(6, 8)} ${build.slice(8, 10)}:${build.slice(10, 12)}` : build
   return (
     <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-6" role="dialog" aria-modal="true" aria-labelledby="ts-title">
       <div className="pop-in card w-full max-w-xl p-8">
         <p className="eyebrow">Staff</p>
         <h2 id="ts-title" className="mt-1 text-4xl text-forest">Tablet settings</h2>
-        <dl className="mt-6 space-y-1">
-          <dt className="eyebrow">This tablet</dt>
-          <dd className="text-xl font-medium">{device.name}</dd>
+        <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
+          <div>
+            <dt className="eyebrow">This tablet</dt>
+            <dd className="text-xl font-medium">{device.name}</dd>
+          </div>
+          <div>
+            <dt className="eyebrow">Connection</dt>
+            <dd className="flex items-center gap-2 text-xl font-medium">
+              <span className={`h-2.5 w-2.5 rounded-full ${online ? 'bg-forest' : 'bg-danger'}`} aria-hidden="true" />
+              {online ? 'Online' : 'Offline'}
+            </dd>
+          </div>
+          {hotel && (
+            <div>
+              <dt className="eyebrow">Hotel</dt>
+              <dd className="text-lg">{hotel}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="eyebrow">App version</dt>
+            <dd className="font-mono text-lg">{version}</dd>
+          </div>
         </dl>
         <div className="mt-8 flex items-center justify-between gap-4 border-t border-line pt-6">
           <Button
@@ -95,7 +116,10 @@ export function TabletSettings({ device, onClose }: { device: StoredDevice; onCl
           >
             {confirmUnpair ? 'Tap again to unpair' : 'Unpair tablet'}
           </Button>
-          <Button onClick={onClose}>Close</Button>
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={() => window.location.reload()}>Reload app</Button>
+            <Button onClick={onClose}>Close</Button>
+          </div>
         </div>
       </div>
     </div>

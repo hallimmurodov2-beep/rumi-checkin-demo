@@ -12,7 +12,7 @@ Stack: Vite, React, TypeScript, Tailwind CSS v4 and Supabase (Postgres, Auth, Re
 1. Front desk adds the day's bookings under **Arrivals**, by hand or by importing a CSV.
 2. A guest taps **Check in** and hands the passport to the receptionist, who scans it in the front desk app. That app sends the booking to the tablet (`POST /v1/handoffs`), which opens it in the guest's language within about 2 seconds. Guests who prefer can find the booking by name or booking number on the tablet.
 3. Cyrillic surnames are transliterated, so Петрова matches a booking for Petrova.
-4. The guest confirms the booking and adds a phone number, email and airport-shuttle choice. They tick the consent box and sign on screen.
+4. The guest confirms the booking and adds a phone number, email and airport-shuttle choice. They sign on screen.
 5. The check-in appears instantly in **Tablet check-ins** at the desk. Staff check the passport against the details, enter the room number and tap **Approve & give key**. The guest is now **In house**.
 6. When check-in is done, the tablet shows the guest Wi-Fi with a QR code: guests point their phone camera at it to join.
 7. To check out, the guest enters their room number and surname on the tablet, sees their full bill (sent by the front desk app) and rates the stay. A rating of 4–5 shows a QR code for the public review link. A rating of 1–3 opens a private feedback box that only staff see.
@@ -35,13 +35,13 @@ The tablet returns to the welcome screen after 60 seconds without a touch, with 
 
 - **iPad (Safari):** open `/tablet` → Share → **Add to Home Screen**. Lock the iPad to the app with Guided Access (Settings → Accessibility → Guided Access, then triple-click the top button).
 - **Android (Chrome):** open `/tablet` → ⋮ → **Install app**. Lock it with screen pinning (Settings → Security → App pinning).
-- **Hidden tablet settings:** press and hold the emblem on the welcome screen for 3 seconds. From there you can unpair the tablet.
+- **Hidden tablet settings:** press and hold the emblem on the welcome screen for 3 seconds. From there you can see the connection and app version, reload the app, or unpair the tablet.
 
 ## Security and privacy
 
 - Staff sign in with Supabase Auth (email and password). Every table has row-level security: only `staff` and `admin` accounts can read guest data, and pending accounts see nothing.
 - Tablets have **no direct table access**. A paired tablet holds a random 256-bit secret, and the database stores only its SHA-256 hash. Every tablet action is a database function that checks the secret first. Tablets can look up a single booking by booking number and surname, or by passport name, and only for arrivals from yesterday to tomorrow. They cannot list bookings or read past check-ins.
-- **Passport images are never stored or uploaded.** The tablet never scans passports; reception does. Stored fields: name, nationality, document number and type, date of birth, sex, expiry, phone, email, shuttle choice, consent time and the signature image.
+- **Passport images are never stored or uploaded.** The tablet never scans passports; reception does. Stored fields: name, nationality, document number and type, date of birth, sex, expiry, phone, email, shuttle choice, the time of signing and the signature image.
 - **Retention:** a scheduled job (`pg_cron`, daily at 03:15) erases passport details, contacts and signatures once a stay ended more than *N* days ago. The default is 90 days; change it in Settings.
 - **Registration export:** In house → **Export registration CSV** produces the passport details of in-house guests for foreign-guest registration.
 - The Supabase security advisor lists the tablet and staff functions as "callable by anon/authenticated". That is intended, because each function checks the tablet secret or the staff role itself.
@@ -51,7 +51,7 @@ The tablet returns to the welcome screen after 60 seconds without a touch, with 
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # eZee request/response mapping tests
+npm test         # eZee mapping, Wi-Fi QR text, bill and Wi-Fi input checks
 npm run build    # type-check and production build
 ```
 
@@ -59,7 +59,7 @@ npm run build    # type-check and production build
 - `/dev/tablet` (development only) shows the tablet's Done and Check-out screens with fixture data: `/dev/tablet?screen=done&wifi=stay` or `/dev/tablet?screen=checkout&lang=ru&bill=due` (`bill` can be `due`, `paid`, `slow` or `none`).
 - The Supabase URL and publishable key are in `src/lib/supabase.ts`; you can override them with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. The publishable key is designed to be public; access is enforced in the database.
 - The database schema, row-level security and functions are applied as Supabase migrations: `core_schema`, `device_secrets_and_rpcs`, `fix_unaccent_and_schedule_purge`, `cyrillic_name_matching`, `ezee_sync_and_companions`, `tablet_config_retention`, `partner_app_integration`, `fix_partner_event_trigger`, `desk_passport_mode_and_screensaver`, `desk_to_tablet_handoffs`, `checkin_without_consent_checkbox` and `wifi_qr_and_checkout_invoices`.
-- `npm test` also covers the eZee request and response mapping (`tests/ezee.test.ts`).
+- `npm test` covers the eZee request and response mapping (`tests/ezee.test.ts`) and the Wi-Fi QR text and the partner API's bill and Wi-Fi checks (`tests/partner.test.ts`).
 
 ## Deploy
 
@@ -112,7 +112,6 @@ The request formats follow eZee's published connectivity docs. Some fields in th
 - **Passports** are scanned only at reception. The tablet never reads them. (The earlier tablet-camera mode was removed; it's in the git history if you ever want it back.)
 - **Photo screensaver:** after 45 seconds without a touch on the Welcome screen (configurable in Settings, 0 turns it off), the tablet shows the hotel photos from `public/gallery`. Each photo slowly zooms, cross-fades into the next and has an English, Russian and Tajik caption, and the clock is shown. One tap returns to Welcome. To change the photos, replace the files in `public/gallery` (WebP, about 1024 px wide) and update `src/tablet/gallery.ts`.
 
-- **Privacy notice** in all three languages, linked from the consent box. It shows the retention period from Settings.
 - **Signature** is labelled with the guest's name and the date.
 - **Room number** is shown on the confirmation and done screens when eZee has already assigned one.
 - **Wi-Fi QR:** the Done screen shows the guest network with a QR code that phones join by scanning. If the front desk app sent a personal Wi-Fi for the stay, that one is shown instead, marked "Just for your stay". The screen stays up for 45 seconds so guests have time to scan.

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { useT } from '../i18n'
-import type { Key } from '../translations'
+import { SetLangContext, useLang, useT } from '../i18n'
+import { LANGS, type Key } from '../translations'
 import { ArrowLeft, Brand, Button, CheckIcon } from '../ui'
 
 const STEPS: Key[] = ['stepPassport', 'stepBooking', 'stepDetails', 'stepSignature', 'stepDone']
@@ -49,6 +49,34 @@ function Stepper({ step }: { step: number }) {
   )
 }
 
+const SHORT: Record<string, string> = { en: 'EN', ru: 'РУ', tg: 'ТҶ' }
+
+/** Small language switch in the header, so guests can change language on any screen. */
+function LangSwitch() {
+  const lang = useLang()
+  const setLang = useContext(SetLangContext)
+  const t = useT()
+  if (!setLang) return null
+  return (
+    <div className="flex gap-0.5 rounded-xl border border-line bg-white p-0.5" role="group" aria-label={t('chooseLanguage')}>
+      {LANGS.map((l) => (
+        <button
+          key={l.code}
+          type="button"
+          lang={l.code}
+          title={l.label}
+          aria-label={l.label}
+          aria-pressed={lang === l.code}
+          onClick={() => setLang(l.code)}
+          className={`min-h-11 min-w-11 cursor-pointer rounded-lg px-2 text-sm font-semibold transition ${lang === l.code ? 'bg-forest text-cream' : 'text-muted hover:text-forest'}`}
+        >
+          {SHORT[l.code]}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function Clock() {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -56,7 +84,7 @@ function Clock() {
     return () => window.clearInterval(id)
   }, [])
   return (
-    <span className="w-[120px] text-right font-serif text-2xl font-semibold tabular-nums text-forest" aria-hidden="true">
+    <span className="w-[76px] text-right font-serif text-2xl font-semibold tabular-nums text-forest" aria-hidden="true">
       {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
     </span>
   )
@@ -69,6 +97,7 @@ export function Shell({
   onBack,
   action,
   hideBack,
+  noLang,
   children,
 }: {
   step?: number
@@ -76,6 +105,8 @@ export function Shell({
   onBack?: () => void
   action?: ReactNode
   hideBack?: boolean
+  /** Hide the header language switch (a screen with its own, larger one). */
+  noLang?: boolean
   children: ReactNode
 }) {
   const t = useT()
@@ -84,7 +115,10 @@ export function Shell({
       <header className="vt-header flex items-center justify-between gap-6 border-b border-line bg-paper px-8 py-3.5 xl:px-10">
         <Brand />
         {step !== undefined ? <Stepper step={step} /> : title && <h2 className="text-3xl text-forest">{title}</h2>}
-        <Clock />
+        <div className="flex items-center gap-4">
+          {!noLang && <LangSwitch />}
+          <Clock />
+        </div>
       </header>
       <main className="vt-main screen-in flex min-h-0 flex-1 flex-col overflow-y-auto px-8 py-6 xl:px-10">{children}</main>
       <footer className="vt-footer flex min-h-[96px] items-center justify-between gap-4 border-t border-line bg-paper px-8 py-3.5 xl:px-10">

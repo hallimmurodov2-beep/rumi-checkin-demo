@@ -5,7 +5,7 @@ Guest tablet (`/tablet`) and front-desk staff app (`/staff`) for The Rumi Hotel 
 ## Stack and commands
 
 - Vite + React 19 + TypeScript + Tailwind v4, Supabase (Postgres, Auth, Realtime, Edge Functions), hosted on Vercel.
-- `npm run dev` (the `rumi-dev` preview config serves on port 5199), `npm run build` (type-check + build), `npm test` (eZee mapping tests).
+- `npm run dev` (the `rumi-dev` preview config serves on port 5199), `npm run build` (type-check + build), `npm test` (eZee mapping, Wi-Fi QR text, and the partner API's Wi-Fi and bill checks in `supabase/functions/partner-api/validate.ts`).
 - **Deploy:** pushing `main` does NOT trigger a Vercel build (no Git auto-deploy on project `rumi-checkin-demo`). Push, then create a production deployment from the pushed commit (Vercel connection `create_deployment` with the GitHub source, or `npx vercel --prod` where the CLI is signed in). Confirm by checking that `https://rumi-checkin.vercel.app/sw.js` shows the new build id. Database and Edge Function changes are NOT deployed by a push: apply them to Supabase project `qlvlmgrslqexmqmzpuko` (migrations via the Supabase connection; the local Supabase CLI token lacks deploy rights for this project, so deploy Edge Functions through the Supabase connection too).
 
 ## Where things live
@@ -13,7 +13,7 @@ Guest tablet (`/tablet`) and front-desk staff app (`/staff`) for The Rumi Hotel 
 - `src/pages/Tablet.tsx`: the kiosk state machine (steps, idle reset, screensaver, handoff polling).
 - `src/tablet/*`: tablet screens. `Steps.tsx` = check-in steps incl. the Done screen with the Wi-Fi QR; `Checkout.tsx` = check-out with the guest's bill.
 - `src/lib/device.ts`: every tablet call. Tablets have no table access; each call is a `SECURITY DEFINER` RPC that checks the tablet's pairing secret first.
-- `src/staff/*`: staff app. `src/dev/*`: dev-only fixture previews (`/dev/staff`, `/dev/tablet?screen=done|checkout&lang=en|ru|tg&bill=due|paid|slow|none&wifi=stay`). Use these to check screens without pairing a tablet or touching live data.
+- `src/staff/*`: staff app. `src/dev/*`: dev-only fixture previews (`/dev/staff`, and `/dev/tablet?screen=<welcome|wait|find|confirm|details|signature|help|done|cofind|checkout|codone|saver|settings>&lang=en|ru|tg&bill=due|paid|slow|none&wifi=stay&due=1`). Use these to check screens without pairing a tablet or touching live data.
 - `src/translations.ts`: all guest strings in en, ru, tg. Every new guest-facing string needs all three (Tajik is best-effort, flagged for native review).
 - `supabase/functions/partner-api`: REST API + signed webhooks for the owner's front desk app. Guide: `docs/partner-api.md`; Codex integration prompt: `docs/frontdesk-app-codex-prompt.md`.
 - Migrations are not in the repo; they live in Supabase (`list_migrations`). Read live function definitions with `pg_get_functiondef` before changing one.

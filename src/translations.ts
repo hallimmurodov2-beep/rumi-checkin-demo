@@ -23,7 +23,6 @@ const en = {
 
   back: 'Back',
   continue: 'Continue',
-  tryAgain: 'Try again',
   backToStart: 'Back to start',
   startNew: 'Done',
 
@@ -33,15 +32,6 @@ const en = {
   checkOut: 'Check out',
   checkOutSub: 'Leave your feedback and return your key',
 
-  passportTitle: 'Scan your passport',
-  passportHint: 'Hold the photo page up to the camera, with the two lines of letters at the bottom inside the frame.',
-  cameraStarting: 'Starting the camera...',
-  scanning: 'Looking for your passport...',
-  passportRead: 'Passport read',
-  scanTip: 'Hold it flat and still, and avoid glare from lights.',
-  cameraUnavailable: 'The camera is not available. Please use your booking number instead.',
-  noPassport: 'No passport? Use your booking number',
-  privacyNote: 'Your passport is read on this tablet. The photo is not saved; only the details go to the front desk.',
 
   findTitle: 'Find your booking',
   findMultiple: 'Please enter your booking number so we can find the right booking.',
@@ -57,7 +47,6 @@ const en = {
 
   confirmTitle: 'Is this your booking?',
   bookingRef: 'Booking',
-  guestName: 'Guest',
   source: 'Booked via',
   dates: 'Dates',
   room: 'Room',
@@ -85,9 +74,6 @@ const en = {
   shuttleBooked: 'Airport shuttle requested',
   yes: 'Yes',
   no: 'No',
-  consent:
-    'I confirm my details are correct and agree that the hotel may store them for my stay and for guest registration as required by law.',
-  consentNeeded: 'Please accept to continue.',
 
   sigTitle: 'Please sign',
   sigHint: 'Sign with your finger inside the box.',
@@ -129,23 +115,8 @@ const en = {
   thanksTitle: 'Thank you, safe travels',
   thanksSub: 'Please leave your key card at the front desk.',
 
-  scanAlmost: 'Almost there - hold the passport still',
-  guestsTitle: 'Other guests on this booking',
-  guestsText: 'This booking is for {n} guests. Please scan the passport of each other adult.',
-  guestsCount: '{n} of {total} passports scanned',
-  scanNext: 'Scan next passport',
-  scanGuestTitle: "Scan the next guest's passport",
-  guestsLater: 'Not everyone here? You can continue - the front desk will help with the rest.',
-  alreadyScanned: 'This passport has already been scanned.',
-  remove: 'Remove',
-  you: 'you',
   yourRoom: 'Your room',
   roomAssigned: 'Room {room}',
-  privacyLink: 'Read the privacy notice',
-  privacyTitle: 'Privacy notice',
-  privacyBody:
-    'The Rumi Hotel & Residences collects your passport details, contact details and signature to check you in and to register foreign guests as required by the law of the Republic of Tajikistan.\n\nYour passport is read on this tablet; the photo is not saved. Your details are stored securely, are shared with our hotel management system, and are only available to hotel staff.\n\nThey are deleted automatically {days} days after your stay, unless the law requires us to keep them longer. To ask about your data, please speak to the front desk.',
-  close: 'Close',
   signedBy: 'Signed by {name} on {date}',
   findByName: 'Your name',
   findByRef: 'Booking number',
@@ -155,8 +126,6 @@ const en = {
   deskSub: 'Please give your passport and this number to reception',
   deskKey: 'Reception will scan your passport and hand you your key card.',
   deskManyPassports: 'Please bring the passports of all {n} guests.',
-  privacyBodyDesk:
-    'The Rumi Hotel & Residences collects your contact details and signature to check you in, and reception scans your passport to register foreign guests as required by the law of the Republic of Tajikistan.\n\nYour details are stored securely, are shared with our hotel management system, and are only available to hotel staff.\n\nThey are deleted automatically {days} days after your stay, unless the law requires us to keep them longer. To ask about your data, please speak to the front desk.',
   waitTitle: 'Please hand your passport to the receptionist',
   waitSub: 'Your booking will appear on this screen in a moment.',
   waitManual: 'Find my booking myself',
@@ -165,6 +134,7 @@ const en = {
   idleWarn: 'Returning to the start in {n}s',
   idleTouch: 'Touch the screen to stay.',
   stillHere: "I'm still here",
+  dueAtDesk: 'Balance to settle at the front desk',
   offline: 'No internet connection - please ask at the front desk',
   wifiScan: 'Scan with your phone camera to connect',
   wifiPerStay: 'Just for your stay',
@@ -174,13 +144,10 @@ const en = {
   subtotal: 'Subtotal',
   taxIncluded: 'Prices include taxes',
   total: 'Total',
-  payments: 'Payments',
   balanceDue: 'Balance due',
   paidInFull: 'Paid in full',
   refundDue: 'To be refunded',
   settleAtDesk: 'Please settle the balance at the front desk before you leave.',
-  invoiceUpdated: 'Updated {time}',
-  checkoutAnyway: 'You can still check out here; reception will settle the bill with you.',
 }
 
 export type Key = keyof typeof en
@@ -195,7 +162,6 @@ const ru: Dict = {
 
   back: 'Назад',
   continue: 'Продолжить',
-  tryAgain: 'Попробовать снова',
   backToStart: 'В начало',
   startNew: 'Готово',
 
@@ -205,15 +171,6 @@ const ru: Dict = {
   checkOut: 'Выезд',
   checkOutSub: 'Оставьте отзыв и верните ключ',
 
-  passportTitle: 'Отсканируйте паспорт',
-  passportHint: 'Поднесите страницу с фотографией к камере так, чтобы две строки символов внизу попали в рамку.',
-  cameraStarting: 'Включаем камеру...',
-  scanning: 'Ищем паспорт...',
-  passportRead: 'Паспорт считан',
-  scanTip: 'Держите паспорт ровно и неподвижно, избегайте бликов.',
-  cameraUnavailable: 'Камера недоступна. Пожалуйста, воспользуйтесь номером брони.',
-  noPassport: 'Нет паспорта? Используйте номер брони',
-  privacyNote: 'Паспорт считывается на этом планшете. Фото не сохраняется, на стойку передаются только данные.',
 
   findTitle: 'Найдите вашу бронь',
   findMultiple: 'Пожалуйста, введите номер брони, чтобы мы нашли нужное бронирование.',
@@ -229,7 +186,6 @@ const ru: Dict = {
 
   confirmTitle: 'Это ваша бронь?',
   bookingRef: 'Бронь',
-  guestName: 'Гость',
   source: 'Источник брони',
   dates: 'Даты',
   room: 'Номер',
@@ -257,9 +213,6 @@ const ru: Dict = {
   shuttleBooked: 'Трансфер в аэропорт заказан',
   yes: 'Да',
   no: 'Нет',
-  consent:
-    'Я подтверждаю правильность своих данных и даю согласие на их хранение отелем на время проживания и для регистрации гостей в соответствии с законом.',
-  consentNeeded: 'Чтобы продолжить, необходимо согласие.',
 
   sigTitle: 'Поставьте подпись',
   sigHint: 'Распишитесь пальцем в поле ниже.',
@@ -301,23 +254,8 @@ const ru: Dict = {
   thanksTitle: 'Спасибо, счастливого пути',
   thanksSub: 'Пожалуйста, оставьте ключ-карту на стойке регистрации.',
 
-  scanAlmost: 'Почти готово - держите паспорт неподвижно',
-  guestsTitle: 'Другие гости в этой брони',
-  guestsText: 'Бронь на {n} гостей. Пожалуйста, отсканируйте паспорт каждого взрослого гостя.',
-  guestsCount: 'Отсканировано паспортов: {n} из {total}',
-  scanNext: 'Сканировать следующий паспорт',
-  scanGuestTitle: 'Отсканируйте паспорт следующего гостя',
-  guestsLater: 'Не все гости рядом? Можно продолжить - администратор поможет с остальными.',
-  alreadyScanned: 'Этот паспорт уже отсканирован.',
-  remove: 'Удалить',
-  you: 'вы',
   yourRoom: 'Ваш номер',
   roomAssigned: 'Номер {room}',
-  privacyLink: 'Уведомление о конфиденциальности',
-  privacyTitle: 'Уведомление о конфиденциальности',
-  privacyBody:
-    'The Rumi Hotel & Residences получает данные вашего паспорта, контактные данные и подпись для заселения и регистрации иностранных гостей в соответствии с законодательством Республики Таджикистан.\n\nПаспорт считывается на этом планшете, фото не сохраняется. Ваши данные надёжно хранятся, передаются в систему управления отелем и доступны только сотрудникам отеля.\n\nДанные автоматически удаляются через {days} дней после выезда, если закон не требует хранить их дольше. По вопросам о ваших данных обратитесь к администратору.',
-  close: 'Закрыть',
   signedBy: 'Подписано: {name}, {date}',
   findByName: 'По имени',
   findByRef: 'По номеру брони',
@@ -327,8 +265,6 @@ const ru: Dict = {
   deskSub: 'Пожалуйста, передайте паспорт и этот номер администратору',
   deskKey: 'Администратор отсканирует паспорт и выдаст вам ключ-карту.',
   deskManyPassports: 'Пожалуйста, возьмите паспорта всех гостей: {n}.',
-  privacyBodyDesk:
-    'The Rumi Hotel & Residences получает ваши контактные данные и подпись для заселения, а администратор сканирует ваш паспорт для регистрации иностранных гостей в соответствии с законодательством Республики Таджикистан.\n\nВаши данные надёжно хранятся, передаются в систему управления отелем и доступны только сотрудникам отеля.\n\nДанные автоматически удаляются через {days} дней после выезда, если закон не требует хранить их дольше. По вопросам о ваших данных обратитесь к администратору.',
   waitTitle: 'Пожалуйста, передайте паспорт администратору',
   waitSub: 'Через мгновение ваша бронь появится на этом экране.',
   waitManual: 'Найти бронь самостоятельно',
@@ -337,6 +273,7 @@ const ru: Dict = {
   idleWarn: 'Возврат на главный экран через {n} с',
   idleTouch: 'Коснитесь экрана, чтобы остаться.',
   stillHere: 'Я ещё здесь',
+  dueAtDesk: 'Остаток к оплате на стойке регистрации',
   offline: 'Нет подключения к интернету - пожалуйста, обратитесь на стойку регистрации',
   wifiScan: 'Наведите камеру телефона, чтобы подключиться',
   wifiPerStay: 'Только для вашего проживания',
@@ -346,13 +283,10 @@ const ru: Dict = {
   subtotal: 'Промежуточный итог',
   taxIncluded: 'Цены включают налоги',
   total: 'Итого',
-  payments: 'Платежи',
   balanceDue: 'К оплате',
   paidInFull: 'Оплачено полностью',
   refundDue: 'К возврату',
   settleAtDesk: 'Пожалуйста, оплатите остаток на стойке регистрации перед отъездом.',
-  invoiceUpdated: 'Обновлено в {time}',
-  checkoutAnyway: 'Вы можете завершить выезд здесь, а счёт оплатить на стойке регистрации.',
 }
 
 // TODO: review by a native Tajik speaker.
@@ -365,7 +299,6 @@ const tg: Dict = {
 
   back: 'Бозгашт',
   continue: 'Идома',
-  tryAgain: 'Боз кӯшиш кунед',
   backToStart: 'Ба оғоз',
   startNew: 'Тайёр',
 
@@ -375,15 +308,6 @@ const tg: Dict = {
   checkOut: 'Баромадан',
   checkOutSub: 'Фикри худро гузоред ва калидро баргардонед',
 
-  passportTitle: 'Шиносномаи худро скан кунед',
-  passportHint: 'Саҳифаи аксдорро ба камера наздик кунед, то ду сатри ҳарфҳои поён дар даруни чорчӯба бошанд.',
-  cameraStarting: 'Камера фаъол мешавад...',
-  scanning: 'Шиноснома ҷустуҷӯ мешавад...',
-  passportRead: 'Шиноснома хонда шуд',
-  scanTip: 'Шиносномаро рост ва беҳаракат нигоҳ доред, аз инъикоси нур ҳазар кунед.',
-  cameraUnavailable: 'Камера дастрас нест. Лутфан рақами бронро истифода баред.',
-  noPassport: 'Шиноснома надоред? Рақами бронро истифода баред',
-  privacyNote: 'Шиноснома дар ҳамин планшет хонда мешавад. Акс нигоҳ дошта намешавад, танҳо маълумот ба мизи қабул мерасад.',
 
   findTitle: 'Брони худро ёбед',
   findMultiple: 'Лутфан рақами бронро ворид кунед, то мо брони дурустро ёбем.',
@@ -399,7 +323,6 @@ const tg: Dict = {
 
   confirmTitle: 'Ин брони шумост?',
   bookingRef: 'Брон',
-  guestName: 'Меҳмон',
   source: 'Брон тавассути',
   dates: 'Санаҳо',
   room: 'Ҳуҷра',
@@ -427,9 +350,6 @@ const tg: Dict = {
   shuttleBooked: 'Трансфер ба фурудгоҳ дархост шуд',
   yes: 'Ҳа',
   no: 'Не',
-  consent:
-    'Ман дурустии маълумоти худро тасдиқ мекунам ва розӣ ҳастам, ки меҳмонхона онро барои муддати иқомат ва сабти меҳмонон мувофиқи қонун нигоҳ дорад.',
-  consentNeeded: 'Барои идома додан розигӣ лозим аст.',
 
   sigTitle: 'Лутфан имзо гузоред',
   sigHint: 'Бо ангушт дар қуттии зер имзо гузоред.',
@@ -471,23 +391,8 @@ const tg: Dict = {
   thanksTitle: 'Ташаккур, роҳи сафед',
   thanksSub: 'Лутфан корти калидро дар мизи қабул гузоред.',
 
-  scanAlmost: 'Қариб тайёр - шиносномаро беҳаракат нигоҳ доред',
-  guestsTitle: 'Меҳмонони дигари ин брон',
-  guestsText: 'Ин брон барои {n} меҳмон аст. Лутфан шиносномаи ҳар як меҳмони калонсолро скан кунед.',
-  guestsCount: '{n} аз {total} шиноснома скан шуд',
-  scanNext: 'Скан кардани шиносномаи навбатӣ',
-  scanGuestTitle: 'Шиносномаи меҳмони навбатиро скан кунед',
-  guestsLater: 'Ҳама дар ин ҷо нестанд? Метавонед идома диҳед - мизи қабул бо боқимонда кӯмак мекунад.',
-  alreadyScanned: 'Ин шиноснома аллакай скан шудааст.',
-  remove: 'Хориҷ кардан',
-  you: 'шумо',
   yourRoom: 'Ҳуҷраи шумо',
   roomAssigned: 'Ҳуҷраи {room}',
-  privacyLink: 'Огоҳинома дар бораи махфият',
-  privacyTitle: 'Огоҳинома дар бораи махфият',
-  privacyBody:
-    'The Rumi Hotel & Residences маълумоти шиноснома, маълумоти тамос ва имзои шуморо барои сабти ном ва бақайдгирии меҳмонони хориҷӣ мувофиқи қонунгузории Ҷумҳурии Тоҷикистон ҷамъ меорад.\n\nШиноснома дар ҳамин планшет хонда мешавад, акс нигоҳ дошта намешавад. Маълумоти шумо бехатар нигоҳ дошта мешавад, ба системаи идоракунии меҳмонхона фиристода мешавад ва танҳо барои кормандони меҳмонхона дастрас аст.\n\nМаълумот {days} рӯз пас аз иқомат худкор нест карда мешавад, агар қонун нигоҳ доштани онро дарозтар талаб накунад. Барои саволҳо дар бораи маълумоти худ ба мизи қабул муроҷиат кунед.',
-  close: 'Пӯшидан',
   signedBy: 'Имзо гузошт: {name}, {date}',
   findByName: 'Бо ном',
   findByRef: 'Бо рақами брон',
@@ -497,8 +402,6 @@ const tg: Dict = {
   deskSub: 'Лутфан шиноснома ва ин рақамро ба мизи қабул диҳед',
   deskKey: 'Корманди мизи қабул шиносномаро скан карда, ба шумо корти калид медиҳад.',
   deskManyPassports: 'Лутфан шиносномаҳои ҳамаи {n} меҳмонро биёред.',
-  privacyBodyDesk:
-    'The Rumi Hotel & Residences маълумоти тамос ва имзои шуморо барои сабти ном ҷамъ меорад ва мизи қабул шиносномаи шуморо барои бақайдгирии меҳмонони хориҷӣ мувофиқи қонунгузории Ҷумҳурии Тоҷикистон скан мекунад.\n\nМаълумоти шумо бехатар нигоҳ дошта мешавад, ба системаи идоракунии меҳмонхона фиристода мешавад ва танҳо барои кормандони меҳмонхона дастрас аст.\n\nМаълумот {days} рӯз пас аз иқомат худкор нест карда мешавад, агар қонун нигоҳ доштани онро дарозтар талаб накунад. Барои саволҳо дар бораи маълумоти худ ба мизи қабул муроҷиат кунед.',
   waitTitle: 'Лутфан шиносномаро ба корманди қабул диҳед',
   waitSub: 'Брони шумо дар як лаҳза дар ҳамин экран пайдо мешавад.',
   waitManual: 'Бронро худам ёбам',
@@ -507,6 +410,7 @@ const tg: Dict = {
   idleWarn: 'Бозгашт ба саҳифаи аввал баъд аз {n} сония',
   idleTouch: 'Барои мондан ба экран даст расонед.',
   stillHere: 'Ман ҳанӯз дар ин ҷо ҳастам',
+  dueAtDesk: 'Боқимонда барои пардохт дар мизи қабул',
   offline: 'Пайвасти интернет нест - лутфан ба мизи қабул муроҷиат кунед',
   wifiScan: 'Барои пайваст шудан бо камераи телефон скан кунед',
   wifiPerStay: 'Танҳо барои иқомати шумо',
@@ -516,13 +420,10 @@ const tg: Dict = {
   subtotal: 'Ҷамъи мобайнӣ',
   taxIncluded: 'Нархҳо андозро дар бар мегиранд',
   total: 'Ҳамагӣ',
-  payments: 'Пардохтҳо',
   balanceDue: 'Бояд пардохт шавад',
   paidInFull: 'Пурра пардохт шудааст',
   refundDue: 'Барои баргардонидан',
   settleAtDesk: 'Лутфан пеш аз рафтан боқимондаро дар мизи қабул пардохт кунед.',
-  invoiceUpdated: 'Навсозӣ: {time}',
-  checkoutAnyway: 'Шумо метавонед дар ин ҷо баромадро анҷом диҳед; ҳисобро дар мизи қабул пардохт мекунед.',
 }
 
 export const translations: Record<Lang, Dict> = { en, ru, tg }

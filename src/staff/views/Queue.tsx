@@ -20,7 +20,8 @@ export function CheckinRow({ c, r, onOpen, now }: { c: Checkin; r?: Reservation;
           {c.desk_code && <span className="rounded-md bg-forest px-2 py-0.5 font-mono text-sm font-semibold tracking-wider text-gold-light">{c.desk_code}</span>}
           <span className="font-semibold">{r?.guest_name ?? 'Unknown booking'}</span>
           {c.doc_source === 'mrz' && c.mrz_valid && <Chip className="border-forest/30 bg-forest/10 text-forest"><CheckIcon className="h-3 w-3" /> Passport read</Chip>}
-          {c.doc_source === 'none' && <Chip className="border-label/40 bg-gold-light/50 text-ink">No passport scan</Chip>}
+          {c.doc_source === 'desk' && <Chip className="border-forest/30 bg-forest/10 text-forest"><CheckIcon className="h-3 w-3" /> Scanned at reception</Chip>}
+          {c.doc_source === 'none' && <Chip className="border-label/40 bg-gold-light/50 text-ink">Passport not scanned yet</Chip>}
           {isExpired(c) && <Chip className="border-danger/30 bg-[#FDF1EC] text-danger">Passport expired</Chip>}
           {c.shuttle && <Chip><CarIcon className="h-3.5 w-3.5" /> Shuttle</Chip>}
         </span>
@@ -206,7 +207,7 @@ export function CheckinDrawer({ c, r, guests = [], onClose, reload }: { c: Check
             </div>
           ) : c.doc_source === 'none' ? (
             <p className="mt-2 rounded-lg border border-dashed border-line px-4 py-3 text-muted">
-              Passport not scanned on the tablet. Scan it at reception{c.desk_code ? ` (guest shows number ${c.desk_code})` : ''}, or enter the details here.
+              The guest found the booking on the tablet, so there are no passport details yet. Scan the passport at reception{c.desk_code ? ` (guest shows number ${c.desk_code})` : ''}, or enter the details here.
             </p>
           ) : (
             <>
@@ -230,11 +231,13 @@ export function CheckinDrawer({ c, r, guests = [], onClose, reload }: { c: Check
                 />
               </dl>
               <p className="mt-2 text-xs text-muted">
-                {c.doc_source === 'mrz'
-                  ? c.mrz_valid
-                    ? 'Read from the passport MRZ on the tablet. Document number, birth date and expiry check digits passed.'
-                    : 'Read from the passport MRZ; some check digits did not pass. Please verify.'
-                  : 'Entered by staff.'}
+                {c.doc_source === 'desk'
+                  ? "Sent by the front desk app after reception scanned the passport."
+                  : c.doc_source === 'mrz'
+                    ? c.mrz_valid
+                      ? 'Read from the passport MRZ on the tablet. Document number, birth date and expiry check digits passed.'
+                      : 'Read from the passport MRZ; some check digits did not pass. Please verify.'
+                    : 'Entered by staff.'}
               </p>
             </>
           )}
@@ -274,7 +277,7 @@ export function CheckinDrawer({ c, r, guests = [], onClose, reload }: { c: Check
             <Row k="Email" v={c.email} />
             <Row k="Language" v={LANG_LABEL[c.language] ?? c.language} />
             <Row k="Airport shuttle" v={c.shuttle ? 'Requested' : 'No'} />
-            <Row k="Consent" v={`Given ${fmtDate(c.consent_at)} ${fmtTime(c.consent_at)}`} />
+            <Row k="Signed" v={`${fmtDate(c.consent_at)} ${fmtTime(c.consent_at)}`} />
           </dl>
         </section>
 

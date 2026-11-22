@@ -290,7 +290,7 @@ X-Rumi-Signature: sha256=5f2c...
       "status": "waiting",
       "desk_code": "P17",
       "handoff_id": "8c1e…",
-      "passport_scanned_on_tablet": true,
+      "passport_scanned_on_tablet": false,
       "language": "ru",
       "reservation": {
         "booking_ref": "33215-1", "partner_ref": "your-internal-id-77", "ezee_booking_id": "33215-1",

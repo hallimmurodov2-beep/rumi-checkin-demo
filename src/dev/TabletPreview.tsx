@@ -18,6 +18,8 @@ const screen = q.get('screen') ?? 'done'
 const initialLang = (['en', 'ru', 'tg'].includes(q.get('lang') ?? '') ? q.get('lang') : 'en') as Lang
 const bill = q.get('bill') ?? 'due' // due | paid | slow | none
 const perStay = q.get('wifi') === 'stay'
+// &kiosk=1 fakes the Android kiosk app's bridge.
+if (q.get('kiosk')) (window as Window & { RumiKiosk?: unknown }).RumiKiosk = { openAdmin: () => alert('Kiosk admin PIN screen opens here'), info: () => '{"version":"1.0.20261122.0801","owner":true,"locked":true}' }
 
 const config: TabletConfig = {
   device_name: 'Fixture tablet',

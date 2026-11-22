@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { clearDevice, saveDevice, tablet, type StoredDevice } from '../lib/device'
+import { kioskBridge, kioskInfo } from '../lib/kiosk'
 import { ApiError } from '../lib/supabase'
 import { Button, COLORS, Emblem, ErrorNote, Spinner } from '../ui'
 
@@ -78,11 +79,13 @@ export function PairTablet() {
 /** Staff-only sheet, opened by holding the emblem on the welcome screen for 3 seconds. */
 export function TabletSettings({ device, hotel, online, onClose }: { device: StoredDevice; hotel?: string; online: boolean; onClose: () => void }) {
   const [confirmUnpair, setConfirmUnpair] = useState(false)
+  const kiosk = kioskInfo()
+  const bridge = kioskBridge()
   const build = typeof __APP_BUILD__ === 'string' ? __APP_BUILD__ : 'dev'
   const version = /^\d{14}$/.test(build) ? `${build.slice(0, 4)}-${build.slice(4, 6)}-${build.slice(6, 8)} ${build.slice(8, 10)}:${build.slice(10, 12)}` : build
   return (
     <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-6" role="dialog" aria-modal="true" aria-labelledby="ts-title">
-      <div className="pop-in card w-full max-w-xl p-8">
+      <div className="pop-in card w-full max-w-2xl p-8">
         <p className="eyebrow">Staff</p>
         <h2 id="ts-title" className="mt-1 text-4xl text-forest">Tablet settings</h2>
         <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
@@ -107,8 +110,17 @@ export function TabletSettings({ device, hotel, online, onClose }: { device: Sto
             <dt className="eyebrow">App version</dt>
             <dd className="font-mono text-lg">{version}</dd>
           </div>
+          {kiosk && (
+            <div className="col-span-2">
+              <dt className="eyebrow">Kiosk app</dt>
+              <dd className="text-lg">
+                {kiosk.locked ? 'Locked' : 'Not locked'} · version <span className="font-mono">{kiosk.version}</span>
+                {!kiosk.owner && <span className="text-danger"> · not device owner</span>}
+              </dd>
+            </div>
+          )}
         </dl>
-        <div className="mt-8 flex items-center justify-between gap-4 border-t border-line pt-6">
+        <div className="mt-8 flex items-center justify-between gap-3 border-t border-line pt-6 [&_button]:whitespace-nowrap [&_button]:!px-5">
           <Button
             variant="secondary"
             className={confirmUnpair ? '!border-danger !text-danger' : ''}
@@ -117,6 +129,17 @@ export function TabletSettings({ device, hotel, online, onClose }: { device: Sto
             {confirmUnpair ? 'Tap again to unpair' : 'Unpair tablet'}
           </Button>
           <div className="flex gap-3">
+            {bridge && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  onClose()
+                  bridge.openAdmin()
+                }}
+              >
+                Kiosk controls
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => window.location.reload()}>Reload app</Button>
             <Button onClick={onClose}>Close</Button>
           </div>

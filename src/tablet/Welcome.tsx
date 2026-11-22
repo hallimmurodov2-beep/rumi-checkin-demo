@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useT } from '../i18n'
 import { LANGS, type Lang } from '../translations'
+import { inKioskApp } from '../lib/kiosk'
 import { ArrowRight, COLORS, Emblem, ExpandIcon } from '../ui'
 
 function useFullscreenAvailable() {
@@ -10,7 +11,8 @@ function useFullscreenAvailable() {
       window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: standalone)').matches
     const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void }
     const can = !!(el.requestFullscreen || el.webkitRequestFullscreen)
-    return can && !standalone && !(document.fullscreenElement || d.webkitFullscreenElement)
+    // The kiosk app is already full screen.
+    return can && !standalone && !inKioskApp && !(document.fullscreenElement || d.webkitFullscreenElement)
   }
   const [show, setShow] = useState(check)
   useEffect(() => {

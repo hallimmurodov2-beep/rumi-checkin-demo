@@ -2,7 +2,7 @@
 
 **Who this is for:** the Codex agent that built and maintains The Rumi **Front Desk app**, which already scans passports, checks guests in on eZee and runs the server at `menu.therumihotel.com:8844`.
 
-**Production deploys of the tablet app are locked until this connection works end to end.** See "STOP" at the top of `AGENTS.md` for how the lock works and how it opens.
+**Deploying the tablet app is not locked any more** (the lock was removed on 2026-11-23). Deploy from `main` only; see the top of `AGENTS.md` for the rules.
 
 **This folder** is the **check-in tablet** web app (`rumi-checkin`). Your job is to connect the two apps end to end, automatically, so reception never types anything twice.
 

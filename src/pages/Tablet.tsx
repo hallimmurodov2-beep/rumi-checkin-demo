@@ -318,8 +318,8 @@ function Kiosk({ device }: { device: StoredDevice }) {
     try {
       const res = await tablet.submitCheckin(reservation.id, {
         language: lang,
-        phone: details.phone.trim(),
-        email: details.email.trim(),
+        phone: '',
+        email: '',
         shuttle: details.shuttle === 'yes',
         signature_png: signature,
         handoff_id: handoff?.id,
@@ -353,10 +353,12 @@ function Kiosk({ device }: { device: StoredDevice }) {
           />
         )}
         {step === 'help' && <NeedHelp onStart={reset} />}
-        {step === 'details' && (
+        {step === 'details' && reservation && (
           <DetailsStep
             value={details}
             onChange={setDetails}
+            reservation={reservation!}
+            breakfastHours={config?.breakfast_hours}
             greetName={titleCase(mrz?.surname || (reservation?.guest_name ?? '').split(' ').slice(-1)[0] || '')}
             onNotMe={() => {
               if (handoff) tablet.declineHandoff(handoff.id).catch(() => {})

@@ -97,7 +97,27 @@ export default function TabletPreview() {
       case 'welcome':
         return <Welcome lang={lang} setLang={setLang} hotelName={config.hotel_name} onSettings={noop} onGallery={noop} />
       case 'details':
-        return <DetailsStep value={details} onChange={setDetails} greetName="Eriksson" onNotMe={noop} onNext={noop} />
+        return <DetailsStep
+            value={details}
+            onChange={setDetails}
+            reservation={{
+              id: 'fx',
+              booking_ref: 'RUM-1042',
+              guest_name: 'Anna Maria Eriksson',
+              source: 'Booking.com',
+              room_type: q.get('type') ?? 'Deluxe Double',
+              room_number: null,
+              arrival_date: '2026-11-23',
+              departure_date: '2026-11-26',
+              nights: 3,
+              adults: 2,
+              breakfast: q.get('breakfast') !== '0',
+            }}
+            breakfastHours={config.breakfast_hours}
+            greetName="Eriksson"
+            onNotMe={noop}
+            onNext={noop}
+          />
       case 'signature':
         return <SignatureStep onBack={noop} onSubmit={async () => again()} signerName="Anna Maria Eriksson" />
       case 'help':

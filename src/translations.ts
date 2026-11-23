@@ -17,7 +17,7 @@ export const LANGS: { code: Lang; label: string }[] = [
 const en = {
   stepPassport: 'Passport',
   stepBooking: 'Booking',
-  stepDetails: 'Details',
+  stepDetails: 'Your stay',
   stepSignature: 'Signature',
   stepDone: 'Done',
 
@@ -60,7 +60,10 @@ const en = {
   teamHelp: 'A team member will help you',
   teamHelpSub: 'Please come to the front desk. We will be with you shortly.',
 
-  detailsTitle: 'Your contact details',
+  detailsTitle: 'Your stay with us',
+  stayArrival: 'Arrival',
+  stayDeparture: 'Departure',
+  stayConfirm: 'Yes, that is me',
   phone: 'Phone number',
   email: 'Email address',
   optional: 'optional',
@@ -143,7 +146,7 @@ type Dict = Record<Key, string>
 const ru: Dict = {
   stepPassport: 'Паспорт',
   stepBooking: 'Бронь',
-  stepDetails: 'Данные',
+  stepDetails: 'Ваше пребывание',
   stepSignature: 'Подпись',
   stepDone: 'Готово',
 
@@ -186,7 +189,10 @@ const ru: Dict = {
   teamHelp: 'Вам поможет сотрудник отеля',
   teamHelpSub: 'Пожалуйста, подойдите к стойке регистрации. Мы скоро будем с вами.',
 
-  detailsTitle: 'Ваши контактные данные',
+  detailsTitle: 'Ваше пребывание у нас',
+  stayArrival: 'Заезд',
+  stayDeparture: 'Выезд',
+  stayConfirm: 'Да, это я',
   phone: 'Номер телефона',
   email: 'Электронная почта',
   optional: 'необязательно',
@@ -267,7 +273,7 @@ const ru: Dict = {
 const tg: Dict = {
   stepPassport: 'Шиноснома',
   stepBooking: 'Брон',
-  stepDetails: 'Маълумот',
+  stepDetails: 'Иқомати шумо',
   stepSignature: 'Имзо',
   stepDone: 'Анҷом',
 
@@ -310,7 +316,10 @@ const tg: Dict = {
   teamHelp: 'Кормандони меҳмонхона ба шумо кӯмак мекунанд',
   teamHelpSub: 'Лутфан ба мизи қабул биёед. Мо ба зудӣ бо шумо хоҳем буд.',
 
-  detailsTitle: 'Маълумоти тамоси шумо',
+  detailsTitle: 'Иқомати шумо назди мо',
+  stayArrival: 'Омадан',
+  stayDeparture: 'Рафтан',
+  stayConfirm: 'Ҳа, ин ман',
   phone: 'Рақами телефон',
   email: 'Суроғаи почтаи электронӣ',
   optional: 'ихтиёрӣ',

@@ -2,22 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
 import { ApiError } from '../lib/supabase'
-import type { Policy, TabletConfig, WifiInfo } from '../lib/types'
+import type { Policy, PublicReservation, TabletConfig, WifiInfo } from '../lib/types'
 import { Markdown } from '../lib/markdown'
 import { wifiQrText } from '../lib/wifi'
-import { fmtDay, LANGS, type Lang } from '../translations'
+import { fmtDay, LANGS, LOCALE, type Lang } from '../translations'
 import { dushanbeTime, hasLobbyWifiPairing, useWifiVoucher, wifiVoucherText } from './frontdesk'
 import { AnimatedCheck, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, Spinner, WifiIcon } from '../ui'
 import { Shell } from './Shell'
 import { roomTypePhoto } from './gallery'
 import './gallery.css'
-
-export interface Details {
-  phone: string
-  email: string
-  shuttle: 'yes' | 'no' | null
-}
-export const emptyDetails: Details = { phone: '', email: '', shuttle: null }
 
 export function NeedHelp({ onBack, onStart, step, title }: { onBack?: () => void; onStart: () => void; step?: number; title?: string }) {
   const t = useT()
@@ -37,17 +30,50 @@ export function NeedHelp({ onBack, onStart, step, title }: { onBack?: () => void
   )
 }
 
-/* ------------------------------ 3. Details ------------------------------- */
+/* ------------------------------ 3. Your stay ------------------------------ */
+
+/** The one answer asked on the "Your stay" screen. Contact details are no longer collected on the tablet. */
+export interface Details {
+  shuttle: 'yes' | 'no' | null
+}
+export const emptyDetails: Details = { shuttle: null }
+
+function MoonIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z" />
+    </svg>
+  )
+}
+
+function DateBlock({ label, iso, align }: { label: string; iso: string; align: 'left' | 'right' }) {
+  const lang = useLang()
+  const d = new Date(`${iso}T12:00:00`)
+  const weekday = lang === 'tg' ? '' : d.toLocaleDateString(LOCALE[lang], { weekday: 'long' })
+  return (
+    <div className={`min-w-0 ${align === 'right' ? 'text-right' : ''}`}>
+      <p className="eyebrow">{label}</p>
+      <p className="mt-1 font-serif text-4xl font-semibold leading-none text-forest">{fmtDay(iso, lang)}</p>
+      {weekday && <p className="mt-1.5 text-base capitalize text-muted">{weekday}</p>}
+    </div>
+  )
+}
 
 export function DetailsStep({
   value,
   onChange,
+  reservation,
+  breakfastHours,
   greetName,
   onNotMe,
   onNext,
 }: {
   value: Details
   onChange: (d: Details) => void
+  /** The booking reception sent to this tablet. */
+  reservation: PublicReservation
+  /** Breakfast opening hours from the hotel settings; the card shows only when the stay includes breakfast. */
+  breakfastHours?: string | null
   /** The guest's surname from the passport reception scanned. */
   greetName: string
   /** Shown as "Not you?": the booking reception sent is someone else's. */
@@ -55,8 +81,11 @@ export function DetailsStep({
   onNext: () => void
 }) {
   const t = useT()
-  const opt = <span className="font-normal normal-case tracking-normal text-muted"> ({t('optional')})</span>
-  const emailBad = value.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email.trim())
+  const lang = useLang()
+  const photo = roomTypePhoto(reservation.room_type)
+  const roomName = photo ? photo[lang] : reservation.room_type
+  const showBreakfast = reservation.breakfast && !!breakfastHours
+  const nights = reservation.nights > 0 ? reservation.nights : 1
   return (
     <Shell
       step={2}
@@ -66,75 +95,89 @@ export function DetailsStep({
           <button type="button" onClick={onNotMe} className="min-h-12 cursor-pointer rounded-lg px-3 text-base text-muted underline underline-offset-4 hover:text-forest">
             {t('notMe')}
           </button>
-          <Button disabled={emailBad} onClick={onNext}>
-            {t('continue')}
-          </Button>
+          <Button onClick={onNext}>{t('stayConfirm')}</Button>
         </div>
       }
     >
-      <div className="mx-auto grid w-full max-w-4xl flex-1 grid-cols-2 content-center gap-x-8 gap-y-6">
-        <div className="col-span-2">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center gap-5">
+        <div>
           {greetName && <p className="rise font-serif text-3xl font-semibold text-label">{t('welcomeName', { name: greetName })}</p>}
           <h2 className="text-5xl text-forest">{t('detailsTitle')}</h2>
         </div>
-        <div>
-          <label htmlFor="phone" className="eyebrow block">{t('phone')}{opt}</label>
-          <input
-            id="phone"
-            type="tel"
-            inputMode="tel"
-            enterKeyHint="next"
-            autoComplete="off"
-            placeholder="+992"
-            className="field mt-2"
-            value={value.phone}
-            onChange={(e) => onChange({ ...value, phone: e.target.value })}
-            onKeyDown={(e) => e.key === 'Enter' && document.getElementById('email')?.focus()}
-          />
-        </div>
-        <div>
-          <label htmlFor="email" className="eyebrow block">{t('email')}{opt}</label>
-          <input
-            id="email"
-            type="email"
-            inputMode="email"
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            enterKeyHint="done"
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            placeholder="name@example.com"
-            aria-invalid={emailBad}
-            aria-describedby={emailBad ? 'email-err' : undefined}
-            className={`field mt-2 ${emailBad ? '!border-danger' : ''}`}
-            value={value.email}
-            onChange={(e) => onChange({ ...value, email: e.target.value })}
-          />
-          {emailBad && <p id="email-err" className="fade-in mt-1.5 text-sm text-danger">{t('emailInvalid')}</p>}
-        </div>
-        <fieldset className="col-span-2">
-          <legend className="eyebrow">{t('shuttleTitle')}</legend>
-          <p className="mt-1 text-lg text-muted">{t('shuttleQ')}</p>
-          <div className="mt-3 flex items-center gap-6">
-            <div className="grid w-full max-w-md grid-cols-2 gap-3">
-              {(['yes', 'no'] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={value.shuttle === v}
-                  onClick={() => onChange({ ...value, shuttle: v })}
-                  className={`flex min-h-16 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 text-lg font-medium transition-all duration-200 active:scale-[0.98] ${
-                    value.shuttle === v ? 'border-forest bg-forest text-cream' : 'border-line bg-white text-ink hover:border-forest/50'
-                  }`}
-                >
-                  {value.shuttle === v && <CheckIcon className="h-4 w-4 text-gold-light" />}
-                  {t(v)}
-                </button>
-              ))}
+        <div className="grid grid-cols-[1.25fr_1fr] gap-6 max-[900px]:grid-cols-1">
+          {/* Left: the room, then the dates. */}
+          <div className="flex min-w-0 flex-col gap-4">
+            <figure className="rise relative h-[260px] overflow-hidden rounded-3xl bg-forest shadow-[0_24px_60px_-28px_rgb(14_59_46/0.9)] max-[900px]:h-[200px]">
+              {photo && <img src={photo.src} alt="" decoding="async" draggable={false} className="absolute inset-0 h-full w-full object-cover" />}
+              <span className="absolute inset-0 bg-gradient-to-t from-forest-deep/95 via-forest-deep/35 to-transparent" aria-hidden="true" />
+              <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-7 pb-5 text-cream">
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</span>
+                  <span className="mt-1 block truncate font-serif text-4xl font-semibold leading-tight">{roomName}</span>
+                </span>
+                <span className="shrink-0 rounded-full border border-cream/30 bg-forest-deep/50 px-4 py-1.5 text-base backdrop-blur-md">
+                  {t('guests')}: {reservation.adults}
+                </span>
+              </figcaption>
+            </figure>
+            <div className="rise card flex items-center justify-between gap-5 px-7 py-5" style={{ animationDelay: '100ms' }}>
+              <DateBlock label={t('stayArrival')} iso={reservation.arrival_date} align="left" />
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 text-muted" aria-hidden="true">
+                <span className="flex w-full items-center gap-3">
+                  <span className="h-px flex-1 bg-gold/60" />
+                  <MoonIcon className="h-5 w-5 text-gold" />
+                  <span className="h-px flex-1 bg-gold/60" />
+                </span>
+                <span className="text-sm font-medium text-forest">{nights === 1 ? t('oneNight') : t('nights', { n: nights })}</span>
+              </div>
+              <DateBlock label={t('stayDeparture')} iso={reservation.departure_date} align="right" />
             </div>
-            {value.shuttle === 'yes' && <p className="fade-in text-muted">{t('shuttleNote')}</p>}
           </div>
-        </fieldset>
+
+          {/* Right: breakfast reminder and the shuttle question. */}
+          <div className="flex min-w-0 flex-col gap-4">
+            {showBreakfast && (
+              <div className="rise card flex items-start gap-4 p-6" style={{ animationDelay: '160ms' }}>
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold-light/60 text-forest">
+                  <CupIcon />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-2xl text-forest">{t('breakfastIncluded')}</h3>
+                  <p className="mt-1 text-lg text-muted">{t('breakfastInfo', { hours: breakfastHours! })}</p>
+                </div>
+              </div>
+            )}
+            <fieldset className="rise card flex flex-1 flex-col p-6" style={{ animationDelay: '220ms' }}>
+              <legend className="sr-only">{t('shuttleTitle')}</legend>
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold-light/60 text-forest">
+                  <CarIcon />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-2xl text-forest">{t('shuttleTitle')}</h3>
+                  <p className="mt-1 text-lg text-muted">{t('shuttleQ')}</p>
+                </div>
+              </div>
+              <div className="mt-auto grid grid-cols-2 gap-3 pt-5">
+                {(['yes', 'no'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={value.shuttle === v}
+                    onClick={() => onChange({ ...value, shuttle: value.shuttle === v ? null : v })}
+                    className={`flex min-h-16 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 text-lg font-medium transition-all duration-200 active:scale-[0.98] ${
+                      value.shuttle === v ? 'border-forest bg-forest text-cream' : 'border-line bg-white text-ink hover:border-forest/50'
+                    }`}
+                  >
+                    {value.shuttle === v && <CheckIcon className="h-4 w-4 text-gold-light" />}
+                    {t(v)}
+                  </button>
+                ))}
+              </div>
+              <p className={`mt-3 min-h-6 text-base text-muted transition-opacity ${value.shuttle === 'yes' ? 'fade-in opacity-100' : 'opacity-0'}`}>{t('shuttleNote')}</p>
+            </fieldset>
+          </div>
+        </div>
       </div>
     </Shell>
   )

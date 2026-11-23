@@ -4,6 +4,7 @@ import { LANGS, type Lang } from '../translations'
 import { inKioskApp } from '../lib/kiosk'
 import { VisitorWifi } from './frontdesk'
 import { GalleryTile } from './PhotoGallery'
+import './welcome.css'
 import { COLORS, Emblem, ExpandIcon } from '../ui'
 
 function useFullscreenAvailable() {
@@ -60,13 +61,13 @@ export function Welcome({
   const endHold = () => window.clearTimeout(hold.current)
   useEffect(() => () => window.clearTimeout(hold.current), [])
   return (
-    <div className="flex h-full">
-      <section className="relative flex w-[46%] flex-col items-center justify-center overflow-hidden bg-forest px-10 text-center text-cream">
+    <div className="wl-root">
+      <section className="wl-brand relative flex flex-col items-center justify-center overflow-hidden bg-forest px-10 text-center text-cream">
         <Emblem
           color={COLORS.goldLight}
           className="pointer-events-none absolute -bottom-28 -left-28 h-[480px] w-[480px] opacity-[0.07]"
         />
-        <span className="pointer-events-none absolute inset-6 rounded-[28px] border border-gold-light/15" aria-hidden="true" />
+        <span className="wl-frame pointer-events-none absolute inset-6 rounded-[28px] border border-gold-light/15" aria-hidden="true" />
         <div
           className="rise relative"
           onPointerDown={startHold}
@@ -74,20 +75,22 @@ export function Welcome({
           onPointerLeave={endHold}
           onPointerCancel={endHold}
         >
-          <Emblem color={COLORS.goldLight} label={hotelName} className="h-40 w-40 xl:h-44 xl:w-44" />
+          <Emblem color={COLORS.goldLight} label={hotelName} className="wl-emblem h-40 w-40 xl:h-44 xl:w-44" />
         </div>
-        <p className="rise relative mt-5 font-serif text-xl font-semibold tracking-[0.4em] text-gold-light" style={{ animationDelay: '80ms' }}>THE RUMI</p>
-        <p className="rise relative mt-1 text-[11px] font-medium tracking-[0.24em] text-gold-light" style={{ animationDelay: '120ms' }}>HOTEL AND RESIDENCES</p>
-        <div className="relative mt-9 space-y-1.5" aria-label="Welcome">
+        <div className="wl-name relative mt-5">
+          <p className="rise font-serif text-xl font-semibold tracking-[0.4em] text-gold-light" style={{ animationDelay: '80ms' }}>THE RUMI</p>
+          <p className="rise mt-1 text-[11px] font-medium tracking-[0.24em] text-gold-light" style={{ animationDelay: '120ms' }}>HOTEL AND RESIDENCES</p>
+        </div>
+        <div className="wl-hello relative mt-9 space-y-1.5" aria-label="Welcome">
           <h1 className="rise text-6xl leading-none text-cream" style={{ animationDelay: '200ms' }}>Welcome</h1>
           <p lang="ru" className="rise font-serif text-4xl font-semibold text-gold-light" style={{ animationDelay: '300ms' }}>Добро пожаловать</p>
           <p lang="tg" className="rise font-serif text-4xl font-semibold text-gold-light" style={{ animationDelay: '400ms' }}>Хуш омадед</p>
         </div>
-        <span className="rise relative mt-8 h-px w-24 bg-gold-light/50" style={{ animationDelay: '480ms' }} aria-hidden="true" />
-        <p className="rise relative mt-4 text-sm tracking-[0.2em] text-gold-light" style={{ animationDelay: '520ms' }}>DUSHANBE</p>
+        <span className="wl-extra rise relative mt-8 h-px w-24 bg-gold-light/50" style={{ animationDelay: '480ms' }} aria-hidden="true" />
+        <p className="wl-extra rise relative mt-4 text-sm tracking-[0.2em] text-gold-light" style={{ animationDelay: '520ms' }}>DUSHANBE</p>
       </section>
 
-      <section className="relative flex min-h-0 flex-1 flex-col px-12 py-9 xl:px-14">
+      <section className="wl-main relative flex min-h-0 flex-1 flex-col px-12 py-9 xl:px-14">
         <p className="eyebrow rise" style={{ animationDelay: '150ms' }}>{t('chooseLanguage')}</p>
         <div className="rise mt-4 grid grid-cols-3 gap-3" style={{ animationDelay: '220ms' }} role="group" aria-label={t('chooseLanguage')}>
           {LANGS.map((l) => (
@@ -126,7 +129,7 @@ export function Welcome({
           <button
             type="button"
             onClick={enterFullscreen}
-            className="absolute right-6 top-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-medium text-muted hover:bg-forest/5 hover:text-forest"
+            className="wl-fs absolute right-6 top-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-medium text-muted hover:bg-forest/5 hover:text-forest"
           >
             <ExpandIcon /> Full screen
           </button>

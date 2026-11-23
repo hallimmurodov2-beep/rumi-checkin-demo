@@ -86,6 +86,8 @@ html:has(.kiosk), body:has(.kiosk) { overscroll-behavior: none; overflow: hidden
 @media (orientation: portrait) and (max-width: 1100px) {
   .rotate-hint { display: flex; }
 }
+/* The Welcome screen (photo gallery, Wi-Fi code) works in any shape; only the check-in steps ask for landscape. */
+html[data-kiosk-step='welcome'] .rotate-hint { display: none; }
 
 /* On-screen keyboard open (the WebView shrinks): drop the header and tighten the footer so the fields stay visible. */
 @media (max-height: 560px) and (orientation: landscape) {

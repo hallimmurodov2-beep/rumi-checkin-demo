@@ -155,14 +155,16 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
         className={
           big && voucher
             ? 'fixed inset-0 m-0 h-full max-h-none w-full max-w-none rounded-none border-0 bg-forest-deep p-0 text-cream'
-            : 'fixed inset-auto right-4 bottom-4 m-0 w-80 max-w-[92vw] rounded-2xl border border-line bg-white p-5 text-ink shadow-xl backdrop:bg-forest/25'
+            : 'fixed inset-auto right-4 bottom-4 m-0 max-h-[calc(100dvh-2rem)] w-80 max-w-[92vw] overflow-y-auto rounded-2xl border border-line bg-white p-5 text-ink shadow-xl backdrop:bg-forest/25'
         }
       >
         {big && voucher ? (
-          <div className="fade-in flex h-full items-center justify-center gap-14 px-14">
-            <QrCode key={voucher.url} text={voucher.url} label={t[0]} className="!p-5 h-[min(78vh,640px)] w-[min(78vh,640px)] !rounded-3xl !border-0" />
-            <div className="max-w-md">
-              <Brand tone="light" />
+          <div className="wf-wrap fade-in">
+            <QrCode key={voucher.url} text={voucher.url} label={t[0]} className="wf-qr" />
+            <div className="wf-text">
+              <div className="wf-brand">
+                <Brand tone="light" />
+              </div>
               <h2 className="mt-10 font-serif text-5xl font-semibold leading-tight">{t[0]}</h2>
               <p className="mt-4 text-2xl leading-snug text-gold-light">{t[1]}</p>
               <p className="mt-6 text-lg text-cream/80">

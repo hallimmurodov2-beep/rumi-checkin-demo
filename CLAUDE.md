@@ -41,6 +41,7 @@ A deploy gate (Vercel Ignored Build Step, a build-script check and a Vite plugin
 - When editing files through shell heredocs, backslashes can get halved: re-check regexes and escapes (the Wi-Fi QR escape bug came from this). Write such lines with Python and `chr(92)`, or use the Edit tool.
 - Never put PINs, passwords, API keys or secrets in repo files, docs or memory.
 - Tablet UI is landscape-first, large touch targets (min-h-16 buttons), and must fit a ~1180x820 viewport without the important parts scrolling off.
+- The Welcome screen, the photo gallery and the full-screen Wi-Fi code must work on any screen shape, tested at 1280x800, 1080x884 and 884x1080 (Galaxy Z Fold inner screen), 768x1024, 360x780 (Fold cover) and 780x360 (`welcome.css`, the end of `gallery.css`). The "turn the tablet sideways" notice only covers the check-in steps, never Welcome (`data-kiosk-step` on `<html>`). Check a new size with `/dev/tablet?screen=welcome` and `?screen=gallery` after resizing.
 - Guest data has a retention purge (`purge_guest_data`); anything new that holds guest data must be added to it.
 - Test DB functions inside `begin; ... rollback;` so no live rows are left behind.
 - `public/sw.js` gets a build id stamped in by `vite.config.ts`; that change is what makes installed tablets pick up a new deploy.

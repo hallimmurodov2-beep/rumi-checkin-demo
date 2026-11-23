@@ -160,6 +160,14 @@ function Kiosk({ device }: { device: StoredDevice }) {
     }
   }, [])
 
+  // Lets the stylesheet know which screen is showing (the "turn sideways" notice skips Welcome).
+  useEffect(() => {
+    document.documentElement.dataset.kioskStep = step
+    return () => {
+      delete document.documentElement.dataset.kioskStep
+    }
+  }, [step])
+
   const go = useCallback((next: Step, dir: 'fwd' | 'back' = 'fwd') => transition(() => setStep(next), dir), [])
 
   // Kiosks run for weeks: pick up new app versions, and refresh once a night,

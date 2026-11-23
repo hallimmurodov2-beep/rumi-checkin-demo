@@ -49,3 +49,60 @@
 /* Portrait photos: whole photo in the middle, blurred copy behind. */
 .si-backdrop { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; filter: blur(28px) brightness(0.6) saturate(1.1); }
 .si-front { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+
+/* ---- Gallery and full-screen Wi-Fi code on every screen shape ---------------------------------- */
+.gl-filters { max-width: 100%; }
+.gl-filters button { min-height: 3.5rem; }
+
+@media (max-width: 1100px) {
+  .gl-head { flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 1rem 1.25rem 0; }
+  .gl-filters { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .gl-filters::-webkit-scrollbar { display: none; }
+  .gl-filters button { min-height: 3rem; flex: 1 0 auto; }
+}
+@media (max-width: 760px) {
+  .gl-brand { display: none; }
+  .gl-head { justify-content: flex-end; padding: 0.75rem 0.75rem 0; }
+  .gl-foot { padding: 0 0.75rem 0.75rem; }
+  .gl-foot-row { flex-wrap: wrap; gap: 0.5rem; }
+  .gl-title { font-size: 1.9rem; }
+  .gl-sub { font-size: 0.95rem; }
+  .gl-arrow { height: 3.25rem; width: 3.25rem; margin-top: -1.625rem; }
+  .gl-arrow.left-6 { left: 0.5rem; }
+  .gl-arrow.right-6 { right: 0.5rem; }
+  .gl-thumb { height: 52px !important; width: 78px !important; }
+  .gl-strip { margin-top: 0.75rem !important; }
+}
+/* Short screens (a phone held sideways): no filmstrip, tighter everything. */
+@media (max-height: 560px) {
+  .gl-brand { display: none; }
+  .gl-strip { display: none; }
+  .gl-head { padding-top: 0.5rem; gap: 0.4rem; }
+  .gl-filters button { min-height: 2.5rem; }
+  .gl-ctl button, .gl-ctl [role=group] button { min-height: 2.5rem; min-width: 2.5rem; }
+  .gl-title { font-size: 1.6rem; }
+  .gl-sub { display: none; }
+  .gl-foot { padding-bottom: 0.5rem; }
+  .gl-foot-row button { min-height: 2.5rem; }
+}
+
+/* Full-screen Wi-Fi code: side by side when wide, stacked when tall, scrolls if it still doesn't fit. */
+.wf-wrap { display: flex; height: 100%; align-items: center; justify-content: center; gap: 3.5rem; padding: 1.5rem 3.5rem; overflow-y: auto; }
+.wf-qr { height: min(78vh, 640px); width: min(78vh, 640px); padding: 1.25rem !important; border-radius: 1.5rem !important; border: 0 !important; }
+.wf-text { max-width: 28rem; }
+@media (orientation: portrait), (max-width: 760px) {
+  .wf-wrap { flex-direction: column; justify-content: flex-start; gap: 1.5rem; padding: 1.5rem; }
+  .wf-qr { height: min(86vw, 52vh); width: min(86vw, 52vh); margin-top: auto; padding: 1rem !important; }
+  .wf-text { max-width: 36rem; text-align: center; margin-bottom: auto; }
+  .wf-text .wf-brand { display: flex; justify-content: center; }
+  .wf-text h2 { margin-top: 1rem !important; font-size: 2.5rem !important; }
+  .wf-text button { margin-top: 1.25rem !important; }
+}
+@media (max-height: 560px) and (orientation: landscape) {
+  .wf-wrap { gap: 1.5rem; padding: 0.75rem 1.5rem; }
+  .wf-qr { height: min(86vh, 640px); width: min(86vh, 640px); padding: 0.75rem !important; }
+  .wf-text .wf-brand { display: none; }
+  .wf-text h2 { margin-top: 0 !important; font-size: 1.9rem !important; }
+  .wf-text p { font-size: 1.05rem !important; margin-top: 0.5rem !important; }
+  .wf-text button { margin-top: 0.9rem !important; min-height: 3rem !important; }
+}

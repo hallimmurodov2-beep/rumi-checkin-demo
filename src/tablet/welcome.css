@@ -1,0 +1,39 @@
+/* Welcome screen on every shape of screen: wide tablet (two columns), tall or narrow screens such as a
+   Galaxy Z Fold unfolded or folded, and phones held sideways (one column, scrolls when it has to). */
+.wl-root { display: flex; height: 100%; }
+.wl-brand { width: 46%; }
+.wl-main { overflow-y: auto; overscroll-behavior: contain; }
+
+@media (orientation: portrait), (max-width: 760px) {
+  .wl-root { flex-direction: column; }
+  .wl-brand { width: 100%; flex: none; flex-direction: row; flex-wrap: wrap; gap: 0.25rem 1.75rem; padding: 1.25rem 1.5rem; }
+  .wl-brand .wl-emblem { height: 5.5rem; width: 5.5rem; }
+  .wl-brand .wl-name { margin-top: 0; }
+  .wl-brand .wl-hello { margin-top: 0; text-align: left; }
+  .wl-brand .wl-hello h1 { font-size: 2.75rem; }
+  .wl-brand .wl-hello p { font-size: 1.5rem; }
+  .wl-brand .wl-extra, .wl-brand .wl-frame { display: none; }
+  .wl-main { padding: 1.25rem 1.5rem 1.75rem; }
+}
+/* Narrow phone (a Fold's cover screen): stack the brand block and shrink it further. */
+@media (max-width: 480px) {
+  .wl-brand { flex-direction: column; gap: 0.25rem; padding: 1rem; }
+  .wl-brand .wl-emblem { height: 4.25rem; width: 4.25rem; }
+  .wl-brand .wl-hello { text-align: center; }
+  .wl-brand .wl-hello h1 { font-size: 2.25rem; }
+  .wl-brand .wl-hello p { font-size: 1.25rem; }
+  .wl-main { padding: 1rem 1rem 1.5rem; }
+  .wl-main .gl-tile { min-height: 190px; }
+}
+/* Short screens held sideways: everything scrolls instead of being cut off. */
+@media (max-height: 560px) and (orientation: landscape) {
+  .wl-brand { padding-block: 0.5rem; }
+  .wl-brand .wl-emblem { height: 6rem; width: 6rem; }
+  .wl-brand .wl-hello h1 { font-size: 2.5rem; }
+  .wl-brand .wl-hello p { font-size: 1.4rem; }
+  .wl-brand .wl-extra { display: none; }
+  .wl-main { padding-block: 0.75rem; }
+  .wl-main .gl-tile { min-height: 120px; flex: none; }
+}
+
+@media (max-width: 480px) { .wl-fs { display: none; } }

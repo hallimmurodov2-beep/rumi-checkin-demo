@@ -249,9 +249,11 @@ export function Gallery({
       <div className="gl-scrim pointer-events-none absolute inset-0" aria-hidden="true" />
 
       {/* Top bar */}
-      <header className="gl-fade-down pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-6 px-8 pt-6 xl:px-10">
-        <Brand tone="light" />
-        <div className="flex gap-1 rounded-2xl bg-forest-deep/55 p-1 backdrop-blur-md" role="group" aria-label={t('galleryTitle')}>
+      <header className="gl-head gl-fade-down pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-6 px-8 pt-6 xl:px-10">
+        <div className="gl-brand">
+          <Brand tone="light" />
+        </div>
+        <div className="gl-filters pointer-events-auto flex gap-1 rounded-2xl bg-forest-deep/55 p-1 backdrop-blur-md" role="group" aria-label={t('galleryTitle')}>
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -266,7 +268,7 @@ export function Gallery({
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="gl-ctl flex items-center gap-3">
           <LangSwitch tone="dark" />
           <button
             ref={closeBtn}
@@ -302,12 +304,12 @@ export function Gallery({
       )}
 
       {/* Caption, counter, slideshow and filmstrip */}
-      <footer className="gl-fade-up pointer-events-none absolute inset-x-0 bottom-0 px-8 pb-6 xl:px-10">
+      <footer className="gl-foot gl-fade-up pointer-events-none absolute inset-x-0 bottom-0 px-8 pb-6 xl:px-10">
         {slide && (
-          <div className="flex items-end justify-between gap-6">
+          <div className="gl-foot-row flex items-end justify-between gap-6">
             <div key={`${filter}:${i}`} className="gl-caption min-w-0">
-              <p className="font-serif text-5xl font-semibold leading-tight text-cream">{slide[lang]}</p>
-              <p className="mt-1 text-lg text-gold-light">
+              <p className="gl-title font-serif text-5xl font-semibold leading-tight text-cream">{slide[lang]}</p>
+              <p className="gl-sub mt-1 text-lg text-gold-light">
                 {(['en', 'ru', 'tg'] as const)
                   .filter((l) => l !== lang)
                   .map((l, j) => (

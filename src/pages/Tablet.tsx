@@ -396,15 +396,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
           />
         )}
 
-        {saver && step === 'welcome' && (
-          <Screensaver
-            onWake={() => setSaver(false)}
-            onBrowse={(i) => {
-              setGallery(i)
-              setSaver(false)
-            }}
-          />
-        )}
+        {saver && step === 'welcome' && <Screensaver onWake={() => setSaver(false)} />}
 
         {warn && (
           <div className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/55" role="dialog" aria-modal="true" aria-labelledby="idle-title">

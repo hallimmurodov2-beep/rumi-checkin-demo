@@ -133,7 +133,6 @@ const en = {
   galleryPause: 'Pause',
   galleryPrev: 'Previous photo',
   galleryNext: 'Next photo',
-  galleryBrowse: 'Browse photos',
   galleryHint: 'Swipe to see more',
   roomTypeShown: 'Your room type',
 }
@@ -260,7 +259,6 @@ const ru: Dict = {
   galleryPause: 'Пауза',
   galleryPrev: 'Предыдущее фото',
   galleryNext: 'Следующее фото',
-  galleryBrowse: 'Смотреть фото',
   galleryHint: 'Листайте, чтобы увидеть больше',
   roomTypeShown: 'Ваш тип номера',
 }
@@ -385,7 +383,6 @@ const tg: Dict = {
   galleryPause: 'Таваққуф',
   galleryPrev: 'Акси қаблӣ',
   galleryNext: 'Акси навбатӣ',
-  galleryBrowse: 'Аксҳоро тамошо кунед',
   galleryHint: 'Барои дидани бештар ангушт кашед',
   roomTypeShown: 'Навъи ҳуҷраи шумо',
 }

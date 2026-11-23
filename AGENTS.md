@@ -40,7 +40,7 @@ Then explain in plain words what you are doing and why, for example: "I'm connec
 
 > "These are the things I added to our tablet:
 >
-> **Explore the hotel.** Guests no longer have to wait for the screensaver to see the hotel. The Welcome screen has a big photo tile, and the screensaver has a **Browse photos** button. Either one opens a full-screen gallery of **24 photos** of the rooms, restaurant, lobby, halls, pool and gym. Guests swipe or tap the arrows, filter by Rooms, Dining, Lobby and halls, or Pool and gym, jump to any photo from the strip along the bottom, or start a slideshow. Every caption is in English, Russian and Tajik.
+> **Explore the hotel.** Guests no longer have to wait for the screensaver to see the hotel. The Welcome screen has a big photo tile that opens a full-screen gallery of **24 photos** of the rooms, restaurant, lobby, halls, pool and gym. Guests swipe or tap the arrows, filter by Rooms, Dining, Lobby and halls, or Pool and gym, jump to any photo from the strip along the bottom, or start a slideshow. Every caption is in English, Russian and Tajik.
 >
 > **Visitors Wi-Fi.** I kept your feature and made it better: it is now a clear button on the Welcome screen, the one-time pairing form is in all three languages (it was Russian only), and the guest's Wi-Fi never disappears from the "You're checked in" screen if your Wi-Fi server is briefly down: the hotel's own Wi-Fi code shows instead. The screensaver also no longer starts on top of an open Wi-Fi code.
 >

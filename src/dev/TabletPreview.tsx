@@ -107,7 +107,7 @@ export default function TabletPreview() {
       case 'settings':
         return <TabletSettings device={{ id: 'x', name: 'Lobby tablet 1', secret: '', camera: 'user' }} hotel={config.hotel_name} online onClose={noop} />
       case 'saver':
-        return <Screensaver onWake={noop} onBrowse={noop} />
+        return <Screensaver onWake={noop} />
       case 'gallery':
         return (
           <>

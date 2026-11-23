@@ -37,15 +37,12 @@
 .gl-tile-photo { opacity: 0; transform: scale(1.06); transition: opacity 1.4s ease-in-out, transform 6s linear; }
 .gl-tile-photo.is-on { opacity: 1; transform: scale(1); }
 
-/* Screensaver "Browse photos" button. */
-.ss-browse { animation: gl-up 0.8s 1s var(--ease-out-soft) both; }
-
 /* Check-in Done: room-type photo card. */
 .room-photo img { animation: room-photo 1.6s var(--ease-out-soft) both; }
 @keyframes room-photo { from { transform: scale(1.08); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .gl-root, .gl-fade-down, .gl-fade-up, .gl-caption, .ss-browse, .room-photo img { animation: none !important; }
+  .gl-root, .gl-fade-down, .gl-fade-up, .gl-caption, .room-photo img { animation: none !important; }
   .gl-tile-photo { transition: opacity 0.6s; transform: none !important; }
 }
 

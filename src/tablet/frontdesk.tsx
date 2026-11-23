@@ -8,7 +8,7 @@
 //    it is shown full screen as page images.
 import { useEffect, useRef, useState } from 'react'
 import { useLang } from '../i18n'
-import { ArrowRight, Brand, QrCode, WifiIcon } from '../ui'
+import { ArrowRight, Brand, ExpandIcon, QrCode, WifiIcon } from '../ui'
 
 export const LOBBY_WIFI_ENDPOINT = 'https://menu.therumihotel.com:8844/wifi/lobby-tablet'
 const LOBBY_WIFI_TOKEN = 'rumi-lobby-wifi-token'
@@ -17,9 +17,9 @@ const FOLIO_TOKEN = 'rumi-folio-station-v1'
 
 const WIFI_TEXT = {
   // 6-8: the one-time pairing form (reception types the code; shown in the guest's language too).
-  en: ['Visitors Wi-Fi', 'Connect to The Rumi Hotel, then scan the code.', 'Code valid until', 'Loading…', 'Wi-Fi code temporarily unavailable', 'Close', 'Pairing code from reception', 'Pair tablet', 'Check the code and the connection to the Rumi network.'],
-  ru: ['Wi-Fi для посетителей', 'Подключитесь к сети The Rumi Hotel и отсканируйте код.', 'Код действует до', 'Загрузка…', 'Код Wi-Fi временно недоступен', 'Закрыть', 'Код привязки с ресепшена', 'Привязать планшет', 'Проверьте код и связь с сетью Rumi.'],
-  tg: ['Wi-Fi барои меҳмонон', 'Ба шабакаи The Rumi Hotel пайваст шавед ва рамзро скан кунед.', 'Рамз амал мекунад то', 'Бор шуда истодааст…', 'Рамзи Wi-Fi муваққатан дастнорас аст', 'Пӯшидан', 'Рамзи пайвасткунӣ аз мизи қабул', 'Планшетро пайваст кунед', 'Рамз ва пайвастшавӣ ба шабакаи Rumi-ро санҷед.'],
+  en: ['Visitors Wi-Fi', 'Connect to The Rumi Hotel, then scan the code.', 'Code valid until', 'Loading…', 'Wi-Fi code temporarily unavailable', 'Close', 'Pairing code from reception', 'Pair tablet', 'Check the code and the connection to the Rumi network.', 'Full screen'],
+  ru: ['Wi-Fi для посетителей', 'Подключитесь к сети The Rumi Hotel и отсканируйте код.', 'Код действует до', 'Загрузка…', 'Код Wi-Fi временно недоступен', 'Закрыть', 'Код привязки с ресепшена', 'Привязать планшет', 'Проверьте код и связь с сетью Rumi.', 'На весь экран'],
+  tg: ['Wi-Fi барои меҳмонон', 'Ба шабакаи The Rumi Hotel пайваст шавед ва рамзро скан кунед.', 'Рамз амал мекунад то', 'Бор шуда истодааст…', 'Рамзи Wi-Fi муваққатан дастнорас аст', 'Пӯшидан', 'Рамзи пайвасткунӣ аз мизи қабул', 'Планшетро пайваст кунед', 'Рамз ва пайвастшавӣ ба шабакаи Rumi-ро санҷед.', 'Экрани пурра'],
 } as const
 
 export const dushanbeTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dushanbe', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
@@ -104,6 +104,9 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
   const t = WIFI_TEXT[lang]
   const dialog = useRef<HTMLDialogElement>(null)
   const [open, setOpen] = useState(false)
+  // The code shown as large as the screen allows. It stays up until closed, or until the screensaver
+  // takes over after 5 idle minutes (see WIFI_QR_OPEN_SECONDS in pages/Tablet.tsx).
+  const [big, setBig] = useState(false)
   const [pin, setPin] = useState('')
   const [pairError, setPairError] = useState(false)
   const busy = useRef(false)
@@ -146,10 +149,36 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
         ref={dialog}
         onClose={() => {
           setOpen(false)
+          setBig(false)
           setPin('')
         }}
-        className="fixed inset-auto right-4 bottom-4 m-0 w-80 max-w-[92vw] rounded-2xl border border-line bg-white p-5 text-ink shadow-xl backdrop:bg-forest/25"
+        className={
+          big && voucher
+            ? 'fixed inset-0 m-0 h-full max-h-none w-full max-w-none rounded-none border-0 bg-forest-deep p-0 text-cream'
+            : 'fixed inset-auto right-4 bottom-4 m-0 w-80 max-w-[92vw] rounded-2xl border border-line bg-white p-5 text-ink shadow-xl backdrop:bg-forest/25'
+        }
       >
+        {big && voucher ? (
+          <div className="fade-in flex h-full items-center justify-center gap-14 px-14">
+            <QrCode key={voucher.url} text={voucher.url} label={t[0]} className="!p-5 h-[min(78vh,640px)] w-[min(78vh,640px)] !rounded-3xl !border-0" />
+            <div className="max-w-md">
+              <Brand tone="light" />
+              <h2 className="mt-10 font-serif text-5xl font-semibold leading-tight">{t[0]}</h2>
+              <p className="mt-4 text-2xl leading-snug text-gold-light">{t[1]}</p>
+              <p className="mt-6 text-lg text-cream/80">
+                {t[2]} {dushanbeTime.format(voucher.expiresAt)}
+              </p>
+              <button
+                type="button"
+                onClick={() => dialog.current?.close()}
+                className="mt-10 min-h-16 w-full cursor-pointer rounded-2xl bg-cream px-8 text-xl font-semibold text-forest transition active:scale-[0.98]"
+              >
+                {t[5]}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
         <h2 className="font-serif text-2xl font-semibold">{t[0]}</h2>
         <p className="my-2 text-sm">{t[1]}</p>
         {state === 'unpaired' ? (
@@ -172,6 +201,13 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
             <p className="text-center text-sm">
               {t[2]} {dushanbeTime.format(voucher.expiresAt)}
             </p>
+            <button
+              type="button"
+              onClick={() => setBig(true)}
+              className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-forest/30 font-medium text-forest transition active:scale-[0.98]"
+            >
+              <ExpandIcon className="h-5 w-5" /> {t[9]}
+            </button>
           </>
         ) : (
           <p role="status">{state === 'error' ? t[4] : t[3]}</p>
@@ -179,6 +215,8 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
         <button type="button" onClick={() => dialog.current?.close()} className="mt-4 min-h-12 w-full rounded-xl bg-forest text-cream">
           {t[5]}
         </button>
+          </>
+        )}
       </dialog>
     </>
   )

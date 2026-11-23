@@ -23,7 +23,8 @@
 }
 .gl-arrow:active { transform: scale(0.94); background: rgb(10 42 33 / 0.75); }
 
-.gl-strip { scrollbar-width: none; scroll-padding-inline: 1rem; }
+.gl-strip { position: relative; scrollbar-width: none; scroll-padding-inline: 1rem; padding: 4px; }
+.gl-root button:focus-visible { outline: 3px solid var(--color-gold-light); outline-offset: 2px; }
 .gl-strip::-webkit-scrollbar { display: none; }
 .gl-thumb { opacity: 0.6; outline: 2px solid transparent; outline-offset: 2px; transition: opacity 0.2s, outline-color 0.2s, transform 0.2s; }
 .gl-thumb.is-active { opacity: 1; outline-color: var(--color-gold-light); }
@@ -32,18 +33,13 @@
 .gl-progress { transform-origin: left; animation-name: gl-progress; animation-timing-function: linear; animation-fill-mode: both; }
 @keyframes gl-progress { from { transform: scaleX(0); } }
 
-/* Welcome tile: photos cross-fade slowly. */
-.gl-tile { box-shadow: 0 16px 40px -22px rgb(14 59 46 / 0.9); }
-.gl-tile-photo { opacity: 0; transform: scale(1.06); transition: opacity 1.4s ease-in-out, transform 6s linear; }
-.gl-tile-photo.is-on { opacity: 1; transform: scale(1); }
-
 /* Check-in Done: room-type photo card. */
 .room-photo img { animation: room-photo 1.6s var(--ease-out-soft) both; }
 @keyframes room-photo { from { transform: scale(1.08); } }
 
 @media (prefers-reduced-motion: reduce) {
   .gl-root, .gl-fade-down, .gl-fade-up, .gl-caption, .room-photo img { animation: none !important; }
-  .gl-tile-photo { transition: opacity 0.6s; transform: none !important; }
+  .gl-progress { animation: none; }
 }
 
 /* Portrait photos: whole photo in the middle, blurred copy behind. */
@@ -54,7 +50,7 @@
 .gl-filters { max-width: 100%; }
 .gl-filters button { min-height: 3.5rem; }
 
-@media (max-width: 1100px) {
+@media (max-width: 1350px) {
   .gl-head { flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 1rem 1.25rem 0; }
   .gl-filters { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .gl-filters::-webkit-scrollbar { display: none; }
@@ -84,6 +80,35 @@
   .gl-sub { display: none; }
   .gl-foot { padding-bottom: 0.5rem; }
   .gl-foot-row button { min-height: 2.5rem; }
+}
+
+/* Photo index. The toolbar keeps its measured height as labels wrap in each language. */
+.gl-index-open { display: flex; flex-direction: column; }
+.gl-index-open .gl-head { position: relative; flex: none; }
+.gl-index { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: clamp(1rem, 3vw, 3rem); }
+.gl-index-heading { display: flex; align-items: baseline; gap: 0.65rem; margin: 0 0 1rem; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; }
+.gl-index-heading > span { color: var(--color-gold-light); font-family: var(--font-sans); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.gl-index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(12.5rem, 100%), 1fr)); gap: clamp(0.9rem, 2vw, 1.5rem); }
+.gl-index-grid button { display: flex; flex-direction: column; align-items: stretch; background: #143b31; color: var(--color-cream); text-align: start; border-radius: 0.55rem; overflow: hidden; cursor: pointer; }
+.gl-index-grid button[aria-current="true"] { box-shadow: 0 0 0 2px var(--color-gold-light); }
+.gl-index-grid img { flex: none; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.gl-index-label { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; padding: 0.6rem 0.8rem 0.75rem; font-size: 1rem; }
+.gl-index-label small { color: var(--color-gold-light); font-variant-numeric: tabular-nums; }
+.gl-index-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 3.5rem; padding-inline: 1rem; border: 1px solid rgb(246 242 231 / 0.4); border-radius: 0.75rem; background: rgb(10 42 33 / 0.82); cursor: pointer; }
+.gl-count { white-space: nowrap; }
+@media (max-width: 900px) {
+  .gl-foot-row { flex-wrap: wrap; gap: 0.6rem; }
+  .gl-tools { gap: 0.55rem; }
+}
+@media (max-width: 580px) {
+  .gl-index-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gl-tools { width: 100%; flex-wrap: wrap; }
+  .gl-tools button { min-height: 2.8rem; padding-inline: 0.6rem; font-size: 0.85rem; }
+  .gl-count { order: 1; margin-inline-start: auto; font-size: 1.25rem; }
+  .gl-index-label { font-size: 0.85rem; }
+}
+@media (max-height: 560px) {
+  .gl-index-button { min-height: 2.5rem; }
 }
 
 /* Full-screen Wi-Fi code: side by side when wide, stacked when tall, scrolls if it still doesn't fit. */

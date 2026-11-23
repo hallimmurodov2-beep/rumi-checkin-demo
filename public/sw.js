@@ -1,56 +1,57 @@
-// Offline support for The Rumi self check-in app.
-// Navigations: network first, fall back to the cached app shell.
-// Same-origin assets: serve from cache, refresh in the background.
-// API calls to Supabase are never cached.
-// The build id in CACHE is filled in at build time (vite.config.ts), so each deploy installs a new worker.
+// A release is ready only after its shell, scripts, fonts and hotel pictures
+// are saved together. An offline restart can then load even the first visit.
 const CACHE = 'rumi-__BUILD_ID__'
-const SHELL = ['/', '/emblem.svg', '/manifest.webmanifest', '/icons/icon-192.png']
+const FILES = /* __RELEASE_FILES__ */ []
+const FILE_SET = new Set(FILES)
+const RELEASE_NAME = /^rumi-\d{14}$/
+const APP_ROUTES = new Set(['/', '/tablet', '/staff'])
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()))
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE)
+    try {
+      await cache.addAll(FILES.map((path) => new Request(path, { cache: 'reload' })))
+    } catch (error) {
+      await caches.delete(CACHE)
+      throw error
+    }
+    await self.skipWaiting()
+  })())
 })
 
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
-  )
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    // A guest already checking in may still request a chunk from the previous build.
+    const releases = (await caches.keys()).filter((key) => RELEASE_NAME.test(key)).sort().reverse()
+    const previous = releases.find((key) => key < CACHE)
+    await Promise.all(releases.filter((key) => key < CACHE && key !== previous).map((key) => caches.delete(key)))
+    await self.clients.claim()
+  })())
 })
 
-self.addEventListener('fetch', (e) => {
-  const req = e.request
-  if (req.method !== 'GET') return
-  const url = new URL(req.url)
+self.addEventListener('fetch', (event) => {
+  const request = event.request
+  const url = new URL(request.url)
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return
 
-  if (req.mode === 'navigate') {
-    e.respondWith(
-      fetch(req)
-        .then((res) => {
-          // Only a good page may become the offline copy (never a 404 or a server error page).
-          if (res.ok) {
-            const copy = res.clone()
-            caches.open(CACHE).then((c) => c.put('/', copy))
-          }
-          return res
-        })
-        .catch(() => caches.match('/')),
-    )
-    return
-  }
+  const navigation = request.mode === 'navigate'
+  const path = navigation ? url.pathname.replace(/\/$/, '') || '/' : url.pathname
+  if (navigation && !APP_ROUTES.has(path)) return
+  if (!navigation && !FILE_SET.has(path) && !path.startsWith('/assets/')) return
 
-  if (url.origin !== self.location.origin) return
-
-  e.respondWith(
-    caches.open(CACHE).then(async (c) => {
-      const hit = await c.match(req)
-      const net = fetch(req)
-        .then((res) => {
-          if (res.ok || res.type === 'opaque') c.put(req, res.clone())
-          return res
-        })
-        .catch(() => hit)
-      return hit || net
-    }),
-  )
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE)
+    const key = navigation ? '/index.html' : path
+    const hit = await cache.match(key)
+    if (hit) return hit
+    if (path.startsWith('/assets/')) {
+      // Asset names contain a content hash, so an older tab can use the exact previous file.
+      const releases = (await caches.keys()).filter((name) => name !== CACHE && RELEASE_NAME.test(name))
+      for (const name of releases) {
+        const previous = await (await caches.open(name)).match(path)
+        if (previous) return previous
+      }
+    }
+    return fetch(request)
+  })())
 })

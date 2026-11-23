@@ -68,13 +68,14 @@ export const SLIDES: Slide[] = [
 /** Photo of a room type, for the check-in Done screen. Matches eZee names like "Deluxe Double" or "Executive Suite". */
 export function roomTypePhoto(roomType: string | null | undefined): Slide | null {
   const t = (roomType ?? '').toLowerCase()
-  const file = /suite|люкс/.test(t)
+  // «Делюкс» is Deluxe. Only a standalone «люкс» (or Tajik «люкси») means suite.
+  const file = /suite|(?:^|[^\p{L}])люкси?(?!\p{L})/u.test(t)
     ? 'executive-suite1'
-    : /twin|2 ?beds|двумя/.test(t)
+    : /twin|2 ?beds|двумя|ду кат/.test(t)
       ? 'deluxe-twin-room'
       : /king/.test(t)
         ? 'deluxe-king-room'
-        : /double|queen|двусп/.test(t)
+        : /double|queen|двусп|дунафара/.test(t)
           ? 'deluxe-double-room'
           : null
   return file ? SLIDES.find((sl) => sl.src === `/gallery/${file}.webp`) ?? null : null

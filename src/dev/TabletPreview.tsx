@@ -10,7 +10,7 @@ import { TabletSettings } from '../tablet/Setup'
 import { DeskModeContext } from '../tablet/Shell'
 import { DetailsStep, Done, NeedHelp, SignatureStep, emptyDetails } from '../tablet/Steps'
 import { Welcome } from '../tablet/Welcome'
-import { FolioPages } from '../tablet/frontdesk'
+import { FolioReader } from '../tablet/FolioReader'
 import type { Lang } from '../translations'
 
 const q = new URLSearchParams(window.location.search)
@@ -63,7 +63,9 @@ tablet.policy = async () => {
 }
 tablet.checkinInfo = async () => {
   await wait(300)
-  return { status: 'waiting', room_number: '305', wifi: await tablet.wifi('fixture') }
+  const requested = q.get('status')
+  const status = requested === 'waiting' || requested === 'rejected' ? requested : 'approved'
+  return { status, room_number: status === 'approved' ? '305' : null, wifi: await tablet.wifi('fixture') }
 }
 const noop = () => {}
 
@@ -84,7 +86,7 @@ function FolioFixture() {
     for (let i = 0; i < 14; i++) x.fillText(`Fixture line ${i + 1}`, 90, 260 + i * 62)
     return c.toDataURL('image/png').split(',')[1]
   })
-  return <FolioPages pages={[page, page]} zoom={zoom} onZoom={() => setZoom(!zoom)} />
+  return <FolioReader pages={[page, page]} zoom={zoom} onZoom={() => setZoom(!zoom)} />
 }
 
 export default function TabletPreview() {

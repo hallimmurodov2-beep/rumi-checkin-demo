@@ -168,27 +168,14 @@ function Kiosk({ device }: { device: StoredDevice }) {
     }
   }, [step])
 
-  const go = useCallback((next: Step, dir: 'fwd' | 'back' = 'fwd') => transition(() => setStep(next), dir), [])
-
-  // Kiosks run for weeks: pick up new app versions, and refresh once a night,
-  // but only while nobody is using the tablet.
-  useEffect(() => {
-    if (step !== 'welcome') return
-    const started = performance.now()
-    const id = window.setInterval(() => {
-      const w = window as Window & { __rumiUpdateReady?: boolean }
-      const hour = new Date().getHours()
-      const longRunning = performance.now() - started > 20 * 3600_000 || performance.timeOrigin < Date.now() - 20 * 3600_000
-      if (w.__rumiUpdateReady || (longRunning && hour === 4)) window.location.reload()
-    }, 60_000)
-    return () => window.clearInterval(id)
-  }, [step])
-
-  // Bumped on every reset: a check-in that finishes after the guest walked away
-  // must not open its Done screen for the next person.
+  // A transition may apply a frame later. Ignore it if a guest reset happened in between.
   const session = useRef(0)
+  const go = useCallback((next: Step, dir: 'fwd' | 'back' = 'fwd') => {
+    const mine = session.current
+    transition(() => { if (session.current === mine) setStep(next) }, dir)
+  }, [])
+
   const clearGuest = useCallback(() => {
-    session.current++
     setHandoff(null)
     setCheckinId(null)
     setMrz(null)
@@ -199,6 +186,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
 
   // Back to Welcome in English with everything the guest entered cleared.
   const reset = useCallback(() => {
+    session.current++
     transition(() => {
       clearGuest()
       setStep('welcome')
@@ -209,23 +197,45 @@ function Kiosk({ device }: { device: StoredDevice }) {
 
   // Reception scanned a passport and sent the booking to this tablet: open it for the guest.
   const idleForHandoff = step === 'welcome'
+  const settingsVisible = useRef(settingsOpen)
+  settingsVisible.current = settingsOpen
   useEffect(() => {
-    if (!idleForHandoff || settingsOpen) return
+    if (!idleForHandoff) return
     let alive = true
     let busy = false
+    let claimed = false
+    let lastActivity = Date.now()
+    const touch = () => { lastActivity = Date.now() }
+    window.addEventListener('pointerdown', touch)
+    window.addEventListener('keydown', touch)
     const check = async () => {
-      if (busy) return
+      if (busy || claimed || settingsVisible.current || document.hidden || document.querySelector('[data-kiosk-invoice][open]')) return
       busy = true
       try {
         const h = await tablet.poll()
-        if (!alive || !h) return
+        if (!alive) return
+        if (!h) {
+          // Reload only between handoffs, after a full idle minute. A guest may be browsing
+          // photos or scanning a QR code with the Welcome screen still mounted underneath.
+          const updateReady = (window as Window & { __rumiUpdateReady?: boolean }).__rumiUpdateReady
+          const now = Date.now()
+          const nightlyRefresh = now - performance.timeOrigin > 20 * 3600_000 && new Date(now).getHours() === 4
+          if ((updateReady || nightlyRefresh) && now - lastActivity >= 60_000 &&
+              !document.hidden && !settingsVisible.current &&
+              !document.querySelector('dialog[open], [aria-modal="true"], [data-kiosk-invoice][open]')) {
+            window.location.reload()
+          }
+          return
+        }
+        claimed = true
+        setSettingsOpen(false)
         const p = h.passport
         setSaver(false)
         setGallery(null)
-        setLang(h.language ?? 'en')
+        if (h.language) setLang(h.language)
         setHandoff(h)
         setReservation(h.reservation)
-            setMrz(
+        setMrz(
           p && p.surname
             ? {
                 docType: p.doc_type ?? 'P',
@@ -248,18 +258,22 @@ function Kiosk({ device }: { device: StoredDevice }) {
         busy = false
       }
     }
-    check()
+    const first = window.setTimeout(check, 0)
     const id = window.setInterval(check, 2500)
     return () => {
       alive = false
+      window.clearTimeout(first)
       window.clearInterval(id)
+      window.removeEventListener('pointerdown', touch)
+      window.removeEventListener('keydown', touch)
     }
-  }, [idleForHandoff, settingsOpen, go])
+  }, [idleForHandoff, go])
 
   // Start the screensaver (after a quiet spell, or when the Welcome screen is tapped 3 times).
   const startSaver = useCallback(() => {
     // A native <dialog> (Visitors Wi-Fi) would stay on top of the screensaver.
-    document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach((d) => d.close())
+    if (document.querySelector('[data-kiosk-invoice][open]')) return
+    document.querySelector<HTMLDialogElement>('dialog[data-kiosk-wifi][open]')?.close()
     setLang('en')
     setSaver(true)
   }, [])
@@ -280,7 +294,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
     evts.forEach((e) => window.addEventListener(e, touch, { passive: true }))
     const id = window.setInterval(() => {
       // Someone is scanning the Visitors Wi-Fi code: give them time (any touch starts the wait again).
-      const wifiOpen = !!document.querySelector('dialog[open]')
+      const wifiOpen = !!document.querySelector('dialog[data-kiosk-wifi][open]')
       const limit = wifiOpen ? Math.max(saverAfter, WIFI_QR_OPEN_SECONDS) : saverAfter
       if (Date.now() - last >= limit * 1000) startSaver()
     }, 1000)
@@ -290,9 +304,9 @@ function Kiosk({ device }: { device: StoredDevice }) {
     }
   }, [step, saver, settingsOpen, gallery, saverAfter, startSaver])
 
-  // Idle reset: any step except Welcome returns to Welcome after the idle limit without touch.
+  // Done has its own visible return timer so guests can extend the time to scan Wi-Fi.
   useEffect(() => {
-    if (step === 'welcome') return
+    if (step === 'welcome' || step === 'done') return
     let last = Date.now()
     const touch = () => {
       last = Date.now()
@@ -336,7 +350,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
   }
 
   const tr = (k: keyof typeof translations.en, n = 0) => translations[lang][k].replace('{n}', String(n))
-  const warn = step !== 'welcome' && idleLeft <= IDLE_WARN && !settingsOpen
+  const warn = step !== 'welcome' && step !== 'done' && idleLeft <= IDLE_WARN && !settingsOpen
 
   return (
     <LangContext.Provider value={lang}>
@@ -430,7 +444,7 @@ function Kiosk({ device }: { device: StoredDevice }) {
               <button
                 type="button"
                 autoFocus
-                onClick={() => setIdleLeft(idleLimit)}
+                onClick={() => window.dispatchEvent(new Event('rumi-activity'))}
                 className="mt-6 min-h-16 w-full cursor-pointer rounded-xl bg-forest px-6 text-lg font-medium text-cream hover:bg-forest-deep"
               >
                 {tr('stillHere')}

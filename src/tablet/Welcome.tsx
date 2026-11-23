@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useT } from '../i18n'
 import { LANGS, type Lang } from '../translations'
 import { inKioskApp } from '../lib/kiosk'
-import { VisitorWifi } from './frontdesk'
+import { dushanbeTime, VisitorWifi } from './frontdesk'
 import { GalleryTile } from './PhotoGallery'
 import './welcome.css'
-import { COLORS, Emblem, ExpandIcon } from '../ui'
+import { CheckIcon, COLORS, Emblem, ExpandIcon } from '../ui'
 
 function useFullscreenAvailable() {
   const check = () => {
@@ -36,6 +36,16 @@ function enterFullscreen() {
   else el.webkitRequestFullscreen?.()
 }
 
+function HotelTime() {
+  const [now, setNow] = useState(() => new Date())
+  const t = useT()
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 15_000)
+    return () => window.clearInterval(interval)
+  }, [])
+  return <div className="wl-local"><span>{t('hotelCity')}</span><time dateTime={now.toISOString()}>{dushanbeTime.format(now)}</time></div>
+}
+
 export function Welcome({
   lang,
   setLang,
@@ -61,15 +71,9 @@ export function Welcome({
   const endHold = () => window.clearTimeout(hold.current)
   useEffect(() => () => window.clearTimeout(hold.current), [])
   return (
-    <div className="wl-root">
-      <section className="wl-brand text-cream" aria-label={hotelName}>
-        <img
-          src="/gallery/lobby-atrium.webp"
-          alt=""
-          className="wl-photo"
-          fetchPriority="high"
-          draggable={false}
-        />
+    <main className="wl-root" lang={lang}>
+      <section className="wl-brand" aria-label={hotelName}>
+        <img src="/gallery/lobby-atrium.webp" alt="" className="wl-photo" fetchPriority="high" draggable={false} />
         <div className="wl-brandbar">
           <div
             data-no-tap
@@ -80,59 +84,50 @@ export function Welcome({
           >
             <Emblem color={COLORS.goldLight} className="wl-emblem" />
           </div>
-          <div className="wl-wordmark">
-            <p className="font-serif text-2xl font-semibold tracking-[0.24em] text-cream">THE RUMI</p>
-            <p className="mt-1 text-[0.6rem] font-semibold tracking-[0.15em] text-gold-light">HOTEL AND RESIDENCES</p>
+          <div className="wl-wordmark" lang="en">
+            <p>THE RUMI</p>
+            <p>HOTEL AND RESIDENCES</p>
           </div>
         </div>
         <div className="wl-hello">
-          <span className="wl-rule" aria-hidden="true" />
-          <h1 lang="en">Welcome</h1>
-          <p lang="ru">Добро пожаловать</p>
-          <p lang="tg">Хуш омадед</p>
+          <h1>{t('hotelWelcome')}</h1>
+          <HotelTime />
         </div>
       </section>
 
-      <section className="wl-main">
+      <section className="wl-main" aria-labelledby="wl-checkin-title">
         <div className="wl-content">
-          <div className="flex min-h-7 items-center justify-between gap-2">
-            <p className="eyebrow">{t('chooseLanguage')}</p>
-            {canFullscreen && (
-              <button
-                type="button"
-                onClick={enterFullscreen}
-                className="wl-fs inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-forest hover:bg-forest/5"
-              >
-                <ExpandIcon className="h-4 w-4" /> {t('fullscreen')}
-              </button>
-            )}
+          <div className="wl-language-area">
+            <div className="wl-utilities">
+              <p id="wl-language-label">{t('chooseLanguage')}</p>
+              {canFullscreen && (
+                <button type="button" onClick={enterFullscreen} className="wl-fs" aria-label={t('fullscreen')} title={t('fullscreen')}>
+                  <ExpandIcon className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+            <div className="wl-languages" role="group" aria-labelledby="wl-language-label">
+              {LANGS.map((l) => (
+                <button key={l.code} type="button" lang={l.code} aria-pressed={lang === l.code} onClick={() => setLang(l.code)}>
+                  {l.label}
+                  {lang === l.code && <CheckIcon className="wl-language-check" />}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="wl-languages" role="group" aria-label={t('chooseLanguage')}>
-            {LANGS.map((l) => (
-              <button
-                key={l.code}
-                type="button"
-                lang={l.code}
-                aria-pressed={lang === l.code}
-                onClick={() => setLang(l.code)}
-                className={`cursor-pointer rounded-xl border px-1.5 font-semibold transition-colors ${
-                  lang === l.code ? 'border-forest bg-forest text-cream' : 'border-line bg-paper text-forest hover:border-forest/45'
-                }`}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Reception opens the guest’s check-in after scanning the passport. */}
           <div className="wl-checkin">
-            <p className="font-serif text-3xl font-semibold leading-none text-forest">{t('checkinAtDesk')}</p>
-            <p className="mt-2 text-base leading-snug text-muted">{t('checkinAtDeskSub')}</p>
+            <span className="wl-passport" aria-hidden="true">
+              <Emblem color="currentColor" className="wl-passport-emblem" />
+            </span>
+            <h2 id="wl-checkin-title">{t('checkinAtDesk')}</h2>
+            <p>{t('checkinAtDeskSub')}</p>
           </div>
-          {onGallery && <GalleryTile onOpen={onGallery} className="wl-gallery" />}
-          <VisitorWifi />
+          <div className="wl-services">
+            {onGallery && <GalleryTile onOpen={onGallery} className="wl-gallery" />}
+            <VisitorWifi />
+          </div>
         </div>
       </section>
-    </div>
+    </main>
   )
 }

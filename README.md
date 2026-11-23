@@ -119,9 +119,10 @@ The request formats follow eZee's published connectivity docs. Some fields in th
 - **Photo screensaver:** after 45 seconds without a touch on the Welcome screen (configurable in Settings, 0 turns it off), the tablet shows the hotel photos from `public/gallery`. Each photo slowly zooms, cross-fades into the next and has an English, Russian and Tajik caption, and the clock is shown. One tap returns to Welcome. To change the photos, replace the files in `public/gallery` (WebP, about 1024 px wide) and update `src/tablet/gallery.ts`.
 
 - **Signature** is labelled with the guest's name and the date.
-- **Room number** is shown on the confirmation and done screens when eZee has already assigned one.
-- **Wi-Fi QR:** the Done screen shows the guest network with a QR code that phones join by scanning. If the front desk app sent a personal Wi-Fi for the stay, that one is shown instead, marked "Just for your stay". The screen stays up for 45 seconds so guests have time to scan.
-- **Self-updating:** every build stamps a new id into `sw.js`, so an installed tablet notices each deploy within 30 minutes and reloads while it's on the welcome screen. It also refreshes itself once a night at about 04:00.
+- **Reception confirmation:** after signing, the guest sees that reception is reviewing the check-in. The tablet updates when reception approves it and shows the assigned room. A rejected check-in directs the guest back to reception.
+- **Wi-Fi QR:** the Done screen shows the guest network with a QR code that phones join by scanning. If the front desk app sent a personal Wi-Fi for the stay, that one is shown instead, marked "Just for your stay". Guests have 45 seconds to scan and can extend the timer.
+- **Invoices:** a pushed invoice opens over the kiosk. Guests can switch languages, turn pages, and enlarge a page to read it. Reception controls when it closes.
+- **Offline restart and updates:** the tablet saves the app, fonts, and hotel photos as one release. Once installation finishes, the welcome screen and gallery can reopen without internet. Receiving bookings, sending signatures, and receiving new invoices require a connection. While online, the tablet checks for updates every 30 minutes and reloads between guests after Welcome has been idle for a minute.
 
 ## Known limits
 

@@ -1,0 +1,34 @@
+.folio-reader {
+  position: fixed; inset: 0; margin: 0; padding: 0;
+  width: 100%; height: 100dvh; max-width: none; max-height: none;
+  background: #d9ddd7; color: var(--color-ink); border: 0;
+}
+.folio-reader[open] { display: grid; grid-template: auto minmax(0, 1fr) auto / minmax(0, 1fr); }
+.folio-reader::backdrop { background: var(--color-forest-deep); }
+.folio-header, .folio-tools { display: flex; align-items: center; gap: 1rem; padding: .75rem clamp(.85rem, 3vw, 3rem); }
+.folio-header { color: var(--color-cream); background: var(--color-forest-deep); }
+.folio-header h1 { margin-right: auto; font-size: clamp(1.5rem, 3.2vw, 2.8rem); line-height: 1; }
+.folio-brand { border-right: 1px solid #ecd28a55; padding-right: clamp(1rem, 2vw, 2.5rem); }
+.folio-paper { padding: clamp(.5rem, 1.6vh, 1.25rem); overflow: auto; overscroll-behavior: contain; }
+.folio-paper img { display: block; margin: 0 auto; height: 100%; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 3px 6px #0c281b33); }
+.folio-enlarged img { width: max(100%, 1080px); height: auto; max-width: none; }
+.folio-tools { justify-content: space-between; background: var(--color-paper); border-top: 1px solid var(--color-line); }
+.folio-pagination, .folio-zoom { display: flex; align-items: center; gap: .75rem; }
+.folio-pagination > span { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.folio-tools button { cursor: pointer; min-height: 3.25rem; min-width: 3.25rem; justify-content: center; border-radius: .75rem; }
+.folio-pagination button { display: grid; place-items: center; border: 1px solid #0e3b2e40; color: var(--color-forest); }
+.folio-pagination button:disabled { opacity: .35; cursor: default; }
+.folio-zoom { padding: .5rem 1rem; background: var(--color-forest); color: var(--color-cream); font-weight: 600; }
+@media (max-width: 700px) {
+  .folio-brand { display: none; }
+  .folio-tools, .folio-pagination, .folio-zoom { gap: .45rem; }
+  .folio-zoom { padding-inline: .65rem; }
+  .folio-header h1 { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 480px) {
+  .folio-tools { flex-wrap: wrap; }
+  .folio-pagination > span { font-size: .875rem; }
+  .folio-tools button { min-width: 2.75rem; min-height: 2.75rem; }
+  .folio-zoom { margin-left: auto; font-size: .875rem; }
+}

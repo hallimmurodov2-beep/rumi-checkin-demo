@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -20,7 +20,16 @@ function stampServiceWorker(): Plugin {
     },
     closeBundle() {
       const file = resolve(outDir, 'sw.js')
-      writeFileSync(file, readFileSync(file, 'utf8').replaceAll('__BUILD_ID__', BUILD_ID))
+      const files = ['/index.html', '/manifest.webmanifest', '/emblem.svg']
+      for (const folder of ['assets', 'gallery', 'gallery/thumbs', 'icons']) {
+        for (const entry of readdirSync(resolve(outDir, folder), { withFileTypes: true })) {
+          if (entry.isFile()) files.push(`/${folder}/${entry.name}`)
+        }
+      }
+      const worker = readFileSync(file, 'utf8')
+        .replaceAll('__BUILD_ID__', BUILD_ID)
+        .replace('/* __RELEASE_FILES__ */ []', JSON.stringify(files.sort()))
+      writeFileSync(file, worker)
     },
   }
 }

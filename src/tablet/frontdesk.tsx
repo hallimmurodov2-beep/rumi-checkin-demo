@@ -7,6 +7,7 @@
 //  - Folio station: the tablet is paired as a "station"; when reception pushes a guest's invoice,
 //    it is shown full screen as page images.
 import { useEffect, useId, useRef, useState } from 'react'
+import { FolioReader } from './FolioReader'
 import { useLang } from '../i18n'
 import { ArrowRight, Brand, ExpandIcon, QrCode, WifiIcon } from '../ui'
 
@@ -147,6 +148,7 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
         <ArrowRight className="h-5 w-5" />
       </button>
       <dialog
+        data-kiosk-wifi
         ref={dialog}
         aria-labelledby={titleId}
         onClose={() => {
@@ -281,7 +283,7 @@ export function FolioPairing() {
 
 /** Full-screen invoice pushed by reception to this station; disappears when the lease ends. */
 export function FolioOverlay() {
-  const [pages, setPages] = useState<string[]>([])
+  const [invoice, setInvoice] = useState<{ version: string; pages: string[] } | null>(null)
   const [zoom, setZoom] = useState(false)
   useEffect(() => {
     let stopped = false
@@ -291,7 +293,7 @@ export function FolioOverlay() {
     let ac: AbortController | undefined
     const clear = () => {
       version = ''
-      setPages([])
+      setInvoice(null)
       setZoom(false)
     }
     async function tick() {
@@ -310,7 +312,7 @@ export function FolioOverlay() {
             if (r.version !== version) {
               if (!Array.isArray(r.pages) || !r.pages.length) throw new Error()
               version = r.version
-              setPages(r.pages)
+              setInvoice({ version, pages: r.pages })
               setZoom(false)
             }
             window.clearTimeout(lease)
@@ -342,52 +344,6 @@ export function FolioOverlay() {
       document.removeEventListener('visibilitychange', reset)
     }
   }, [])
-  if (!pages.length) return null
-  return <FolioPages pages={pages} zoom={zoom} onZoom={() => setZoom(!zoom)} />
-}
-
-/** The invoice as the guest sees it. Sits outside the language setting, so its title is in all three languages. */
-export function FolioPages({ pages, zoom, onZoom }: { pages: string[]; zoom: boolean; onZoom: () => void }) {
-  return (
-    <section aria-label="Invoice" className="fade-in fixed inset-0 z-[200] flex flex-col bg-forest-deep text-cream">
-      <header className="flex shrink-0 items-center justify-between gap-6 border-b border-gold-light/20 px-8 py-3.5">
-        <Brand tone="light" />
-        <p className="text-center">
-          <span className="block font-serif text-3xl font-semibold leading-tight">Your invoice</span>
-          <span className="block text-sm text-gold-light">
-            <span lang="ru">Ваш счёт</span>
-            <span className="mx-2 text-cream/50" aria-hidden="true">/</span>
-            <span lang="tg">Ҳисобнома</span>
-          </span>
-        </p>
-        <div className="flex items-center gap-4">
-          {pages.length > 1 && (
-            <span className="font-serif text-2xl font-semibold tabular-nums" aria-label={`${pages.length} pages`}>
-              {pages.length} <span className="text-base text-gold-light">pp.</span>
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={onZoom}
-            aria-pressed={zoom}
-            aria-label={zoom ? 'Make smaller' : 'Make larger'}
-            className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-xl bg-cream text-forest shadow-lg transition active:scale-95"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="h-6 w-6" aria-hidden="true">
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="M15.5 15.5L21 21M8 10.5h5" />
-              {!zoom && <path d="M10.5 8v5" />}
-            </svg>
-          </button>
-        </div>
-      </header>
-      <div className="min-h-0 flex-1 overflow-auto overscroll-contain px-6 py-6">
-        <div className="mx-auto space-y-5" style={{ width: zoom ? 1240 : 'min(860px, 100%)' }}>
-          {pages.map((p, i) => (
-            <img key={i} alt={'Invoice · ' + (i + 1)} className="block w-full rounded-md bg-white shadow-[0_20px_50px_-20px_rgb(0_0_0/0.8)]" src={'data:image/png;base64,' + p} />
-          ))}
-        </div>
-      </div>
-    </section>
-  )
+  if (!invoice) return null
+  return <FolioReader key={invoice.version} pages={invoice.pages} zoom={zoom} onZoom={() => setZoom(!zoom)} />
 }

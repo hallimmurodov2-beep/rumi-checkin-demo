@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
 import { ApiError } from '../lib/supabase'
@@ -7,7 +7,7 @@ import { Markdown } from '../lib/markdown'
 import { wifiQrText } from '../lib/wifi'
 import { fmtDay, LANGS, LOCALE, type Lang } from '../translations'
 import { dushanbeTime, hasLobbyWifiPairing, useWifiVoucher, wifiVoucherText } from './frontdesk'
-import { AnimatedCheck, ArrowRight, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, Spinner, WifiIcon } from '../ui'
+import { AnimatedCheck, ArrowRight, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, ReceiptIcon, Spinner, WifiIcon } from '../ui'
 import { Shell } from './Shell'
 import { roomTypePhoto } from './gallery'
 import './gallery.css'
@@ -441,48 +441,59 @@ export function SignatureStep({
 
 /* -------------------------------- 5. Done -------------------------------- */
 
-function useCountdown(seconds: number, onEnd: () => void) {
-  const [n, setN] = useState(seconds)
-  const fin = useRef(onEnd)
-  fin.current = onEnd
+/** Use a deadline so a sleeping tablet clears the guest screen as soon as it wakes. */
+function useReturnTimer(seconds: number, onFinish: () => void) {
+  const deadline = useRef(0)
+  const finish = useRef(onFinish)
+  finish.current = onFinish
+  const [remaining, setRemaining] = useState(seconds)
+  const extend = useCallback(() => {
+    deadline.current = Date.now() + seconds * 1000
+    setRemaining(seconds)
+  }, [seconds])
+
   useEffect(() => {
-    const id = window.setInterval(() => setN((x) => x - 1), 1000)
-    return () => window.clearInterval(id)
-  }, [])
-  useEffect(() => {
-    if (n <= 0) fin.current()
-  }, [n])
-  return Math.max(n, 0)
+    extend()
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))
+      setRemaining(left)
+      if (left === 0 && deadline.current !== 0) {
+        deadline.current = 0
+        finish.current()
+      }
+    }
+    const timer = window.setInterval(tick, 250)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [extend])
+  return { remaining, extend }
 }
 
-/**
- * Room and Wi-Fi for the Done screen. Asks the server a few times, because reception may assign the
- * room, or the front desk app may create a personal Wi-Fi voucher, just after the guest signs.
- * Wi-Fi: the stay's own network if the front desk app sent one; otherwise the hotel's Wi-Fi login
- * voucher from the front desk server (the tablet's "Visitors Wi-Fi" pairing); otherwise the network
- * set in Settings.
- */
+/** Reception can assign the room or issue personal Wi-Fi any time this screen is open. */
 function useDoneInfo(config: TabletConfig | null, checkinId: string | null | undefined, initialRoom: string | null) {
-  const [room, setRoom] = useState(initialRoom)
-  const [serverWifi, setServerWifi] = useState<WifiInfo | null | undefined>(undefined)
+  const [info, setInfo] = useState<Awaited<ReturnType<typeof tablet.checkinInfo>>>(null)
   useEffect(() => {
     if (!checkinId) return
     let alive = true
-    let tries = 0
     let timer: number | undefined
-    const load = () =>
-      tablet
-        .checkinInfo(checkinId)
-        .then((info) => {
-          if (!alive) return
-          if (info?.room_number) setRoom(info.room_number)
-          setServerWifi(info?.wifi ?? null)
-          if ((!info?.room_number || !info?.wifi?.per_stay) && ++tries < 8) timer = window.setTimeout(load, 3500)
-        })
-        .catch(() => {
-          if (alive && ++tries < 8) timer = window.setTimeout(load, 3500)
-        })
-    load()
+    const load = async () => {
+      try {
+        const latest = await tablet.checkinInfo(checkinId)
+        if (!alive) return
+        if (latest) {
+          setInfo(latest)
+          if (latest.status === 'rejected' ||
+              (latest.status === 'approved' && latest.room_number && latest.wifi?.per_stay)) return
+        }
+      } catch {
+        // Keep the last known result through a brief connection loss.
+      }
+      if (alive) timer = window.setTimeout(load, 3500)
+    }
+    void load()
     return () => {
       alive = false
       window.clearTimeout(timer)
@@ -491,7 +502,13 @@ function useDoneInfo(config: TabletConfig | null, checkinId: string | null | und
   const hotelWifi: WifiInfo | null = config?.wifi_name
     ? { ssid: config.wifi_name, password: config.wifi_password || null, security: config.wifi_security ?? 'WPA', hidden: config.wifi_hidden, qr_payload: config.wifi_qr }
     : null
-  return { room, perStay: serverWifi?.per_stay ? serverWifi : null, fallback: serverWifi ?? hotelWifi }
+  const serverWifi = info?.wifi
+  return {
+    status: info?.status ?? 'waiting',
+    room: info ? info.room_number : initialRoom,
+    perStay: serverWifi?.per_stay ? serverWifi : null,
+    fallback: serverWifi ?? hotelWifi,
+  }
 }
 
 function WifiCard({ wifi }: { wifi: WifiInfo }) {
@@ -571,16 +588,18 @@ export function Done({
   checkinId?: string | null
 }) {
   const t = useT()
-  const { room, perStay, fallback } = useDoneInfo(config, checkinId, initialRoom)
-  const paired = hasLobbyWifiPairing()
+  const { status, room, perStay, fallback } = useDoneInfo(config, checkinId, initialRoom)
+  const approved = status === 'approved'
+  const declined = status === 'rejected'
+  const paired = !declined && hasLobbyWifiPairing()
   const { voucher, state: voucherState } = useWifiVoucher(paired && !perStay)
   // The lobby voucher server is down or the pairing was revoked: show the hotel Wi-Fi from Settings instead of nothing.
   const voucherFailed = voucherState === 'error' || voucherState === 'unpaired'
   const wifi = perStay ?? (paired && !voucherFailed ? null : fallback)
-  const showWifi = !!wifi || !!voucher
+  const showWifi = !declined && (!!wifi || !!voucher)
   // Give guests time to scan the Wi-Fi code before the screen resets.
-  const n = useCountdown(45, onFinish)
-  const showBreakfast = breakfast && !!config?.breakfast_hours
+  const { remaining, extend } = useReturnTimer(Math.min(config?.idle_seconds ?? 45, 45), onFinish)
+  const showBreakfast = !declined && breakfast && !!config?.breakfast_hours
   const photo = roomTypePhoto(roomType)
   const lang = useLang()
 
@@ -589,20 +608,25 @@ export function Done({
       step={4}
       hideBack
       action={
-        <div className="flex items-center gap-6">
-          <p className="tabular-nums text-muted">{t('returning', { n })}</p>
+        <div className="receipt-actions flex w-full items-center gap-4">
+          <p className="mr-auto text-sm tabular-nums text-muted">{t('returning', { n: remaining })}</p>
+          <Button variant="ghost" onClick={extend}>{t('moreTime')}</Button>
           <Button onClick={onFinish}>{t('startNew')}</Button>
         </div>
       }
     >
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center">
-        <div className="flex items-center gap-7" role="status">
-          <AnimatedCheck size="h-24 w-24" />
+      <div className="receipt mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center">
+        <div className="receipt-head flex items-center gap-6" role="status">
+          {approved ? <AnimatedCheck size="receipt-mark h-24 w-24" /> : (
+            <span aria-hidden="true" className="receipt-mark flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gold-light/40 text-forest">
+              {declined ? <span className="font-serif text-5xl">?</span> : <ReceiptIcon className="h-10 w-10" />}
+            </span>
+          )}
           <div className="rise min-w-0" style={{ animationDelay: '120ms' }}>
-            <h2 className="text-6xl text-forest">{t('doneTitle')}</h2>
-            <p className="mt-1 text-2xl font-medium text-ink">{t('handoffDoneSub')}</p>
+            <h2 className="receipt-title font-serif leading-none text-forest">{t(approved ? 'doneTitle' : declined ? 'receiptDeclined' : 'receiptSent')}</h2>
+            <p className="receipt-sub mt-2 text-xl text-muted">{t(approved ? 'handoffDoneSub' : declined ? 'receiptDeclinedSub' : 'receiptPendingSub')}</p>
           </div>
-          {room && photo && (
+          {!declined && room && photo && (
             <figure
               className="room-photo ring-grow relative ml-auto h-[176px] w-[300px] shrink-0 overflow-hidden rounded-3xl bg-forest shadow-[0_20px_50px_-24px_rgb(14_59_46/0.9)]"
               style={{ animationDelay: '200ms' }}
@@ -612,13 +636,13 @@ export function Done({
               <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 px-6 pb-4 text-cream">
                 <span className="min-w-0">
                   <span className="block text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</span>
-                  <span className="block truncate text-sm text-cream/85" title={t('roomTypeShown')}>{photo[lang]}</span>
+                  <span className="block text-sm leading-tight text-cream/90" title={t('roomTypeShown')}>{photo[lang]}</span>
                 </span>
                 <span className="font-serif text-6xl font-semibold leading-none">{room}</span>
               </figcaption>
             </figure>
           )}
-          {room && !photo && (
+          {!declined && room && !photo && (
             <div className="ring-grow ml-auto shrink-0 rounded-3xl bg-forest px-9 py-5 text-center text-cream shadow-[0_20px_50px_-24px_rgb(14_59_46/0.9)]" style={{ animationDelay: '200ms' }}>
               <p className="text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</p>
               <p className="font-serif text-6xl font-semibold">{room}</p>
@@ -626,7 +650,7 @@ export function Done({
           )}
         </div>
         {(showWifi || showBreakfast) && (
-          <div className={`mt-10 grid gap-5 ${showWifi && showBreakfast ? 'grid-cols-[1.6fr_1fr]' : 'max-w-3xl grid-cols-1'}`}>
+          <div className={`receipt-cards mt-8 grid gap-5 ${showWifi && showBreakfast ? 'grid-cols-[1.6fr_1fr]' : 'max-w-3xl grid-cols-1'}`}>
             {showWifi && (
               <div className="rise" style={{ animationDelay: '260ms' }}>
                 {wifi ? <WifiCard wifi={wifi} /> : <VoucherCard url={voucher!.url} expiresAt={voucher!.expiresAt} />}
@@ -649,5 +673,3 @@ export function Done({
     </Shell>
   )
 }
-
-export { useCountdown }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { useLang, useT } from '../i18n'
 import type { Key } from '../translations'
 import { ArrowLeft, ArrowRight, Brand } from '../ui'
@@ -16,6 +16,8 @@ const FILTERS: { id: Filter; label: Key }[] = [
   { id: 'wellness', label: 'galleryWellness' },
 ]
 const AUTOPLAY_MS = 5000
+const SHIFT_MS = 350
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const mod = (n: number, m: number) => ((n % m) + m) % m
 
 function CloseIcon({ className = 'h-6 w-6' }: { className?: string }) {
@@ -59,27 +61,44 @@ export function Gallery({
 }) {
   const t = useT()
   const lang = useLang()
+  const [indexOpen, setIndexOpen] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const list = useMemo<Slide[]>(() => (filter === 'all' ? SLIDES : SLIDES.filter((s) => s.cat === filter)), [filter])
-  const [i, setI] = useState(() => mod(start, SLIDES.length))
+  const [i, setI] = useState(() => Number.isFinite(start) ? mod(Math.trunc(start), SLIDES.length) : 0)
   const [shift, setShift] = useState(0) // px offset of the photo strip while dragging or animating
   const [animating, setAnimating] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [playing, setPlaying] = useState(false)
   const stage = useRef<HTMLDivElement>(null)
   const strip = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ x: number; y: number; t: number; id: number } | null>(null)
+  const drag = useRef<{ x: number; t: number; id: number } | null>(null)
   const pending = useRef(0)
+  const indexBtn = useRef<HTMLButtonElement>(null)
+  const indexGrid = useRef<HTMLDivElement>(null)
   const closeBtn = useRef<HTMLButtonElement>(null)
   const n = list.length
   const slide = list[i]
 
-  useEffect(() => closeBtn.current?.focus({ preventScroll: true }), [])
+  useEffect(() => {
+    const opener = document.activeElement
+    closeBtn.current?.focus({ preventScroll: true })
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true })
+    }
+  }, [])
+  useEffect(() => {
+    if (indexOpen) indexGrid.current?.querySelector<HTMLElement>('[aria-current="true"]')?.focus()
+  }, [indexOpen])
 
   // Slide one photo left or right with an animation, then re-centre the strip.
   const step = useCallback(
     (dir: 1 | -1) => {
       if (n < 2 || pending.current) return
+      if (reducedMotion()) {
+        setShift(0)
+        setI((x) => mod(x + dir, n))
+        return
+      }
       const w = stage.current?.clientWidth ?? window.innerWidth
       pending.current = dir
       setAnimating(true)
@@ -87,17 +106,23 @@ export function Gallery({
     },
     [n],
   )
-  const settle = () => {
+  const settle = useCallback(() => {
     if (!pending.current) return
     const dir = pending.current
     pending.current = 0
     setAnimating(false)
     setShift(0)
     setI((x) => mod(x + dir, n))
-  }
+  }, [n])
+
+  // A fully dragged page or a hidden WebView may not emit transitionend.
+  useEffect(() => {
+    if (!animating) return
+    const timer = window.setTimeout(settle, SHIFT_MS + 60)
+    return () => window.clearTimeout(timer)
+  }, [animating, settle])
 
   const jump = (to: number) => {
-    if (to === i) return
     pending.current = 0
     setAnimating(false)
     setShift(0)
@@ -116,10 +141,8 @@ export function Gallery({
   // Close by itself when nobody has touched it for a while. (Callbacks via refs: the kiosk re-renders
   // every minute, and re-subscribing would restart the timer.)
   const onIdleRef = useRef(onIdle)
-  const onCloseRef = useRef(onClose)
   useEffect(() => {
     onIdleRef.current = onIdle
-    onCloseRef.current = onClose
   })
   const hasIdle = !!onIdle
   useEffect(() => {
@@ -137,33 +160,49 @@ export function Gallery({
     }
   }, [hasIdle, idleMs])
 
-  // Keyboard (for staff testing on a laptop).
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') (user(), step(1))
-      else if (e.key === 'ArrowLeft') (user(), step(-1))
-      else if (e.key === 'Escape') onCloseRef.current()
+  const showIndex = () => {
+    user()
+    jump(i)
+    setIndexOpen(true)
+  }
+
+  const leaveIndex = (photo: number) => {
+    jump(photo)
+    setIndexOpen(false)
+    requestAnimationFrame(() => indexBtn.current?.focus({ preventScroll: true }))
+  }
+
+  const onKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Tab') {
+      const controls = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not([disabled])')]
+        .filter((button) => button.tabIndex >= 0 && button.getClientRects().length)
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last?.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first?.focus()
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      if (indexOpen) leaveIndex(i)
+      else onClose()
+    } else if (!indexOpen && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+      event.preventDefault()
+      user()
+      step(event.key === 'ArrowRight' ? 1 : -1)
     }
-    window.addEventListener('keydown', key)
-    return () => window.removeEventListener('keydown', key)
-  }, [step])
+  }
 
   // Keep the active thumbnail in view.
   useEffect(() => {
     const el = strip.current?.querySelector<HTMLElement>(`[data-thumb="${i}"]`)
     const box = strip.current
     if (!el || !box) return
-    box.scrollTo({ left: el.offsetLeft - box.clientWidth / 2 + el.clientWidth / 2, behavior: 'smooth' })
-  }, [i, filter])
-
-  // Preload the neighbours so a swipe never shows a blank photo.
-  useEffect(() => {
-    if (n < 2) return
-    for (const k of [1, -1, 2]) {
-      const img = new Image()
-      img.src = list[mod(i + k, n)].src
-    }
-  }, [i, n, list])
+    box.scrollTo({ left: el.offsetLeft - box.clientWidth / 2 + el.clientWidth / 2, behavior: reducedMotion() ? 'instant' : 'smooth' })
+  }, [i, filter, indexOpen])
 
   const chooseFilter = (f: Filter) => {
     if (f === filter) return
@@ -180,7 +219,7 @@ export function Gallery({
   // Swipe with one finger: the photo follows the finger, then snaps to the next one.
   const onDown = (e: ReactPointerEvent) => {
     if (pending.current || !e.isPrimary) return
-    drag.current = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId }
+    drag.current = { x: e.clientX, t: performance.now(), id: e.pointerId }
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     setDragging(true)
     user()
@@ -200,12 +239,9 @@ export function Gallery({
     const w = stage.current?.clientWidth ?? window.innerWidth
     const speed = Math.abs(dx) / Math.max(1, performance.now() - d.t) // px per ms
     if (n > 1 && (Math.abs(dx) > w * 0.18 || (Math.abs(dx) > 30 && speed > 0.45))) {
-      const dir = dx < 0 ? 1 : -1
-      pending.current = dir
-      setAnimating(true)
-      setShift(-dir * w)
+      step(dx < 0 ? 1 : -1)
     } else {
-      setAnimating(true)
+      setAnimating(!reducedMotion())
       setShift(0)
     }
   }
@@ -213,40 +249,46 @@ export function Gallery({
   const panels = n === 0 ? [] : n === 1 ? [0] : [-1, 0, 1]
 
   return (
-    <div className="gl-root fixed [&_button]:pointer-events-auto inset-0 z-[54] select-none overflow-hidden bg-forest-deep text-cream" role="dialog" aria-modal="true" aria-label={t('galleryTitle')}>
+    <div onKeyDown={onKey} className={`gl-root ${indexOpen ? 'gl-index-open' : ''} fixed [&_button]:pointer-events-auto inset-0 z-[54] select-none overflow-hidden bg-forest-deep text-cream`} role="dialog" aria-modal="true" aria-label={t('galleryTitle')}>
       {/* Photos */}
-      <div
-        ref={stage}
-        className="absolute inset-0 touch-none"
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onUp}
-      >
+      {!indexOpen && <>
         <div
-          className="absolute inset-0"
-          style={{
-            transform: `translate3d(${shift}px,0,0)`,
-            transition: animating && !dragging ? 'transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
-          }}
-          onTransitionEnd={(e) => {
-            if (e.target !== e.currentTarget) return
-            setAnimating(false)
-            settle()
+          ref={stage}
+          className="absolute inset-0 touch-none"
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={() => {
+            drag.current = null
+            setDragging(false)
+            setShift(0)
           }}
         >
-          {panels.map((k) => {
-            const idx = mod(i + k, n)
-            const s = list[idx]
-            return (
-              <div key={n > 2 ? s.src : `${k}:${s.src}`} className="absolute inset-0" style={{ transform: `translate3d(${k * 100}%,0,0)` }} aria-hidden={k !== 0}>
-                <SlideImage slide={s} alt={k === 0 ? s[lang] : ''} />
-              </div>
-            )
-          })}
+          <div
+            className="absolute inset-0"
+            style={{
+              transform: `translate3d(${shift}px,0,0)`,
+              transition: animating && !dragging ? `transform ${SHIFT_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)` : 'none',
+            }}
+            onTransitionEnd={(e) => {
+              if (e.target !== e.currentTarget) return
+              setAnimating(false)
+              settle()
+            }}
+          >
+            {panels.map((k) => {
+              const idx = mod(i + k, n)
+              const s = list[idx]
+              return (
+                <div key={n > 2 ? s.src : `${k}:${s.src}`} className="absolute inset-0" style={{ transform: `translate3d(${k * 100}%,0,0)` }} aria-hidden={k !== 0}>
+                  <SlideImage slide={s} alt={k === 0 ? s[lang] : ''} />
+                </div>
+              )
+            })}
+          </div>
         </div>
-      </div>
-      <div className="gl-scrim pointer-events-none absolute inset-0" aria-hidden="true" />
+        <div className="gl-scrim pointer-events-none absolute inset-0" aria-hidden="true" />
+      </>}
 
       {/* Top bar */}
       <header className="gl-head gl-fade-down pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-6 px-8 pt-6 xl:px-10">
@@ -281,125 +323,110 @@ export function Gallery({
         </div>
       </header>
 
-      {/* Arrows */}
-      {n > 1 && (
-        <>
-          <button
-            type="button"
-            aria-label={t('galleryPrev')}
-            onClick={() => (user(), step(-1))}
-            className="gl-arrow left-6 xl:left-8"
-          >
-            <ArrowLeft className="h-7 w-7" />
-          </button>
-          <button
-            type="button"
-            aria-label={t('galleryNext')}
-            onClick={() => (user(), step(1))}
-            className="gl-arrow right-6 xl:right-8"
-          >
-            <ArrowRight className="h-7 w-7" />
-          </button>
-        </>
-      )}
-
-      {/* Caption, counter, slideshow and filmstrip */}
-      <footer className="gl-foot gl-fade-up pointer-events-none absolute inset-x-0 bottom-0 px-8 pb-6 xl:px-10">
-        {slide && (
-          <div className="gl-foot-row flex items-end justify-between gap-6">
-            <div key={`${filter}:${i}`} className="gl-caption min-w-0">
-              <p className="gl-title font-serif text-5xl font-semibold leading-tight text-cream">{slide[lang]}</p>
-              <p className="gl-sub mt-1 text-lg text-gold-light">
-                {(['en', 'ru', 'tg'] as const)
-                  .filter((l) => l !== lang)
-                  .map((l, j) => (
-                    <span key={l} lang={l}>
-                      {j > 0 && <span className="mx-2 text-cream/50" aria-hidden="true">/</span>}
-                      {slide[l]}
-                    </span>
-                  ))}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-4">
-              <span className="font-serif text-3xl font-semibold tabular-nums text-cream" aria-live="polite">
-                {i + 1}
-                <span className="mx-1.5 text-gold-light">/</span>
-                {n}
-              </span>
-              {n > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setPlaying((p) => !p)}
-                  aria-pressed={playing}
-                  className="relative flex min-h-14 cursor-pointer items-center gap-2 overflow-hidden rounded-xl border border-cream/30 bg-forest-deep/55 px-5 text-base font-medium text-cream backdrop-blur-md transition active:scale-[0.97]"
-                >
-                  <PlayPauseIcon playing={playing} />
-                  {playing ? t('galleryPause') : t('galleryPlay')}
-                  {playing && (
-                    <span key={i} className="gl-progress absolute inset-x-0 bottom-0 h-0.5 bg-gold-light" style={{ animationDuration: `${AUTOPLAY_MS}ms` }} aria-hidden="true" />
-                  )}
-                </button>
-              )}
-            </div>
+      {indexOpen ? (
+        <section className="gl-index" aria-labelledby="photo-index-title">
+          <h2 id="photo-index-title" className="gl-index-heading">{t('galleryIndex')} <span>{n}</span></h2>
+          <div key={filter} ref={indexGrid} className="gl-index-grid">
+            {list.map((photo, position) => (
+              <button type="button" key={photo.src} aria-current={position === i} onClick={() => leaveIndex(position)}>
+                <img src={photo.thumb} alt="" loading="lazy" decoding="async" draggable={false} />
+                <span className="gl-index-label"><span>{photo[lang]}</span><small>{position + 1}</small></span>
+              </button>
+            ))}
           </div>
-        )}
-        <div ref={strip} className="gl-strip pointer-events-auto mt-5 flex gap-2.5 overflow-x-auto pb-1">
-          {list.map((s, k) => (
+        </section>
+      ) : <>
+        {/* Arrows */}
+        {n > 1 && (
+          <>
             <button
-              key={s.src}
               type="button"
-              data-thumb={k}
-              onClick={() => (user(), jump(k))}
-              aria-label={s[lang]}
-              aria-current={k === i}
-              className={`gl-thumb relative h-[68px] w-[102px] shrink-0 cursor-pointer overflow-hidden rounded-lg ${k === i ? 'is-active' : ''}`}
+              aria-label={t('galleryPrev')}
+              onClick={() => (user(), step(-1))}
+              className="gl-arrow left-6 xl:left-8"
             >
-              <img src={s.thumb} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
+              <ArrowLeft className="h-7 w-7" />
             </button>
-          ))}
-        </div>
-      </footer>
+            <button
+              type="button"
+              aria-label={t('galleryNext')}
+              onClick={() => (user(), step(1))}
+              className="gl-arrow right-6 xl:right-8"
+            >
+              <ArrowRight className="h-7 w-7" />
+            </button>
+          </>
+        )}
+
+        {/* Caption, counter, slideshow and filmstrip */}
+        <footer className="gl-foot gl-fade-up pointer-events-none absolute inset-x-0 bottom-0 px-8 pb-6 xl:px-10">
+          {slide && (
+            <div className="gl-foot-row flex items-end justify-between gap-6">
+              <div key={`${filter}:${i}`} className="gl-caption min-w-0">
+                <p className="gl-title font-serif text-5xl font-semibold leading-tight text-cream">{slide[lang]}</p>
+              </div>
+              <div className="gl-tools flex shrink-0 items-center gap-4">
+                <button ref={indexBtn} type="button" className="gl-index-button" onClick={showIndex}>
+                  <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                    <rect x="2" y="2" width="6" height="6" rx="1" /><rect x="12" y="2" width="6" height="6" rx="1" />
+                    <rect x="2" y="12" width="6" height="6" rx="1" /><rect x="12" y="12" width="6" height="6" rx="1" />
+                  </svg>
+                  {t('galleryIndex')}
+                </button>
+                <span className="font-serif text-3xl font-semibold tabular-nums text-cream gl-count" aria-hidden="true">
+                  {i + 1}
+                  <span className="mx-1.5 text-gold-light">/</span>
+                  {n}
+                </span>
+                {n > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setPlaying((p) => !p)}
+                    aria-pressed={playing}
+                    className="relative flex min-h-14 cursor-pointer items-center gap-2 overflow-hidden rounded-xl border border-cream/30 bg-forest-deep/55 px-5 text-base font-medium text-cream backdrop-blur-md transition active:scale-[0.97]"
+                  >
+                    <PlayPauseIcon playing={playing} />
+                    {playing ? t('galleryPause') : t('galleryPlay')}
+                    {playing && (
+                      <span key={i} className="gl-progress absolute inset-x-0 bottom-0 h-0.5 bg-gold-light" style={{ animationDuration: `${AUTOPLAY_MS}ms` }} aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          <p aria-live={playing ? 'off' : 'polite'} aria-atomic="true" className="sr-only">{slide[lang]}. {t('galleryPosition', { i: i + 1, n })}</p>
+          <div ref={strip} className="gl-strip pointer-events-auto mt-5 flex gap-2.5 overflow-x-auto pb-1">
+            {list.map((s, k) => (
+              <button
+                key={s.src}
+                type="button"
+                data-thumb={k}
+                onClick={() => (user(), jump(k))}
+                aria-label={`${s[lang]}. ${t('galleryPosition', { i: k + 1, n })}`}
+                aria-current={k === i}
+                className={`gl-thumb relative h-[68px] w-[102px] shrink-0 cursor-pointer overflow-hidden rounded-lg ${k === i ? 'is-active' : ''}`}
+              >
+                <img src={s.thumb} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </footer>
+      </>}
     </div>
   )
 }
 
-/** Welcome-screen tile: a slow cross-fade of a few photos that opens the gallery. */
-const TILE_PHOTOS = ['second-floor', 'deluxe-king-room', 'pool', 'restaurant', 'lobby', 'executive-suite1'].map((f) => `/gallery/${f}.webp`)
-
 export function GalleryTile({ onOpen, className = '', style }: { onOpen: () => void; className?: string; style?: CSSProperties }) {
   const t = useT()
-  const [k, setK] = useState(0)
-  useEffect(() => {
-    const id = window.setInterval(() => setK((x) => (x + 1) % TILE_PHOTOS.length), 4500)
-    return () => window.clearInterval(id)
-  }, [])
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      style={style}
-      className={`gl-tile group relative flex min-h-[150px] w-full cursor-pointer items-end overflow-hidden rounded-2xl bg-forest-deep text-left text-cream transition active:scale-[0.99] ${className}`}
-    >
-      {TILE_PHOTOS.map((src, j) => (
-        <img
-          key={src}
-          src={src}
-          alt=""
-          decoding="async"
-          draggable={false}
-          className={`gl-tile-photo absolute inset-0 h-full w-full object-cover ${j === k ? 'is-on' : ''}`}
-        />
-      ))}
-      <span className="absolute inset-0 bg-gradient-to-t from-forest-deep/95 via-forest-deep/35 to-transparent" aria-hidden="true" />
-      <span className="gl-tile-content relative flex w-full items-end justify-between gap-4 px-8 py-6">
-        <span>
-          <span className="gl-tile-title block font-serif text-3xl font-semibold leading-tight">{t('galleryTitle')}</span>
-          <span className="gl-tile-sub mt-1 block text-base text-gold-light">{t('gallerySub', { n: SLIDES.length })}</span>
-        </span>
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cream text-forest shadow-lg" aria-hidden="true">
-          <ArrowRight className="h-5 w-5" />
-        </span>
+    <button type="button" onClick={onOpen} style={style} className={`gl-tile ${className}`}>
+      <img className="gl-tile-photo" src="/gallery/thumbs/deluxe-king-room.webp" alt="" draggable={false} />
+      <span className="gl-tile-content">
+        <span className="gl-tile-title">{t('galleryTitle')}</span>
+        <span className="gl-tile-sub">{t('gallerySub', { n: SLIDES.length })}</span>
       </span>
+      <span className="gl-tile-arrow" aria-hidden="true"><ArrowRight className="h-5 w-5" /></span>
     </button>
   )
 }

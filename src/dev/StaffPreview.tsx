@@ -16,7 +16,9 @@ const reservations: Reservation[] = [
   res('r1', 'FX-1001', 'Fixture Guest One', { status: 'pending_desk' }),
   res('r2', 'FX-1002', 'Fixture Guest Two', { source: 'Direct', room_type: 'Junior Suite' }),
   res('r3', 'FX-1003', 'Fixture Guest Three', { status: 'in_house', room_number: '214', arrival_date: hotelToday(-2), departure_date: t }),
-  res('r4', 'FX-1004', 'Fixture Guest Four', { status: 'in_house', room_number: '508', arrival_date: hotelToday(-1), departure_date: hotelToday(2) }),
+  res('r4', 'FX-1004', 'Fixture Guest Four', { status: 'in_house', room_number: '508', departure_date: hotelToday(2) }),
+  res('r5', 'FX-1005', 'Fixture Guest Five', { status: 'in_house', room_number: '401', arrival_date: hotelToday(-4), departure_date: hotelToday(-1) }),
+  res('r6', 'FX-1006', 'Fixture Guest Six', { status: 'pending_desk', source: 'Direct' }),
 ]
 const checkin = (id: string, rid: string, extra: Partial<Checkin> = {}): Checkin => ({
   id, reservation_id: rid, device_id: 'd1', created_at: iso(3), language: 'ru', doc_source: 'mrz', doc_type: 'P',
@@ -26,7 +28,11 @@ const checkin = (id: string, rid: string, extra: Partial<Checkin> = {}): Checkin
 })
 const data: StaffData = {
   reservations,
-  checkins: [checkin('c1', 'r1'), checkin('c2', 'r4', { status: 'approved', approved_at: iso(1400), created_at: iso(1410), shuttle: false })],
+  checkins: [
+    checkin('c1', 'r1'),
+    checkin('c3', 'r6', { doc_source: 'desk', given_names: 'FIXTURE SIX', document_number: 'X9876543', desk_code: 'G18', created_at: iso(12), consent_at: iso(12), shuttle: false }),
+    checkin('c2', 'r4', { status: 'approved', approved_at: iso(45), created_at: iso(50), consent_at: iso(50), shuttle: false }),
+  ],
   devices: [
     { id: 'd1', name: 'Lobby tablet 1', pairing_code: null, pairing_expires_at: null, paired_at: iso(9000), last_seen_at: iso(0.5), revoked: false, created_at: iso(9000) },
     { id: 'd2', name: 'Lobby tablet 2', pairing_code: 'ABCD2345', pairing_expires_at: iso(-10), paired_at: null, last_seen_at: null, revoked: false, created_at: iso(5) },

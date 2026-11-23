@@ -27,6 +27,7 @@ const en = {
   startNew: 'Done',
 
   chooseLanguage: 'Choose your language',
+  fullscreen: 'Full screen',
   startCheckIn: 'Check in',
   startCheckInSub: 'Takes about 2 minutes',
 
@@ -63,7 +64,7 @@ const en = {
   detailsTitle: 'Your stay with us',
   stayArrival: 'Arrival',
   stayDeparture: 'Departure',
-  stayConfirm: 'Yes, that is me',
+  stayConfirm: 'Confirm and continue',
   phone: 'Phone number',
   email: 'Email address',
   optional: 'optional',
@@ -80,6 +81,10 @@ const en = {
   signHere: 'Sign here',
   clear: 'Clear',
   sigNeeded: 'A signature is required to continue.',
+  signatureAdded: 'Signature added',
+  policyLoading: 'Loading the hotel policy…',
+  policyLoadFailed: 'The hotel policy could not be loaded.',
+  tryAgain: 'Try again',
   finish: 'Finish check-in',
   sending: 'Sending...',
 
@@ -156,6 +161,7 @@ const ru: Dict = {
   startNew: 'Готово',
 
   chooseLanguage: 'Выберите язык',
+  fullscreen: 'Во весь экран',
   startCheckIn: 'Заселение',
   startCheckInSub: 'Займёт около 2 минут',
 
@@ -192,7 +198,7 @@ const ru: Dict = {
   detailsTitle: 'Ваше пребывание у нас',
   stayArrival: 'Заезд',
   stayDeparture: 'Выезд',
-  stayConfirm: 'Да, это я',
+  stayConfirm: 'Подтвердить и продолжить',
   phone: 'Номер телефона',
   email: 'Электронная почта',
   optional: 'необязательно',
@@ -209,6 +215,10 @@ const ru: Dict = {
   signHere: 'Подпись',
   clear: 'Очистить',
   sigNeeded: 'Для продолжения нужна подпись.',
+  signatureAdded: 'Подпись добавлена',
+  policyLoading: 'Загружаем правила отеля…',
+  policyLoadFailed: 'Не удалось загрузить правила отеля.',
+  tryAgain: 'Повторить',
   finish: 'Завершить заселение',
   sending: 'Отправляем...',
 
@@ -283,6 +293,7 @@ const tg: Dict = {
   startNew: 'Тайёр',
 
   chooseLanguage: 'Забонро интихоб кунед',
+  fullscreen: 'Экрани пурра',
   startCheckIn: 'Сабти ном',
   startCheckInSub: 'Тақрибан 2 дақиқа вақт мегирад',
 
@@ -319,7 +330,7 @@ const tg: Dict = {
   detailsTitle: 'Иқомати шумо назди мо',
   stayArrival: 'Омадан',
   stayDeparture: 'Рафтан',
-  stayConfirm: 'Ҳа, ин ман',
+  stayConfirm: 'Тасдиқ кунед ва идома диҳед',
   phone: 'Рақами телефон',
   email: 'Суроғаи почтаи электронӣ',
   optional: 'ихтиёрӣ',
@@ -336,6 +347,10 @@ const tg: Dict = {
   signHere: 'Имзо',
   clear: 'Тоза кардан',
   sigNeeded: 'Барои идома додан имзо лозим аст.',
+  signatureAdded: 'Имзо илова шуд',
+  policyLoading: 'Қоидаҳои меҳмонхона бор мешаванд…',
+  policyLoadFailed: 'Бор кардани қоидаҳои меҳмонхона муяссар нашуд.',
+  tryAgain: 'Боз кӯшиш кунед',
   finish: 'Анҷоми сабти ном',
   sending: 'Фиристода мешавад...',
 

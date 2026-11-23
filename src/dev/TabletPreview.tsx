@@ -91,11 +91,18 @@ export default function TabletPreview() {
   const [key, setKey] = useState(0)
   const [details, setDetails] = useState(emptyDetails)
   const [lang, setLang] = useState<Lang>(initialLang)
+  const [galleryOpen, setGalleryOpen] = useState(screen === 'gallery')
   const again = () => setKey((k) => k + 1)
   const view = (() => {
     switch (screen) {
       case 'welcome':
-        return <Welcome lang={lang} setLang={setLang} hotelName={config.hotel_name} onSettings={noop} onGallery={noop} />
+      case 'gallery':
+        return (
+          <>
+            <Welcome lang={lang} setLang={setLang} hotelName={config.hotel_name} onSettings={noop} onGallery={() => setGalleryOpen(true)} />
+            {galleryOpen && <Gallery start={Number(q.get('at') ?? 0)} onClose={() => setGalleryOpen(false)} />}
+          </>
+        )
       case 'details':
         return <DetailsStep
             value={details}
@@ -128,13 +135,6 @@ export default function TabletPreview() {
         return <TabletSettings device={{ id: 'x', name: 'Lobby tablet 1', secret: '', camera: 'user' }} hotel={config.hotel_name} online onClose={noop} />
       case 'saver':
         return <Screensaver onWake={noop} />
-      case 'gallery':
-        return (
-          <>
-            <Welcome lang={lang} setLang={setLang} hotelName={config.hotel_name} onSettings={noop} onGallery={noop} />
-            <Gallery key={key} start={Number(q.get('at') ?? 0)} onClose={again} />
-          </>
-        )
       default:
         return <Done key={key} onFinish={again} breakfast config={config} room={null} roomType={q.get('type') ?? 'Deluxe Double'} checkinId="fixture" />
     }

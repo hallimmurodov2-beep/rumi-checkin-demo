@@ -1,6 +1,6 @@
 // Offline support for The Rumi self check-in app.
 // Navigations: network first, fall back to the cached app shell.
-// Same-origin assets and Google Fonts: serve from cache, refresh in the background.
+// Same-origin assets: serve from cache, refresh in the background.
 // API calls to Supabase are never cached.
 // The build id in CACHE is filled in at build time (vite.config.ts), so each deploy installs a new worker.
 const CACHE = 'rumi-__BUILD_ID__'
@@ -39,11 +39,7 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  const cacheable =
-    url.origin === self.location.origin ||
-    url.hostname === 'fonts.googleapis.com' ||
-    url.hostname === 'fonts.gstatic.com'
-  if (!cacheable) return
+  if (url.origin !== self.location.origin) return
 
   e.respondWith(
     caches.open(CACHE).then(async (c) => {

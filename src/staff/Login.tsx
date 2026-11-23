@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { errorCode, supabase } from '../lib/supabase'
-import { Brand, COLORS, Emblem, Spinner } from '../ui'
+import { ArrowLeft, Brand, Spinner } from '../ui'
 import { Btn, Field, errorText } from './kit'
 
 type Mode = 'signin' | 'signup' | 'forgot' | 'reset'
@@ -49,6 +50,12 @@ export function Login({ recovery, onRecovered }: { recovery?: boolean; onRecover
     }
   }
 
+  const changeMode = (next: Mode) => {
+    setMode(next)
+    setPassword('')
+    setMsg(null)
+  }
+
   const titles: Record<Mode, string> = {
     signin: 'Sign in',
     signup: 'Create a staff account',
@@ -57,72 +64,79 @@ export function Login({ recovery, onRecovered }: { recovery?: boolean; onRecover
   }
 
   return (
-    <div className="flex min-h-dvh bg-cream">
-      <aside className="relative hidden w-[44%] flex-col justify-between overflow-hidden bg-forest p-12 text-cream lg:flex">
-        <Emblem color={COLORS.goldLight} className="pointer-events-none absolute -bottom-32 -right-32 h-[520px] w-[520px] opacity-[0.07]" />
-        <Brand tone="light" size="lg" />
-        <div className="rise relative">
-          <p className="text-sm font-semibold tracking-[0.2em] text-gold-light">FRONT DESK</p>
-          <h1 className="mt-3 text-6xl leading-[1.05]">Self check-in, managed from one screen.</h1>
-          <p className="mt-5 max-w-md text-lg text-cream/80">Arrivals, tablet check-ins and passport review, live.</p>
-        </div>
-        <p className="relative text-sm text-cream/60">The Rumi Hotel &amp; Residences · Dushanbe</p>
+    <div className="min-h-dvh bg-cream lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+      <aside className="relative isolate hidden min-h-dvh flex-col justify-between overflow-hidden bg-forest-deep p-10 text-cream lg:flex xl:p-14">
+        <img
+          src="/gallery/entrance.webp"
+          alt=""
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-center"
+        />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-forest-deep/90 via-forest-deep/25 to-forest-deep/95" aria-hidden="true" />
+        <Brand tone="light" />
+        <p className="max-w-[10ch] border-t border-gold-light/50 pt-5 font-serif text-[clamp(3rem,6.5vw,6.25rem)] leading-[0.9] tracking-[-0.025em]">
+          Front desk
+        </p>
       </aside>
 
-      <main className="flex flex-1 items-center justify-center px-5 py-10">
-        <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden">
-            <Brand />
-          </div>
-          <h2 key={mode} className="fade-in text-4xl text-forest">{titles[mode]}</h2>
-          {mode === 'signup' && (
-            <p className="mt-2 text-sm text-muted">The first account becomes the administrator. Later accounts need approval from an administrator.</p>
-          )}
-          <form onSubmit={submit} className="mt-6 space-y-4">
-            {mode === 'signup' && <Field label="Full name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />}
-            {mode !== 'reset' && (
-              <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+      <main className="flex min-h-dvh flex-col px-5 py-5 sm:px-10 lg:px-12">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link to="/" className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold text-forest hover:underline">
+            <ArrowLeft className="h-4 w-4" /> Check-in home
+          </Link>
+          <div className="lg:hidden"><Brand size="sm" /></div>
+        </div>
+        <div className="mx-auto flex w-full max-w-md flex-1 items-center py-8">
+          <div className="w-full rounded-2xl border border-line bg-paper p-6 shadow-[0_18px_60px_-44px_rgb(14_59_46/0.35)] sm:p-9">
+            <h1 key={mode} className="text-4xl leading-none text-forest sm:text-5xl">{titles[mode]}</h1>
+            {mode === 'signup' && (
+              <p className="mt-2 text-sm text-muted">The first account becomes the administrator. Later accounts need approval from an administrator.</p>
             )}
-            {mode !== 'forgot' && (
-              <Field
-                label={mode === 'reset' ? 'New password' : 'Password'}
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                minLength={mode === 'signin' ? undefined : 8}
-                hint={mode === 'signin' ? undefined : 'At least 8 characters.'}
-                required
-              />
-            )}
-            {msg && (
-              <p role={msg.tone === 'error' ? 'alert' : 'status'} className={`fade-in rounded-lg px-3 py-2.5 text-sm ${msg.tone === 'error' ? 'bg-[#FDF1EC] text-danger' : 'bg-forest/10 text-forest'}`}>
-                {msg.text}
-              </p>
-            )}
-            <Btn type="submit" tone="primary" className="w-full !min-h-12 !text-base" disabled={busy}>
-              {busy && <Spinner className="h-4 w-4" />}
-              {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : 'Save password'}
-            </Btn>
-          </form>
-          {mode !== 'reset' && (
-            <div className="mt-6 flex flex-wrap justify-between gap-2 text-sm">
-              {mode === 'signin' ? (
-                <>
-                  <button type="button" className="min-h-11 cursor-pointer font-medium text-forest underline-offset-4 hover:underline" onClick={() => setMode('signup')}>
-                    Create an account
-                  </button>
-                  <button type="button" className="min-h-11 cursor-pointer text-muted underline-offset-4 hover:underline" onClick={() => setMode('forgot')}>
-                    Forgot password?
-                  </button>
-                </>
-              ) : (
-                <button type="button" className="min-h-11 cursor-pointer font-medium text-forest underline-offset-4 hover:underline" onClick={() => { setMode('signin'); setMsg(null) }}>
-                  Back to sign in
-                </button>
+            <form onSubmit={submit} className="mt-6 space-y-4">
+              {mode === 'signup' && <Field label="Full name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />}
+              {mode !== 'reset' && (
+                <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
               )}
-            </div>
-          )}
+              {mode !== 'forgot' && (
+                <Field
+                  label={mode === 'reset' ? 'New password' : 'Password'}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                  minLength={mode === 'signin' ? undefined : 8}
+                  hint={mode === 'signin' ? undefined : 'At least 8 characters.'}
+                  required
+                />
+              )}
+              {msg && (
+                <p role={msg.tone === 'error' ? 'alert' : 'status'} className={`fade-in rounded-lg px-3 py-2.5 text-sm ${msg.tone === 'error' ? 'bg-[#FDF1EC] text-danger' : 'bg-forest/10 text-forest'}`}>
+                  {msg.text}
+                </p>
+              )}
+              <Btn type="submit" tone="primary" className="w-full !min-h-12 !text-base" disabled={busy}>
+                {busy && <Spinner className="h-4 w-4" />}
+                {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : 'Save password'}
+              </Btn>
+            </form>
+            {mode !== 'reset' && (
+              <div className="mt-6 flex flex-wrap justify-between gap-2 text-sm">
+                {mode === 'signin' ? (
+                  <>
+                    <button type="button" className="min-h-11 cursor-pointer font-medium text-forest underline-offset-4 hover:underline" disabled={busy} onClick={() => changeMode('signup')}>
+                      Create an account
+                    </button>
+                    <button type="button" className="min-h-11 cursor-pointer text-muted underline-offset-4 hover:underline" disabled={busy} onClick={() => changeMode('forgot')}>
+                      Forgot password?
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="min-h-11 cursor-pointer font-medium text-forest underline-offset-4 hover:underline" disabled={busy} onClick={() => changeMode('signin')}>
+                    Back to sign in
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>

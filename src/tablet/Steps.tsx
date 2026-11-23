@@ -7,10 +7,11 @@ import { Markdown } from '../lib/markdown'
 import { wifiQrText } from '../lib/wifi'
 import { fmtDay, LANGS, LOCALE, type Lang } from '../translations'
 import { dushanbeTime, hasLobbyWifiPairing, useWifiVoucher, wifiVoucherText } from './frontdesk'
-import { AnimatedCheck, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, Spinner, WifiIcon } from '../ui'
+import { AnimatedCheck, ArrowRight, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, Spinner, WifiIcon } from '../ui'
 import { Shell } from './Shell'
 import { roomTypePhoto } from './gallery'
 import './gallery.css'
+import './steps.css'
 
 export function NeedHelp({ onBack, onStart, step, title }: { onBack?: () => void; onStart: () => void; step?: number; title?: string }) {
   const t = useT()
@@ -53,8 +54,10 @@ function DateBlock({ label, iso, align }: { label: string; iso: string; align: '
   return (
     <div className={`min-w-0 ${align === 'right' ? 'text-right' : ''}`}>
       <p className="eyebrow">{label}</p>
-      <p className="mt-1 font-serif text-4xl font-semibold leading-none text-forest">{fmtDay(iso, lang)}</p>
-      {weekday && <p className="mt-1.5 text-base capitalize text-muted">{weekday}</p>}
+      <time className="stay-date mt-1 block font-serif text-4xl font-semibold leading-none text-forest" dateTime={iso}>
+        {fmtDay(iso, lang)}
+      </time>
+      {weekday && <p className="mt-1 text-sm capitalize text-muted">{weekday}</p>}
     </div>
   )
 }
@@ -91,81 +94,81 @@ export function DetailsStep({
       step={2}
       hideBack
       action={
-        <div className="flex w-full items-center justify-between gap-4">
-          <button type="button" onClick={onNotMe} className="min-h-12 cursor-pointer rounded-lg px-3 text-base text-muted underline underline-offset-4 hover:text-forest">
-            {t('notMe')}
+        <div className="stay-actions flex w-full items-center justify-between gap-3">
+          <button type="button" onClick={onNotMe} className="min-h-12 cursor-pointer rounded-lg px-2 text-left text-base text-muted underline underline-offset-4 hover:text-forest">
+            {t('notMine')}
           </button>
-          <Button onClick={onNext}>{t('stayConfirm')}</Button>
+          <Button onClick={onNext}>{t('stayConfirm')} <ArrowRight className="h-5 w-5 shrink-0" /></Button>
         </div>
       }
     >
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center gap-5">
+      <div className="stay-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-5">
         <div>
-          {greetName && <p className="rise font-serif text-3xl font-semibold text-label">{t('welcomeName', { name: greetName })}</p>}
-          <h2 className="text-5xl text-forest">{t('detailsTitle')}</h2>
+          {greetName && <p className="stay-greeting rise text-lg font-medium text-label">{t('welcomeName', { name: greetName })}</p>}
+          <h2 className="stay-title text-6xl leading-tight text-forest">{t('detailsTitle')}</h2>
         </div>
-        <div className="grid grid-cols-[1.25fr_1fr] gap-6 max-[900px]:grid-cols-1">
+        <div className="stay-columns grid gap-5">
           {/* Left: the room, then the dates. */}
-          <div className="flex min-w-0 flex-col gap-4">
-            <figure className="rise relative h-[260px] overflow-hidden rounded-3xl bg-forest shadow-[0_24px_60px_-28px_rgb(14_59_46/0.9)] max-[900px]:h-[200px]">
+          <div className="stay-stack flex min-w-0 flex-col gap-4">
+            <figure className="stay-photo rise relative overflow-hidden rounded-3xl bg-forest shadow-[0_24px_60px_-28px_rgb(14_59_46/0.9)]">
               {photo && <img src={photo.src} alt="" decoding="async" draggable={false} className="absolute inset-0 h-full w-full object-cover" />}
               <span className="absolute inset-0 bg-gradient-to-t from-forest-deep/95 via-forest-deep/35 to-transparent" aria-hidden="true" />
-              <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-7 pb-5 text-cream">
+              <figcaption className="stay-caption absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-6 pb-5 text-cream">
                 <span className="min-w-0">
                   <span className="block text-xs font-semibold tracking-[0.18em] text-gold-light">{t('yourRoom').toUpperCase()}</span>
-                  <span className="mt-1 block truncate font-serif text-4xl font-semibold leading-tight">{roomName}</span>
+                  <span className="stay-room-name mt-1 block font-serif text-4xl font-semibold leading-tight">{roomName || t('room')}</span>
                 </span>
-                <span className="shrink-0 rounded-full border border-cream/30 bg-forest-deep/50 px-4 py-1.5 text-base backdrop-blur-md">
+                <span className="shrink-0 rounded-full border border-cream/30 bg-forest-deep/50 px-3 py-1.5 text-sm backdrop-blur-md">
                   {t('guests')}: {reservation.adults}
                 </span>
               </figcaption>
             </figure>
-            <div className="rise card flex items-center justify-between gap-5 px-7 py-5" style={{ animationDelay: '100ms' }}>
+            <div className="stay-dates rise card flex items-center justify-between gap-3 px-5 py-4" style={{ animationDelay: '100ms' }}>
               <DateBlock label={t('stayArrival')} iso={reservation.arrival_date} align="left" />
-              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 text-muted" aria-hidden="true">
-                <span className="flex w-full items-center gap-3">
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 text-muted">
+                <span className="flex w-full items-center gap-2" aria-hidden="true">
                   <span className="h-px flex-1 bg-gold/60" />
                   <MoonIcon className="h-5 w-5 text-gold" />
                   <span className="h-px flex-1 bg-gold/60" />
                 </span>
-                <span className="text-sm font-medium text-forest">{nights === 1 ? t('oneNight') : t('nights', { n: nights })}</span>
+                <span className="text-center text-sm font-medium text-forest">{nights === 1 ? t('oneNight') : t('nights', { n: nights })}</span>
               </div>
               <DateBlock label={t('stayDeparture')} iso={reservation.departure_date} align="right" />
             </div>
           </div>
 
           {/* Right: breakfast reminder and the shuttle question. */}
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="stay-stack flex min-w-0 flex-col gap-4">
             {showBreakfast && (
-              <div className="rise card flex items-start gap-4 p-6" style={{ animationDelay: '160ms' }}>
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold-light/60 text-forest">
+              <div className="stay-service rise card flex items-start gap-3 p-5" style={{ animationDelay: '160ms' }}>
+                <span aria-hidden="true" className="stay-service-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold-light/45 text-forest">
                   <CupIcon />
                 </span>
                 <div className="min-w-0">
-                  <h3 className="text-2xl text-forest">{t('breakfastIncluded')}</h3>
-                  <p className="mt-1 text-lg text-muted">{t('breakfastInfo', { hours: breakfastHours! })}</p>
+                  <h3 className="stay-service-title text-2xl leading-tight text-forest">{t('breakfastIncluded')}</h3>
+                  <p className="mt-1 text-muted">{t('breakfastInfo', { hours: breakfastHours! })}</p>
                 </div>
               </div>
             )}
-            <fieldset className="rise card flex flex-1 flex-col p-6" style={{ animationDelay: '220ms' }}>
+            <fieldset className="stay-service rise card flex min-w-0 flex-1 flex-col p-5" aria-describedby="shuttle-question" style={{ animationDelay: '220ms' }}>
               <legend className="sr-only">{t('shuttleTitle')}</legend>
-              <div className="flex items-start gap-4">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold-light/60 text-forest">
+              <div className="flex items-start gap-3">
+                <span aria-hidden="true" className="stay-service-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold-light/45 text-forest">
                   <CarIcon />
                 </span>
                 <div className="min-w-0">
-                  <h3 className="text-2xl text-forest">{t('shuttleTitle')}</h3>
-                  <p className="mt-1 text-lg text-muted">{t('shuttleQ')}</p>
+                  <h3 className="stay-service-title text-2xl leading-tight text-forest">{t('shuttleTitle')}</h3>
+                  <p className="mt-1 text-muted" id="shuttle-question">{t('shuttleQ')}</p>
                 </div>
               </div>
-              <div className="mt-auto grid grid-cols-2 gap-3 pt-5">
+              <div className="stay-shuttle-options mt-auto grid grid-cols-2 gap-3 pt-4">
                 {(['yes', 'no'] as const).map((v) => (
                   <button
                     key={v}
                     type="button"
                     aria-pressed={value.shuttle === v}
                     onClick={() => onChange({ ...value, shuttle: value.shuttle === v ? null : v })}
-                    className={`flex min-h-16 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 text-lg font-medium transition-all duration-200 active:scale-[0.98] ${
+                    className={`flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 text-lg font-medium transition-colors duration-200 ${
                       value.shuttle === v ? 'border-forest bg-forest text-cream' : 'border-line bg-white text-ink hover:border-forest/50'
                     }`}
                   >
@@ -174,7 +177,7 @@ export function DetailsStep({
                   </button>
                 ))}
               </div>
-              <p className={`mt-3 min-h-6 text-base text-muted transition-opacity ${value.shuttle === 'yes' ? 'fade-in opacity-100' : 'opacity-0'}`}>{t('shuttleNote')}</p>
+              {value.shuttle === 'yes' && <p className="stay-shuttle-note fade-in mt-2 text-sm text-muted" role="status">{t('shuttleNote')}</p>}
             </fieldset>
           </div>
         </div>
@@ -201,22 +204,25 @@ function exportSignature(c: HTMLCanvasElement): string {
   return out.toDataURL('image/png')
 }
 
-/** The hotel policy in the guest's language (English fallback); null when none is published. */
-function usePolicy(lang: Lang): Policy | null | 'loading' {
-  const [p, setP] = useState<Policy | null | 'loading'>('loading')
+type PolicyState = Policy | null | 'loading' | 'error'
+
+/** The server falls back to English and returns null when no policy is published. */
+function usePolicy(lang: Lang, attempt: number): PolicyState {
+  const [result, setResult] = useState<{ lang: Lang; attempt: number; policy: PolicyState }>()
   useEffect(() => {
     let alive = true
-    setP((cur) => (cur && cur !== 'loading' && cur.lang === lang ? cur : 'loading'))
     tablet
       .policy(lang)
-      .then((r) => alive && setP(r))
-      .catch(() => alive && setP(null))
+      .then((policy) => { if (alive) setResult({ lang, attempt, policy }) })
+      .catch(() => { if (alive) setResult({ lang, attempt, policy: 'error' }) })
     return () => {
       alive = false
     }
-  }, [lang])
-  return p
+  }, [lang, attempt])
+  return result?.lang === lang && result.attempt === attempt ? result.policy : 'loading'
 }
+
+const signatureDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dushanbe' })
 
 export function SignatureStep({
   onBack,
@@ -230,62 +236,58 @@ export function SignatureStep({
 }) {
   const t = useT()
   const lang = useLang()
-  const policy = usePolicy(lang)
+  const [policyAttempt, setPolicyAttempt] = useState(0)
+  const policy = usePolicy(lang, policyAttempt)
   const canvas = useRef<HTMLCanvasElement>(null)
-  const drawing = useRef(false)
+  const activePointer = useRef<number | null>(null)
   const pts = useRef<Pt[]>([])
   const length = useRef(0)
-  const [signed, setSigned] = useState(false)
+  const [ink, setInk] = useState<'empty' | 'started' | 'ready'>('empty')
+  const signed = ink === 'ready'
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     const c = canvas.current!
+    let lastSize: { width: number; height: number; dpr: number } | null = null
     const setup = () => {
       const dpr = window.devicePixelRatio || 1
       const r = c.getBoundingClientRect()
-      // Keep what the guest already drew when the box changes size (the policy loading, a language switch).
+      const width = Math.round(r.width * dpr)
+      const height = Math.round(r.height * dpr)
+      if (!width || !height || (lastSize?.dpr === dpr && width === c.width && height === c.height)) return
+      // Scale the bitmap and the last sampled points to the new pad size.
       let prev: HTMLCanvasElement | null = null
-      if (length.current > 0 && c.width && c.height) {
+      if (lastSize) {
         prev = document.createElement('canvas')
         prev.width = c.width
         prev.height = c.height
         prev.getContext('2d')!.drawImage(c, 0, 0)
+        const scaleX = r.width / lastSize.width
+        const scaleY = r.height / lastSize.height
+        pts.current = pts.current.map(({ x, y }) => ({ x: x * scaleX, y: y * scaleY }))
       }
-      c.width = Math.round(r.width * dpr)
-      c.height = Math.round(r.height * dpr)
+      c.width = width
+      c.height = height
       const ctx = c.getContext('2d')!
+      if (prev) ctx.drawImage(prev, 0, 0, width, height)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.lineWidth = 3.2
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
       ctx.strokeStyle = '#17221D'
-      if (prev) {
-        ctx.save()
-        ctx.setTransform(1, 0, 0, 1, 0, 0)
-        ctx.drawImage(prev, 0, 0)
-        ctx.restore()
-        return
-      }
-      length.current = 0
-      setSigned(false)
+      lastSize = { width: r.width, height: r.height, dpr }
     }
     setup()
-    let w = c.getBoundingClientRect().width
-    const ro = new ResizeObserver(() => {
-      const nw = c.getBoundingClientRect().width
-      if (Math.abs(nw - w) > 2) {
-        w = nw
-        setup()
-      }
-    })
+    const ro = new ResizeObserver(setup)
     ro.observe(c)
     return () => ro.disconnect()
   }, [])
 
   const down = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (busy || e.button !== 0 || activePointer.current !== null) return
     e.currentTarget.setPointerCapture?.(e.pointerId)
-    drawing.current = true
+    activePointer.current = e.pointerId
     const r = canvas.current!.getBoundingClientRect()
     const p = { x: e.clientX - r.left, y: e.clientY - r.top }
     pts.current = [p]
@@ -294,9 +296,10 @@ export function SignatureStep({
     ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2)
     ctx.fillStyle = '#17221D'
     ctx.fill()
+    if (ink === 'empty') setInk('started')
   }
   const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawing.current) return
+    if (activePointer.current !== e.pointerId || busy) return
     const ctx = canvas.current!.getContext('2d')!
     const coalesced = e.nativeEvent.getCoalescedEvents?.()
     const events = coalesced && coalesced.length ? coalesced : [e.nativeEvent]
@@ -318,11 +321,13 @@ export function SignatureStep({
         ctx.lineTo(p.x, p.y)
       }
       ctx.stroke()
+      if (arr.length > 2) arr.shift()
     }
-    if (length.current > 40 && !signed) setSigned(true)
+    if (length.current > 40 && !signed) setInk('ready')
   }
-  const up = () => {
-    drawing.current = false
+  const up = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointer.current !== e.pointerId) return
+    activePointer.current = null
     pts.current = []
   }
   const clear = () => {
@@ -333,10 +338,12 @@ export function SignatureStep({
     ctx.clearRect(0, 0, c.width, c.height)
     ctx.restore()
     length.current = 0
-    setSigned(false)
+    setInk('empty')
+    setFailed(false)
   }
+  const policyReady = policy !== 'loading' && policy !== 'error'
   const finish = async () => {
-    if (!signed || busy || policy === 'loading') return
+    if (!signed || busy || !policyReady) return
     setBusy(true)
     setFailed(false)
     try {
@@ -352,66 +359,81 @@ export function SignatureStep({
       step={3}
       onBack={busy ? undefined : onBack}
       action={
-        <Button disabled={!signed || busy || policy === 'loading'} onClick={finish}>
+        <Button disabled={!signed || busy || !policyReady} onClick={finish}>
           {busy && <Spinner />}
           {busy ? t('sending') : t('finish')}
         </Button>
       }
     >
-      <div className={`mx-auto grid min-h-0 w-full flex-1 gap-6 ${policy === null ? 'max-w-4xl grid-cols-1' : 'max-w-6xl grid-cols-[1.05fr_1fr]'}`}>
+      <div className={`signature-screen mx-auto grid w-full flex-1 gap-5 ${policy === null ? 'signature-without-policy max-w-4xl' : 'max-w-6xl'}`}>
         {policy !== null && (
-          <section className="card flex min-h-0 flex-col overflow-hidden" aria-labelledby="policy-title">
-            <h3 id="policy-title" className="border-b border-line px-6 py-4 text-2xl text-forest">{t('policyTitle')}</h3>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4 text-[17px] text-ink">
+          <section className="signature-policy card flex min-w-0 flex-col overflow-hidden" aria-labelledby="policy-title">
+            <div className="signature-policy-heading border-b border-line bg-forest/[0.035] px-6 py-4">
+              <h2 id="policy-title" className="text-3xl text-forest">{t('policyTitle')}</h2>
+              {policyReady && <p className="mt-0.5 text-sm text-muted">{t('sigAgree')}</p>}
+            </div>
+            <div className="signature-policy-content min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4 text-ink" tabIndex={policyReady ? 0 : undefined} role="region" aria-labelledby="policy-title">
               {policy === 'loading' ? (
-                <div className="space-y-3" aria-hidden="true">
-                  {[90, 70, 84, 60, 76].map((w, i) => <span key={i} className="shimmer h-4 rounded-full" style={{ width: `${w}%` }} />)}
+                <div className="space-y-3">
+                  <p className="text-sm text-muted" role="status">{t('policyLoading')}</p>
+                  {[90, 70, 84, 60, 76].map((w, i) => <span key={i} className="shimmer h-4 rounded-full" style={{ width: `${w}%` }} aria-hidden="true" />)}
+                </div>
+              ) : policy === 'error' ? (
+                <div className="space-y-3">
+                  <ErrorNote>{t('policyLoadFailed')}</ErrorNote>
+                  <Button variant="secondary" className="min-h-12 px-4 text-base" onClick={() => setPolicyAttempt((n) => n + 1)}>
+                    {t('tryAgain')}
+                  </Button>
                 </div>
               ) : (
-                <Markdown source={policy.body_md} />
+                <div lang={policy.lang}><Markdown source={policy.body_md} /></div>
               )}
             </div>
           </section>
         )}
-        <div className="flex min-h-0 flex-col">
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <h2 className="text-5xl text-forest">{t('sigTitle')}</h2>
-              <p className="mt-1 text-lg text-muted">{policy ? t('sigAgree') : t('sigHint')}</p>
+        <section className="signature-panel card flex min-w-0 flex-col p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="signature-title text-5xl leading-tight text-forest">{t('sigTitle')}</h2>
+              <p id="signature-hint" className="mt-1 text-muted">{t('sigHint')}</p>
             </div>
-            <Button variant="secondary" onClick={clear} disabled={!signed || busy}>
+            <button type="button" className="min-h-11 cursor-pointer rounded-lg border border-line bg-white px-3 text-sm font-medium text-forest hover:border-forest/50 disabled:cursor-default disabled:opacity-45" onClick={clear} disabled={ink === 'empty' || busy}>
               {t('clear')}
-            </Button>
+            </button>
           </div>
-          <div className="card relative mt-4 min-h-[240px] flex-1 overflow-hidden !bg-white">
+          <div className="signature-pad relative mt-4 flex-1 overflow-hidden rounded-2xl border border-dashed border-forest/25 bg-white">
             <canvas
               ref={canvas}
               aria-label={t('signHere')}
-              className="relative z-10 h-full w-full cursor-crosshair touch-none"
+              aria-describedby="signature-hint"
+              className="absolute inset-0 z-10 h-full w-full cursor-crosshair touch-none"
               onPointerDown={down}
               onPointerMove={move}
               onPointerUp={up}
               onPointerCancel={up}
+              onLostPointerCapture={up}
             />
-            <div aria-hidden="true" className="pointer-events-none absolute inset-x-8 bottom-12 flex items-center gap-3 text-muted">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-5 bottom-6 flex items-center gap-3 text-muted">
               <span className="font-serif text-3xl">×</span>
               <span className="h-px flex-1 bg-line" />
               <span className="text-sm">{t('signHere')}</span>
             </div>
-            <p aria-hidden="true" className="pointer-events-none absolute inset-x-8 bottom-4 text-sm text-muted">
-              {t('signedBy', { name: signerName, date: fmtDay(new Date().toISOString().slice(0, 10), lang, true) })}
+          </div>
+          <div className="signature-status mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-sm">
+            <p className="text-muted">
+              {t('signedBy', { name: signerName, date: fmtDay(signatureDate.format(new Date()), lang, true) })}
+            </p>
+            <p className={`flex items-center gap-1.5 ${signed ? 'font-medium text-forest' : 'text-muted'}`} role="status">
+              {signed && <CheckIcon className="h-4 w-4" />}
+              {t(signed ? 'signatureAdded' : 'sigNeeded')}
             </p>
           </div>
-          <div className="mt-2 min-h-6">
-            {failed ? (
-              <ErrorNote>
-                <strong className="font-semibold">{t('errorTitle')}.</strong> {t('errorText')}
-              </ErrorNote>
-            ) : (
-              <p className="text-sm text-muted">{signed ? '' : t('sigNeeded')}</p>
-            )}
-          </div>
-        </div>
+          {failed && (
+            <div className="mt-3">
+              <ErrorNote><strong className="font-semibold">{t('errorTitle')}.</strong> {t('errorText')}</ErrorNote>
+            </div>
+          )}
+        </section>
       </div>
     </Shell>
   )

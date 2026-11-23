@@ -6,7 +6,7 @@
 //    reuses the same voucher for checked-in guests.
 //  - Folio station: the tablet is paired as a "station"; when reception pushes a guest's invoice,
 //    it is shown full screen as page images.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useLang } from '../i18n'
 import { ArrowRight, Brand, ExpandIcon, QrCode, WifiIcon } from '../ui'
 
@@ -103,6 +103,7 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
   const lang = useLang()
   const t = WIFI_TEXT[lang]
   const dialog = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   const [open, setOpen] = useState(false)
   // The code shown as large as the screen allows. It stays up until closed, or until the screensaver
   // takes over after 5 idle minutes (see WIFI_QR_OPEN_SECONDS in pages/Tablet.tsx).
@@ -147,6 +148,7 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
       </button>
       <dialog
         ref={dialog}
+        aria-labelledby={titleId}
         onClose={() => {
           setOpen(false)
           setBig(false)
@@ -165,7 +167,7 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
               <div className="wf-brand">
                 <Brand tone="light" />
               </div>
-              <h2 className="mt-10 font-serif text-5xl font-semibold leading-tight">{t[0]}</h2>
+              <h2 id={titleId} className="mt-10 font-serif text-5xl font-semibold leading-tight">{t[0]}</h2>
               <p className="mt-4 text-2xl leading-snug text-gold-light">{t[1]}</p>
               <p className="mt-6 text-lg text-cream/80">
                 {t[2]} {dushanbeTime.format(voucher.expiresAt)}
@@ -181,7 +183,7 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
           </div>
         ) : (
           <>
-        <h2 className="font-serif text-2xl font-semibold">{t[0]}</h2>
+        <h2 id={titleId} className="font-serif text-2xl font-semibold">{t[0]}</h2>
         <p className="my-2 text-sm">{t[1]}</p>
         {state === 'unpaired' ? (
           <form

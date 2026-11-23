@@ -133,7 +133,7 @@ export function DeskUI({ profile, data }: { profile: Profile; data: StaffData })
           <Brand tone="light" size="sm" />
           <p className="mt-2 hidden text-xs tracking-[0.18em] text-gold-light md:block">FRONT DESK</p>
         </div>
-        <nav aria-label="Sections" className="relative flex gap-1 overflow-x-auto px-3 pb-3 [mask-image:linear-gradient(to_right,black_85%,transparent)] md:mt-2 md:flex-col md:overflow-visible md:px-3 md:[mask-image:none]">
+        <nav aria-label="Sections" className="relative flex gap-1 overflow-x-auto px-3 pb-3 [scrollbar-color:var(--color-gold-light)_transparent] [scrollbar-width:thin] md:mt-2 md:flex-col md:overflow-visible">
           {nav.map((n) => (
             <button
               key={n.id}
@@ -180,6 +180,8 @@ export function DeskUI({ profile, data }: { profile: Profile; data: StaffData })
               type="button"
               onClick={() => setMenu((m) => !m)}
               aria-expanded={menu}
+              aria-label={`Account menu for ${profile.full_name || profile.email}`}
+              onKeyDown={(e) => { if (e.key === 'Escape') setMenu(false) }}
               className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-3 text-sm font-medium hover:border-forest/40"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-forest text-xs font-semibold text-gold-light">

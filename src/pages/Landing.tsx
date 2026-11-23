@@ -1,92 +1,105 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Brand, COLORS, Emblem } from '../ui'
+import { ArrowRight, Brand } from '../ui'
 
-const steps = [
+const install = [
   {
-    title: 'iPad (Safari)',
-    items: [
-      'Open this site and tap "Open guest tablet".',
-      'Tap Share, then "Add to Home Screen".',
-      'Open "Rumi Check-in" from the home screen. It runs full screen.',
-      'Lock it to the app: Settings > Accessibility > Guided Access, then triple-click the top button.',
-    ],
+    title: 'iPad',
+    instructions: 'Open the guest tablet in Safari. Tap Share, then Add to Home Screen. To keep the app open for guests, enable Guided Access in Settings → Accessibility.',
   },
   {
-    title: 'Android tablet (Chrome)',
-    items: [
-      'Open this site and tap "Open guest tablet".',
-      'Tap the menu (three dots), then "Install app" or "Add to Home screen".',
-      'Open "Rumi Check-in" from the home screen. It runs full screen.',
-      'Lock it to the app: Settings > Security > App pinning, then pin it from Recents.',
-    ],
+    title: 'Android',
+    instructions: 'Open the guest tablet in Chrome. In the menu, tap Install app or Add to Home screen. Use App pinning in your tablet’s security settings to keep the app open for guests.',
   },
 ]
 
 export default function Landing() {
   useEffect(() => {
-    document.title = 'The Rumi - Self check-in'
+    document.title = 'Guest check-in | The Rumi Hotel & Residences'
   }, [])
+
   return (
-    <main className="min-h-dvh bg-cream">
-      <header className="flex items-center justify-between gap-4 px-5 py-5 sm:px-10">
-        <Brand />
-        <Link to="/staff" className="inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-medium text-forest hover:bg-forest/5">
-          Staff sign in
-        </Link>
+    <div className="min-h-dvh bg-cream">
+      <header className="border-b border-forest/10">
+        <div className="mx-auto flex max-w-[92rem] flex-wrap items-center justify-between gap-x-5 px-5 py-4 sm:px-10 lg:px-14">
+          <Link to="/" aria-label="The Rumi check-in home" className="rounded-sm">
+            <Brand />
+          </Link>
+          <a href="#tablet-setup" className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-forest underline-offset-4 hover:underline">
+            Tablet setup
+          </a>
+        </div>
       </header>
 
-      <section className="relative mx-auto flex w-full max-w-3xl flex-col items-center px-5 pb-14 pt-10 text-center sm:pt-16">
-        <Emblem color={COLORS.gold} className="rise h-20 w-20" />
-        <p className="eyebrow rise mt-6" style={{ animationDelay: '80ms' }}>Self check-in</p>
-        <h1 className="rise mt-3 text-5xl leading-tight text-forest sm:text-6xl" style={{ animationDelay: '140ms' }}>Arrive, scan, and settle in</h1>
-        <p className="rise mt-5 max-w-xl text-lg text-muted" style={{ animationDelay: '200ms' }}>
-          Guests check in on the lobby tablet in English, Russian or Tajik. Reception scans the passport, the booking appears on the tablet, and the front desk sees each arrival instantly and hands over the key.
-        </p>
-        <div className="rise mt-10 flex w-full flex-col gap-4 sm:flex-row sm:justify-center" style={{ animationDelay: '260ms' }}>
-          <Link
-            to="/staff"
-            className="inline-flex min-h-16 flex-1 items-center justify-center rounded-xl bg-forest px-8 text-lg font-medium text-cream shadow-sm hover:bg-forest-deep sm:max-w-xs"
-          >
-            Open front desk
-          </Link>
-          <Link
-            to="/tablet"
-            className="inline-flex min-h-16 flex-1 items-center justify-center rounded-xl border-2 border-forest bg-white px-8 text-lg font-medium text-forest hover:bg-cream sm:max-w-xs"
-          >
-            Open guest tablet
-          </Link>
-        </div>
-        <p className="mt-8 text-sm text-muted">The guest tablet needs to be paired once with a code from the front desk (Settings → Tablets).</p>
-      </section>
+      <main className="mx-auto max-w-[92rem] px-5 pb-10 sm:px-10 lg:px-14">
+        <section className="grid items-stretch gap-8 py-8 sm:py-12 lg:grid-cols-[0.94fr_1.06fr] lg:gap-12 xl:py-14">
+          <div className="flex min-w-0 flex-col justify-center lg:py-8">
+            <p className="eyebrow flex items-center gap-3">
+              <span className="h-px w-8 bg-gold" aria-hidden="true" />
+              Dushanbe, Tajikistan
+            </p>
+            <h1 className="mt-4 max-w-[12ch] text-[clamp(3.5rem,7vw,7.25rem)] leading-[0.87] tracking-[-0.04em] text-forest">
+              Guest check-in
+            </h1>
+            <p className="mt-6 max-w-md text-base leading-relaxed text-muted sm:text-lg">
+              Show your passport at reception, then complete your check-in on the lobby tablet in English, Russian or Tajik.
+            </p>
+            <div className="mt-8 max-w-lg divide-y divide-forest/15 border-y border-forest/15">
+              <Link to="/tablet" className="group flex min-h-20 items-center justify-between gap-4 rounded-sm py-4 text-forest">
+                <span>
+                  <span className="block text-lg font-semibold">Open guest tablet</span>
+                  <span className="mt-0.5 block text-sm text-muted">Review your stay and sign</span>
+                </span>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-forest text-cream transition-colors group-hover:bg-forest-deep">
+                  <ArrowRight />
+                </span>
+              </Link>
+              <Link to="/staff" className="group flex min-h-20 items-center justify-between gap-4 rounded-sm py-4 text-forest">
+                <span>
+                  <span className="block text-lg font-semibold">Open front desk</span>
+                  <span className="mt-0.5 block text-sm text-muted">Manage arrivals and tablet check-ins</span>
+                </span>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-forest/25 transition-colors group-hover:bg-forest/5">
+                  <ArrowRight />
+                </span>
+              </Link>
+            </div>
+          </div>
 
-      <section className="relative overflow-hidden bg-forest px-5 py-14 text-cream sm:px-10">
-        <Emblem color={COLORS.goldLight} className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 opacity-[0.06]" />
-        <div className="relative mx-auto max-w-5xl">
-          <p className="text-sm font-semibold tracking-[0.2em] text-gold-light">SET UP ON A TABLET</p>
-          <h2 className="mt-2 text-4xl">Install it like an app</h2>
-          <p className="mt-3 max-w-2xl text-cream/90">
-            The tablet screen installs to the home screen, opens full screen in landscape, keeps the screen awake and shows each guest their booking once reception has scanned the passport.
-          </p>
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
-            {steps.map((s) => (
-              <div key={s.title} className="rounded-2xl border border-white/15 bg-white/5 p-6">
-                <h3 className="text-2xl text-gold-light">{s.title}</h3>
-                <ol className="mt-3 space-y-2">
-                  {s.items.map((it, i) => (
-                    <li key={it} className="flex gap-3 text-cream/90">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold-light text-xs font-semibold text-forest">
-                        {i + 1}
-                      </span>
-                      <span>{it}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+          <figure className="relative isolate min-h-64 overflow-hidden rounded-2xl bg-forest-deep sm:min-h-96 lg:min-h-[34rem]">
+            <img
+              src="/gallery/lobby1.webp"
+              alt="The Rumi lobby with its chandelier and curved staircase"
+              fetchPriority="high"
+              className="absolute inset-0 -z-20 h-full w-full object-cover object-[48%_50%]"
+            />
+            <div className="absolute inset-x-0 bottom-0 -z-10 h-1/2 bg-gradient-to-t from-forest-deep/95 to-transparent" aria-hidden="true" />
+            <figcaption className="absolute inset-x-5 bottom-5 border-t border-cream/35 pt-3 text-sm font-medium text-cream sm:inset-x-8 sm:bottom-7">
+              The Rumi Hotel &amp; Residences
+            </figcaption>
+          </figure>
+        </section>
+
+        <section id="tablet-setup" className="scroll-mt-6 rounded-2xl bg-forest-deep p-6 text-cream sm:p-9 lg:grid lg:grid-cols-[0.85fr_1.15fr] lg:gap-12" aria-labelledby="tablet-setup-title">
+          <div>
+            <h2 id="tablet-setup-title" className="text-4xl leading-none sm:text-5xl">Set up a tablet</h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-cream/80 sm:text-base">
+              In the front desk app, go to Settings → Tablets to create a pairing code. Enter it on the guest tablet, then install the app.
+            </p>
+          </div>
+          <div className="mt-5 divide-y divide-cream/20 border-y border-cream/20 lg:mt-0">
+            {install.map(({ title, instructions }) => (
+              <details key={title} className="group">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 rounded-sm py-2 font-semibold text-gold-light [&::-webkit-details-marker]:hidden">
+                  {title}
+                  <span className="text-2xl font-normal leading-none transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+                </summary>
+                <p className="max-w-2xl pb-4 text-sm leading-relaxed text-cream/85">{instructions}</p>
+              </details>
             ))}
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </div>
   )
 }

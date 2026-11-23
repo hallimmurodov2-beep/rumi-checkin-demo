@@ -11,6 +11,12 @@ export function isExpired(c: Checkin) {
   return !!c.expiry_date && c.expiry_date < new Date().toISOString().slice(0, 10)
 }
 
+export function waitingCheckins(checkins: Checkin[]) {
+  return checkins
+    .filter((c) => c.status === 'waiting')
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+}
+
 export function CheckinRow({ c, r, onOpen, now }: { c: Checkin; r?: Reservation; onOpen: () => void; now: number }) {
   return (
     <button type="button" onClick={onOpen} className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left transition hover:bg-cream/60">
@@ -300,7 +306,7 @@ export function CheckinDrawer({ c, r, guests = [], onClose, reload }: { c: Check
 
 export function QueueView({ data, now, openId, setOpenId }: { data: StaffData; now: number; openId: string | null; setOpenId: (id: string | null) => void }) {
   const byId = useMemo(() => new Map(data.reservations.map((r) => [r.id, r])), [data.reservations])
-  const waiting = data.checkins.filter((c) => c.status === 'waiting')
+  const waiting = waitingCheckins(data.checkins)
   const recent = data.checkins.filter((c) => c.status !== 'waiting').slice(0, 30)
   const open = data.checkins.find((c) => c.id === openId)
   return (

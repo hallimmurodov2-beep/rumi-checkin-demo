@@ -391,10 +391,10 @@ export function GalleryTile({ onOpen, className = '', style }: { onOpen: () => v
         />
       ))}
       <span className="absolute inset-0 bg-gradient-to-t from-forest-deep/95 via-forest-deep/35 to-transparent" aria-hidden="true" />
-      <span className="relative flex w-full items-end justify-between gap-4 px-8 py-6">
+      <span className="gl-tile-content relative flex w-full items-end justify-between gap-4 px-8 py-6">
         <span>
-          <span className="block font-serif text-3xl font-semibold leading-tight">{t('galleryTitle')}</span>
-          <span className="mt-1 block text-base text-gold-light">{t('gallerySub', { n: SLIDES.length })}</span>
+          <span className="gl-tile-title block font-serif text-3xl font-semibold leading-tight">{t('galleryTitle')}</span>
+          <span className="gl-tile-sub mt-1 block text-base text-gold-light">{t('gallerySub', { n: SLIDES.length })}</span>
         </span>
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cream text-forest shadow-lg" aria-hidden="true">
           <ArrowRight className="h-5 w-5" />

@@ -1,0 +1,135 @@
+.stay-columns {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+}
+
+.stay-photo {
+  height: clamp(11rem, 32dvh, 18rem);
+}
+
+.stay-room-name {
+  overflow-wrap: anywhere;
+}
+
+.signature-screen {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 20rem;
+}
+
+.signature-without-policy {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.signature-policy {
+  min-height: 0;
+}
+
+.signature-policy-content:focus-visible {
+  outline-offset: -4px;
+}
+
+.signature-pad {
+  min-height: 11rem;
+}
+
+@media (max-height: 650px) and (orientation: landscape) {
+  .stay-screen, .stay-columns, .signature-screen {
+    gap: 0.75rem;
+  }
+
+  .stay-title {
+    font-size: 2.6rem;
+  }
+
+  .signature-screen {
+    min-height: 15rem;
+  }
+
+  .stay-greeting {
+    font-size: 0.95rem;
+  }
+
+  .stay-stack {
+    gap: 0.625rem;
+  }
+
+  .stay-photo {
+    height: clamp(7.5rem, 31dvh, 12rem);
+  }
+
+  .stay-caption {
+    padding: 0.75rem 1rem;
+  }
+
+  .stay-room-name, .stay-date {
+    font-size: 1.75rem;
+  }
+
+  .stay-dates, .stay-service, .signature-panel, .signature-policy-heading, .signature-policy-content {
+    padding: 0.625rem 0.875rem;
+  }
+
+  .stay-service-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .stay-service-icon svg {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .stay-service-title {
+    font-size: 1.3rem;
+  }
+
+  .stay-service p {
+    font-size: 0.875rem;
+  }
+
+  .stay-shuttle-options {
+    padding-top: 0.625rem;
+  }
+
+  .stay-shuttle-options button {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  .signature-title {
+    font-size: 2.25rem;
+  }
+
+  .signature-pad {
+    min-height: 8rem;
+    margin-top: 0.75rem;
+  }
+}
+
+@media (max-width: 620px) {
+  .stay-screen {
+    justify-content: flex-start;
+  }
+
+  .stay-title {
+    font-size: 2.5rem;
+  }
+
+  .stay-columns, .signature-screen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .signature-screen {
+    grid-template-rows: auto;
+  }
+
+  .signature-policy-content {
+    max-height: 11rem;
+  }
+
+  .stay-actions button:last-child {
+    min-height: 3rem;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.95rem;
+  }
+}

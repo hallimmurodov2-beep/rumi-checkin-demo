@@ -1,39 +1,111 @@
-/* Welcome screen on every shape of screen: wide tablet (two columns), tall or narrow screens such as a
-   Galaxy Z Fold unfolded or folded, and phones held sideways (one column, scrolls when it has to). */
-.wl-root { display: flex; height: 100%; }
-.wl-brand { width: 46%; }
-.wl-main { overflow-y: auto; overscroll-behavior: contain; }
-
-@media (orientation: portrait), (max-width: 760px) {
-  .wl-root { flex-direction: column; }
-  .wl-brand { width: 100%; flex: none; flex-direction: row; flex-wrap: wrap; gap: 0.25rem 1.75rem; padding: 1.25rem 1.5rem; }
-  .wl-brand .wl-emblem { height: 5.5rem; width: 5.5rem; }
-  .wl-brand .wl-name { margin-top: 0; }
-  .wl-brand .wl-hello { margin-top: 0; text-align: left; }
-  .wl-brand .wl-hello h1 { font-size: 2.75rem; }
-  .wl-brand .wl-hello p { font-size: 1.5rem; }
-  .wl-brand .wl-extra, .wl-brand .wl-frame { display: none; }
-  .wl-main { padding: 1.25rem 1.5rem 1.75rem; }
+.wl-root {
+  display: grid;
+  grid-template-columns: minmax(0, 0.87fr) minmax(0, 1.13fr);
+  height: 100%;
 }
-/* Narrow phone (a Fold's cover screen): stack the brand block and shrink it further. */
+
+.wl-brand {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  background: var(--color-forest-deep);
+  padding: clamp(1.25rem, 4.4vw, 4.5rem);
+}
+
+.wl-photo, .wl-brand::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+
+.wl-photo { z-index: -2; object-fit: cover; object-position: 48% 44%; }
+
+.wl-brand::before {
+  content: "";
+  background: linear-gradient(180deg, rgb(7 25 21 / 0.87), rgb(7 25 21 / 0.24) 32%, rgb(7 25 21 / 0.48) 51%, rgb(7 25 21 / 0.97) 100%);
+}
+
+.wl-brandbar { display: flex; align-items: center; gap: 0.9rem; }
+.wl-emblem { display: block; height: 4rem; width: 4rem; }
+.wl-hello { padding-top: 2rem; }
+.wl-rule { display: block; width: 3.5rem; height: 1px; margin-bottom: 0.75rem; background: var(--color-gold-light); }
+.wl-hello h1 { font-size: clamp(3.5rem, 7vw, 7.25rem); letter-spacing: -0.04em; line-height: 0.9; }
+.wl-hello p { margin-top: 0.5rem; color: var(--color-gold-light); font-size: clamp(1.1rem, 2.5vw, 2.2rem); line-height: 1.15; }
+
+.wl-main {
+  display: flex;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-cream);
+  padding: clamp(1.25rem, 3.5vw, 3.5rem);
+}
+
+.wl-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  max-width: 46rem;
+  min-height: min-content;
+  margin-inline: auto;
+}
+
+.wl-languages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; margin-top: 0.65rem; }
+.wl-languages button { min-height: 4rem; font-size: clamp(0.88rem, 1.7vw, 1.125rem); }
+
+.wl-checkin {
+  flex-shrink: 0;
+  margin-block: 1.15rem;
+  border: 1px solid var(--color-line);
+  border-inline-start: 3px solid var(--color-gold);
+  border-radius: 0.85rem;
+  background: var(--color-paper);
+  padding: 1rem 1.2rem;
+}
+
+.wl-content .wl-gallery { min-height: 10rem; flex: 1 0 10rem; }
+
+@media (orientation: portrait), (max-width: 720px) {
+  .wl-root { display: block; overflow-y: auto; }
+  .wl-brand { min-height: clamp(15.5rem, 36vh, 27rem); }
+  .wl-brand::before {
+    background: linear-gradient(180deg, rgb(7 25 21 / 0.83), rgb(7 25 21 / 0.26) 39%, rgb(7 25 21 / 0.91));
+  }
+  .wl-main { overflow-y: visible; }
+  .wl-content .wl-gallery { min-height: clamp(10rem, 28vh, 17rem); }
+}
+
 @media (max-width: 480px) {
-  .wl-brand { flex-direction: column; gap: 0.25rem; padding: 1rem; }
-  .wl-brand .wl-emblem { height: 4.25rem; width: 4.25rem; }
-  .wl-brand .wl-hello { text-align: center; }
-  .wl-brand .wl-hello h1 { font-size: 2.25rem; }
-  .wl-brand .wl-hello p { font-size: 1.25rem; }
-  .wl-main { padding: 1rem 1rem 1.5rem; }
-  .wl-main .gl-tile { min-height: 190px; }
-}
-/* Short screens held sideways: everything scrolls instead of being cut off. */
-@media (max-height: 560px) and (orientation: landscape) {
-  .wl-brand { padding-block: 0.5rem; }
-  .wl-brand .wl-emblem { height: 6rem; width: 6rem; }
-  .wl-brand .wl-hello h1 { font-size: 2.5rem; }
-  .wl-brand .wl-hello p { font-size: 1.4rem; }
-  .wl-brand .wl-extra { display: none; }
-  .wl-main { padding-block: 0.75rem; }
-  .wl-main .gl-tile { min-height: 120px; flex: none; }
+  .wl-brand, .wl-main { padding: 1rem; }
+  .wl-emblem { height: 2.75rem; width: 2.75rem; }
+  .wl-hello { padding-top: 1rem; }
+  .wl-languages { gap: 0.45rem; }
+  .wl-languages button { min-height: 3rem; }
+  .wl-checkin { margin-block: 0.75rem; }
+  .wl-fs { display: none; }
+  .wl-content .wl-gallery { min-height: 10rem; }
+  .wl-gallery .gl-tile-content { gap: 0.8rem; padding: 1.15rem; }
 }
 
-@media (max-width: 480px) { .wl-fs { display: none; } }
+@media (max-height: 560px) and (orientation: landscape) {
+  .wl-brand, .wl-main { padding: 0.625rem 1.1rem; }
+  .wl-fs { min-height: 2.5rem; }
+  .wl-emblem { height: 2.75rem; width: 2.75rem; }
+  .wl-hello h1 { font-size: clamp(3rem, 6vw, 4.75rem); }
+  .wl-hello p { font-size: 1.1rem; }
+  .wl-languages { margin-top: 0.3rem; }
+  .wl-languages button { min-height: 3rem; }
+  .wl-checkin { margin-block: 0.45rem; padding: 0.55rem 0.85rem; }
+  .wl-checkin p { margin-top: 0; font-size: 0.88rem; }
+  .wl-checkin p:first-child { margin-bottom: 0.25rem; font-size: 1.55rem; }
+  .wl-content .wl-gallery { min-height: 5.5rem; flex-basis: 5.5rem; }
+  .wl-gallery .gl-tile-content { gap: 0.7rem; padding: 0.6rem 0.9rem; }
+  .wl-gallery .gl-tile-title { font-size: 1.45rem; line-height: 1.06; }
+  .wl-gallery .gl-tile-sub { font-size: 0.85rem; line-height: 1.2; }
+  .wl-content > button:not(.wl-gallery) { min-height: 3rem; margin-top: 0.45rem; }
+}

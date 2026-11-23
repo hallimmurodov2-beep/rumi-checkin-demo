@@ -86,6 +86,14 @@ export function Screensaver({ onWake, onBrowse }: { onWake: () => void; /** Open
     window.setTimeout(onWake, 450)
   }
 
+  // One tap anywhere brings Welcome back. The last tap of the 3-tap that STARTS the screensaver
+  // must not count, so a tap in the first moments is ignored.
+  const shownAt = useRef(performance.now())
+  const tapWake = () => {
+    if (performance.now() - shownAt.current < 700) return
+    wake()
+  }
+
   const slide = SLIDES[index]
   return (
     <div
@@ -93,7 +101,7 @@ export function Screensaver({ onWake, onBrowse }: { onWake: () => void; /** Open
       role="button"
       tabIndex={0}
       aria-label="Touch the screen"
-      onClick={wake}
+      onClick={tapWake}
       onKeyDown={wake}
     >
       {SLIDES.map((s, i) => {

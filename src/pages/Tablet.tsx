@@ -3,6 +3,7 @@ import { LangContext, SetLangContext } from '../i18n'
 import { getDevice, tablet, type Handoff, type StoredDevice } from '../lib/device'
 import { ApiError } from '../lib/supabase'
 import { transition } from '../lib/transition'
+import { useTripleTap } from '../lib/tripleTap'
 import type { MrzData, PublicReservation, TabletConfig } from '../lib/types'
 import { translations, type Lang } from '../translations'
 import { PairTablet, TabletSettings } from '../tablet/Setup'
@@ -19,6 +20,8 @@ import { COLORS, Emblem } from '../ui'
 type Step = 'welcome' | 'help' | 'details' | 'signature' | 'done'
 
 const IDLE_WARN = 10
+/** While the Visitors Wi-Fi QR code is open, the screensaver waits this long (seconds without a touch). */
+const WIFI_QR_OPEN_SECONDS = 300
 
 function titleCase(s: string) {
   return s.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (m) => m.toUpperCase())
@@ -245,7 +248,22 @@ function Kiosk({ device }: { device: StoredDevice }) {
     }
   }, [idleForHandoff, settingsOpen, go])
 
-  // Screensaver: hotel photos after a quiet spell on the Welcome screen. A tap brings Welcome back.
+  // Start the screensaver (after a quiet spell, or when the Welcome screen is tapped 3 times).
+  const startSaver = useCallback(() => {
+    // A native <dialog> (Visitors Wi-Fi) would stay on top of the screensaver.
+    document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach((d) => d.close())
+    setLang('en')
+    setSaver(true)
+  }, [])
+
+  // Tap the Welcome screen 3 times anywhere (not on a button, not in the admin corner) to start the screensaver.
+  useTripleTap({
+    enabled: step === 'welcome' && !saver && !settingsOpen && gallery === null,
+    blocked: () => !!document.querySelector('dialog[open]'),
+    onTriple: startSaver,
+  })
+
+  // Screensaver: hotel photos after a quiet spell on the Welcome screen. One tap brings Welcome back.
   useEffect(() => {
     if (step !== 'welcome' || saver || settingsOpen || gallery !== null || saverAfter <= 0) return
     let last = Date.now()
@@ -253,18 +271,16 @@ function Kiosk({ device }: { device: StoredDevice }) {
     const evts = ['pointerdown', 'keydown', 'touchstart']
     evts.forEach((e) => window.addEventListener(e, touch, { passive: true }))
     const id = window.setInterval(() => {
-      if (Date.now() - last >= saverAfter * 1000) {
-        // A native <dialog> (Visitors Wi-Fi) would stay on top of the screensaver.
-        document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach((d) => d.close())
-        setLang('en')
-        setSaver(true)
-      }
+      // Someone is scanning the Visitors Wi-Fi code: give them time (any touch starts the wait again).
+      const wifiOpen = !!document.querySelector('dialog[open]')
+      const limit = wifiOpen ? Math.max(saverAfter, WIFI_QR_OPEN_SECONDS) : saverAfter
+      if (Date.now() - last >= limit * 1000) startSaver()
     }, 1000)
     return () => {
       evts.forEach((e) => window.removeEventListener(e, touch))
       window.clearInterval(id)
     }
-  }, [step, saver, settingsOpen, gallery, saverAfter])
+  }, [step, saver, settingsOpen, gallery, saverAfter, startSaver])
 
   // Idle reset: any step except Welcome returns to Welcome after the idle limit without touch.
   useEffect(() => {

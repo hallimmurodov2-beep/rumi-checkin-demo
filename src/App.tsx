@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import Landing from './pages/Landing'
 import { COLORS, Emblem } from './ui'
 
+const GuestGuide = lazy(() => import('./pages/GuestGuide'))
 const Tablet = lazy(() => import('./pages/Tablet'))
 const FolioOverlay = lazy(() => import('./tablet/frontdesk').then((m) => ({ default: m.FolioOverlay })))
 const StaffApp = lazy(() => import('./staff/StaffApp'))
@@ -32,6 +33,7 @@ export default function App() {
             </>
           }
         />
+        <Route path="/guide" element={<GuestGuide />} />
         <Route path="/staff" element={<StaffApp />} />
         {StaffPreview && <Route path="/dev/staff" element={<StaffPreview />} />}
         {TabletPreview && <Route path="/dev/tablet" element={<TabletPreview />} />}

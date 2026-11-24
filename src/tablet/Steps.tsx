@@ -649,25 +649,26 @@ export function Done({
             </div>
           )}
         </div>
-        {(showWifi || showBreakfast) && (
-          <div className={`receipt-cards mt-8 grid gap-5 ${showWifi && showBreakfast ? 'grid-cols-[1.6fr_1fr]' : 'max-w-3xl grid-cols-1'}`}>
+        {!declined && (
+          <div className="receipt-cards mt-6 grid gap-4 sm:grid-cols-2">
             {showWifi && (
-              <div className="rise" style={{ animationDelay: '260ms' }}>
+              <div className="rise min-w-0">
                 {wifi ? <WifiCard wifi={wifi} /> : <VoucherCard url={voucher!.url} expiresAt={voucher!.expiresAt} />}
               </div>
             )}
-            {showBreakfast && (
-              <div className="rise" style={{ animationDelay: '350ms' }}>
-                <div className="card h-full p-6">
-                  <div className="flex items-center gap-3 text-forest">
-                    <CupIcon />
-                    <h3 className="text-3xl">{t('breakfastTitle')}</h3>
-                  </div>
-                  <p className="mt-3 text-lg">{t('breakfastInfo', { hours: config!.breakfast_hours })}</p>
-                </div>
+            <div className="card flex min-w-0 items-center gap-5 p-6">
+              <QrCode text={`https://rumi-checkin.vercel.app/guide?lang=${lang}`} label={t('guideScan')} className="guide-code h-40 w-40 !p-4" />
+              <div>
+                <h3 className="text-3xl leading-tight text-forest">{t('guideTitle')}</h3>
+                <p className="mt-2 text-muted">{t('guideScan')}</p>
               </div>
-            )}
+            </div>
           </div>
+        )}
+        {showBreakfast && (
+          <p className="mt-4 flex items-center gap-3 text-forest">
+            <CupIcon /><span><strong>{t('breakfastTitle')}</strong> · {t('breakfastInfo', { hours: config!.breakfast_hours })}</span>
+          </p>
         )}
       </div>
     </Shell>

@@ -26,7 +26,7 @@ const config: TabletConfig = {
   wifi_name: 'Rumi-Guest',
   wifi_password: 'fixture-pass-123',
   wifi_security: 'WPA',
-  breakfast_hours: '07:00 - 10:30',
+  breakfast_hours: '07:00–11:00',
   review_url: 'https://example.com/review',
   idle_seconds: 600,
 }
@@ -43,7 +43,7 @@ const POLICY = `# House rules
 Welcome to **The Rumi Hotel & Residences**. By signing, you agree to the following.
 
 ## Your stay
-- Check-in is from 14:00 and check-out is until 12:00.
+- Check-in is from 14:00 and check-out is by 10:00.
 - Late check-out depends on availability and may be charged.
 - Please keep your key card with you and return it at departure.
 

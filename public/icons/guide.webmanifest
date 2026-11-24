@@ -1,0 +1,13 @@
+{
+  "id": "/guide",
+  "name": "The Rumi · Hotel guide",
+  "short_name": "The Rumi",
+  "scope": "/guide",
+  "display": "standalone",
+  "background_color": "#FFFDF8",
+  "theme_color": "#0E3B2E",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

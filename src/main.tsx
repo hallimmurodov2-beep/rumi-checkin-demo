@@ -17,7 +17,8 @@ createRoot(document.getElementById('root')!).render(
 )
 
 // Offline support (production builds only, so the dev server is never cached).
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+// Phones opening the public guide do not need the kiosk's full offline photo library.
+if (import.meta.env.PROD && !/^\/guide\/?$/.test(location.pathname) && 'serviceWorker' in navigator) {
   // Only an existing controller being replaced indicates an update. The first
   // installation already matches the page and must not trigger a kiosk reload.
   let controlled = Boolean(navigator.serviceWorker.controller)

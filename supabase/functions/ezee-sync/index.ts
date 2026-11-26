@@ -113,7 +113,7 @@ async function push(creds: E.Creds) {
     const { data: checkins } = await db
       .from('checkins')
       .select(
-        'id, phone, email, surname, given_names, document_number, birth_date, sex, expiry_date, signature_png, ezee_attempts, reservations!inner(ezee_booking_id, ezee_guest, guest_name, room_number, booking_ref), checkin_guests(id, surname, given_names, document_number, birth_date, sex, expiry_date, ezee_synced_at)',
+        'id, handoff_id, phone, email, surname, given_names, document_number, birth_date, sex, expiry_date, signature_png, ezee_attempts, reservations!inner(ezee_booking_id, ezee_guest, guest_name, room_number, booking_ref), checkin_guests(id, surname, given_names, document_number, birth_date, sex, expiry_date, ezee_synced_at)',
       )
       .is('ezee_synced_at', null)
       .lt('ezee_attempts', 5)
@@ -159,7 +159,7 @@ async function push(creds: E.Creds) {
         }
       }
 
-      if (settings.auto_checkin && r.room_number) {
+      if (settings.auto_checkin && !c.handoff_id && r.room_number) {
         const ci = await call(
           E.KIOSK_URL,
           E.checkInRequest(creds, r.ezee_booking_id, `${guest.first_name} ${guest.last_name}`.trim() || r.guest_name, c, idType, guest.email),

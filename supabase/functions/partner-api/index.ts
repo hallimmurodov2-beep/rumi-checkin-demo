@@ -274,16 +274,16 @@ function cleanReservation(b: any, i: number): { row?: Record<string, unknown>; e
 }
 
 async function setStatus(ref: string, status: string, room?: string | null) {
-  const { data: r } = await db.from('reservations').select('id, booking_ref').eq('booking_ref', ref.toUpperCase().replace(/\s+/g, '')).maybeSingle()
+  const r = must(await db.from('reservations').select('id, booking_ref').eq('booking_ref', normRef(ref)).maybeSingle())
   if (!r) return null
   const patch: Record<string, unknown> = { status }
   if (room) patch.room_number = room
-  await db.from('reservations').update(patch).eq('id', r.id)
+  must(await db.from('reservations').update(patch).eq('id', r.id))
   if (status === 'in_house') {
-    await db.from('checkins').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('reservation_id', r.id).eq('status', 'waiting')
+    must(await db.from('checkins').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('reservation_id', r.id).eq('status', 'waiting'))
   }
   if (status === 'expected') {
-    await db.from('checkins').update({ status: 'rejected' }).eq('reservation_id', r.id).eq('status', 'waiting')
+    must(await db.from('checkins').update({ status: 'rejected' }).eq('reservation_id', r.id).eq('status', 'waiting'))
   }
   return r.id
 }
@@ -330,22 +330,14 @@ async function api(req: Request, path: string, url: URL) {
   m = path.match(/^\/v1\/checkins\/([0-9a-f-]{36})\/(approve|reject)$/)
   if (req.method === 'POST' && m) {
     const body = await req.json().catch(() => ({}))
-    const { data: c } = await db.from('checkins').select('id, status, reservation_id').eq('id', m[1]).maybeSingle()
-    if (!c) return fail(404, 'not_found')
-    if (c.status !== 'waiting') return fail(409, 'already_handled', `Check-in is ${c.status}`)
-    if (m[2] === 'approve') {
-      const room = typeof body.room_number === 'string' ? body.room_number.trim() : ''
-      if (!room) return fail(400, 'room_required', 'room_number is required')
-      // Only if still waiting: staff may have handled it in the meantime.
-      const done = must(await db.from('checkins').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', c.id).eq('status', 'waiting').select('id'))
-      if (!done?.length) return fail(409, 'already_handled', 'Check-in was handled by someone else')
-      must(await db.from('reservations').update({ status: 'in_house', room_number: room.slice(0, 10) }).eq('id', c.reservation_id))
-    } else {
-      const done = must(await db.from('checkins').update({ status: 'rejected' }).eq('id', c.id).eq('status', 'waiting').select('id'))
-      if (!done?.length) return fail(409, 'already_handled', 'Check-in was handled by someone else')
-      must(await db.from('reservations').update({ status: 'expected' }).eq('id', c.reservation_id).eq('status', 'pending_desk'))
-    }
-    return json({ checkin: await loadCheckin(c.id, false) })
+    const result = must(await db.rpc('decide_checkin', {
+      p_id: m[1], p_approve: m[2] === 'approve',
+      p_room: typeof body.room_number === 'string' ? body.room_number : null, p_actor: null,
+    }))
+    if (result === 'not_found') return fail(404, 'not_found')
+    if (result === 'room_required') return fail(400, 'room_required')
+    if (result !== 'ok') return fail(409, String(result))
+    return json({ checkin: await loadCheckin(m[1], false) })
   }
 
   // PUT /v1/reservations  [ {...}, ... ]   (upsert by booking_ref)
@@ -510,16 +502,19 @@ async function api(req: Request, path: string, url: URL) {
     if (body.reservation) {
       const r = cleanReservation({ booking_ref: body.booking_ref, ...body.reservation }, 0)
       if (r.error) return fail(400, 'invalid_reservation', r.error)
-      const { data: ex } = await db.from('reservations').select('status').eq('booking_ref', String(r.row!.booking_ref).toUpperCase().replace(/\s+/g, '')).maybeSingle()
-      if (ex && r.row!.status === 'expected') delete r.row!.status
-      const { error } = await db.from('reservations').upsert(r.row!, { onConflict: 'booking_ref' })
-      if (error) return fail(400, 'save_failed', error.message)
+      if (r.row!.status && !['expected', 'in_house'].includes(String(r.row!.status))) return fail(409, 'reservation_not_expected')
+      if (normRef(String(r.row!.booking_ref)) !== normRef(String(body.booking_ref ?? ''))) return fail(400, 'invalid_reservation')
+      // An old handoff must never overwrite a stay that reception has closed.
+      must(await db.from('reservations').upsert(r.row!, { onConflict: 'booking_ref', ignoreDuplicates: true }))
+      const { booking_ref, status, ...fields } = r.row!
+      if (status === 'in_house') fields.status = status
+      must(await db.from('reservations').update(fields).eq('booking_ref', normRef(String(booking_ref))).in('status', ['expected', 'in_house']))
     }
     const ref = typeof body.booking_ref === 'string' ? body.booking_ref.trim().toUpperCase().replace(/\s+/g, '') : ''
     if (!ref) return fail(400, 'booking_ref_required')
     const { data: res } = await db.from('reservations').select('id, status').eq('booking_ref', ref).maybeSingle()
     if (!res) return fail(404, 'reservation_not_found', 'Send the booking first (PUT /v1/reservations), or include "reservation" in this request.')
-    if (res.status !== 'expected') return fail(409, 'reservation_not_expected', `Booking status is ${res.status}`)
+    if (!['expected', 'in_house'].includes(res.status)) return fail(409, 'reservation_not_expected', `Booking status is ${res.status}`)
     const { data: devs } = await db.from('devices').select('id, name, last_seen_at').not('paired_at', 'is', null).eq('revoked', false)
     const list = devs ?? []
     let dev = list.find((d) => d.id === body.tablet || d.name.toLowerCase() === String(body.tablet ?? '').toLowerCase())
@@ -540,6 +535,7 @@ async function api(req: Request, path: string, url: URL) {
     }
     const lang = ['en', 'ru', 'tg'].includes(body.language) ? body.language : null
     const { data: h, error } = await db.rpc('create_handoff', { p_reservation_id: res.id, p_device_id: dev.id, p_passport: passport, p_language: lang, p_source: 'partner' })
+    if (error?.message === 'reservation_not_expected') return fail(409, 'reservation_not_expected')
     if (error) return fail(400, 'handoff_failed', error.message)
     return json({ handoff: await loadHandoff((h as { id: string }).id) }, 201)
   }

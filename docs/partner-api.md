@@ -69,7 +69,7 @@ The tablets stand at the reception desk, so the smoothest flow starts with the p
 - Response `201`: `{ "handoff": { "id", "status": "pending", "expires_at", "tablet", "reservation" } }`. A new handoff replaces any older one on the same tablet. It expires after 10 minutes if the tablet never shows it.
 - Errors:
   - `404 reservation_not_found`
-  - `409 reservation_not_expected` (already checked in, or cancelled)
+  - `409 reservation_not_expected` (booking is outside the expected or in-house states)
   - `400 tablet_required` (several tablets are paired)
   - `404 tablet_not_found`
 

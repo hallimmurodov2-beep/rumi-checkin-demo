@@ -28,7 +28,11 @@ Read this whole file first, then `docs/frontdesk-app-codex-prompt.md`, the full 
 
 ---
 
-## 1. How check-in works now
+## 1. Reception workflow
+
+Reception staff use Rumi Reception and eZee to check guests in and out. The tablet project's staff screen is for settings and testing. Commit each desk operation in eZee first. Send the confirmed status and optional tablet paperwork independently of that transaction. A missing tablet, a declined form or a delayed signature must leave the desk transaction complete.
+
+A partner handoff can arrive before or after the in-house status update. Send the checked-out status when eZee confirms departure. A later approval receives HTTP 409 with `stay_closed`. Treat it as final and discard the stale approval. A tablet signature is never a command to check a guest in again.
 
 ```
 Reception                    Front Desk app (yours)                       Check-in tablet
@@ -45,7 +49,7 @@ scans the passport  ───────► find booking in eZee, check the gue
                                                                           breakfast hours
 ```
 
-**The tablet has no Check-in button any more.** A guest standing at it is told to hand their passport to reception. So every check-in depends on your handoff.
+**The tablet has no Check-in button any more.** A guest standing at it is told to hand their passport to reception. The handoff opens the optional guest form. Reception can finish the stay transaction even if the form never opens.
 
 ---
 
@@ -63,6 +67,7 @@ Do these in order. Section numbers refer to `docs/frontdesk-app-codex-prompt.md`
 3. **Booking sync** (§3): every 3 minutes, `PUT /v1/reservations` with arrivals from yesterday to tomorrow plus everyone in house, including room numbers.
 4. **Automatic handoff** (§4): the moment reception's passport scan has checked the guest in on eZee, call `POST /v1/handoffs`. Send the `booking_ref`, the `tablet` name, the scanned `passport` (at least `surname` and `nationality`), and the `reservation`. Show reception "Sent to Lobby Tablet 1" or the error in plain words.
 5. **On `checkin.created`** (§5):
+   - Read the current stay in eZee. If it has departed, acknowledge the event and skip the guest update and approval.
    - Write the phone, email, shuttle request and signature to the eZee booking.
    - Store `policy_signed` with the stay.
    - Then **approve immediately** with the eZee room number. The tablet's Done screen waits about 30 seconds for the room.

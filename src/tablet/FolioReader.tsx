@@ -6,10 +6,11 @@ import { LangSwitch } from './Shell'
 import './folio.css'
 
 /** Reception owns the invoice's lifetime. Only the currently selected page is decoded. */
-export function FolioReader({ pages, zoom, onZoom }: { pages: string[]; zoom: boolean; onZoom: () => void }) {
+export function FolioReader({ pages }: { pages: string[] }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const viewport = useRef<HTMLDivElement>(null)
   const [page, setPage] = useState(0)
+  const [zoom, setZoom] = useState(true)
   const preferredLang = useLang()
   const [lang, setLang] = useState<Lang>(() => {
     const selected = document.querySelector<HTMLElement>('.kiosk[lang], .kiosk [lang]')?.lang
@@ -45,7 +46,7 @@ export function FolioReader({ pages, zoom, onZoom }: { pages: string[]; zoom: bo
           <span role="status">{t.folioPage} <b>{page + 1}</b> / {pages.length}</span>
           {pages.length > 1 && <button type="button" aria-label={t.folioNext} onClick={() => setPage(page + 1)} disabled={page + 1 >= pages.length}><ArrowRight /></button>}
         </div>
-        <button type="button" className="folio-zoom" onClick={onZoom} aria-pressed={zoom}><ExpandIcon />{zoom ? t.folioFit : t.folioEnlarge}</button>
+        <button type="button" className="folio-zoom" onClick={() => setZoom((enlarged) => !enlarged)} aria-pressed={zoom}><ExpandIcon />{zoom ? t.folioFit : t.folioEnlarge}</button>
       </footer>
     </dialog>
   )

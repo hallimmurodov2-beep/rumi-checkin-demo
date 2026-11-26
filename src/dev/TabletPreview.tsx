@@ -71,7 +71,6 @@ const noop = () => {}
 
 /** A blank A4-shaped fixture page with a few lines, standing in for an eZee invoice image. */
 function FolioFixture() {
-  const [zoom, setZoom] = useState(false)
   const [page] = useState(() => {
     const c = document.createElement('canvas')
     c.width = 1240
@@ -86,7 +85,7 @@ function FolioFixture() {
     for (let i = 0; i < 14; i++) x.fillText(`Fixture line ${i + 1}`, 90, 260 + i * 62)
     return c.toDataURL('image/png').split(',')[1]
   })
-  return <FolioReader pages={[page, page]} zoom={zoom} onZoom={() => setZoom(!zoom)} />
+  return <FolioReader pages={[page, page]} />
 }
 
 export default function TabletPreview() {

@@ -284,7 +284,6 @@ export function FolioPairing() {
 /** Full-screen invoice pushed by reception to this station; disappears when the lease ends. */
 export function FolioOverlay() {
   const [invoice, setInvoice] = useState<{ version: string; pages: string[] } | null>(null)
-  const [zoom, setZoom] = useState(false)
   useEffect(() => {
     let stopped = false
     let version = ''
@@ -294,7 +293,6 @@ export function FolioOverlay() {
     const clear = () => {
       version = ''
       setInvoice(null)
-      setZoom(false)
     }
     async function tick() {
       if (stopped) return
@@ -313,7 +311,6 @@ export function FolioOverlay() {
               if (!Array.isArray(r.pages) || !r.pages.length) throw new Error()
               version = r.version
               setInvoice({ version, pages: r.pages })
-              setZoom(false)
             }
             window.clearTimeout(lease)
             lease = window.setTimeout(clear, Math.min(left, 5000))
@@ -345,5 +342,5 @@ export function FolioOverlay() {
     }
   }, [])
   if (!invoice) return null
-  return <FolioReader key={invoice.version} pages={invoice.pages} zoom={zoom} onZoom={() => setZoom(!zoom)} />
+  return <FolioReader key={invoice.version} pages={invoice.pages} />
 }

@@ -6,6 +6,7 @@ import { COLORS, Emblem } from './ui'
 const GuestGuide = lazy(() => import('./pages/GuestGuide'))
 const Tablet = lazy(() => import('./pages/Tablet'))
 const FolioOverlay = lazy(() => import('./tablet/frontdesk').then((m) => ({ default: m.FolioOverlay })))
+const GuestRules = lazy(() => import('./tablet/GuestRules').then((m) => ({ default: m.GuestRules })))
 const StaffApp = lazy(() => import('./staff/StaffApp'))
 const StaffPreview = import.meta.env.DEV ? lazy(() => import('./dev/StaffPreview')) : null
 const TabletPreview = import.meta.env.DEV ? lazy(() => import('./dev/TabletPreview')) : null
@@ -30,6 +31,7 @@ export default function App() {
               <Tablet />
               {/* Invoices pushed from the front desk computer (menu.therumihotel.com folio station). */}
               <FolioOverlay />
+              <GuestRules />
             </>
           }
         />

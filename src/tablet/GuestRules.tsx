@@ -6,7 +6,7 @@ type Lang='ru'|'en'|'tg'
 type Point=[number,number]
 type Text={title:string;intro:string;sections:[string,string][];confirm:string;guest:string;arrival:string}
 type Copy={edition:string;textHash:string;text:Text}
-type Packet={request:string;until:number;name:string;arrival:string;texts:Record<Lang,Copy>}
+type Packet={language?:Lang|null;request:string;until:number;name:string;arrival:string;texts:Record<Lang,Copy>}
 const languages:Lang[]=['ru','en','tg']
 const labels={
  ru:{next:'Перейти к подписи',back:'Прочитать ещё раз',sign:'Подписать и передать на ресепшен',clear:'Очистить подпись',line:'Поставьте подпись пальцем в поле ниже',sent:'Подписанный документ сохранён',offline:'Связь прервалась. Проверяем сохранение…',retry:'Не удалось сохранить. Нажмите кнопку ещё раз.',wrong:'Если имя указано неверно, обратитесь на ресепшен до подписания.',signTitle:'Подтверждение ознакомления',signedHint:'Спасибо. Планшет вернётся на главный экран.'},
@@ -21,7 +21,7 @@ async function call(op:string,token:string,body:object,signal?:AbortSignal){
  return response.json()
 }
 function initialLanguage():Lang{
- const lang=(document.documentElement.lang||navigator.language).slice(0,2)
+ const lang=(document.querySelector<HTMLElement>('.kiosk[lang], .kiosk [lang]')?.lang||document.documentElement.lang||navigator.language).slice(0,2)
  return languages.includes(lang as Lang)?lang as Lang:'en'
 }
 export function GuestRules(){
@@ -57,7 +57,7 @@ export function GuestRules(){
      if(!r.request){if(requested&&r.confirmed===requested)complete();else if(current.current)clear()}
      else if(r.request!==requested){
       if(!r.texts||typeof r.name!=='string'||!r.until)return
-      reset();setThanks(null);version.current=r.request;current.current=r;setPacket(r);setLang(initialLanguage())
+      reset();setThanks(null);version.current=r.request;current.current=r;setPacket(r);setLang(languages.includes(r.language)?r.language:initialLanguage())
      }
      clearTimeout(expiry)
      if(r.request)expiry=window.setTimeout(hide,Math.max(0,Math.min(15000,Number(r.remainingMs))))
@@ -65,7 +65,7 @@ export function GuestRules(){
     finally{clearTimeout(timeout)}
    }
   }
-  const loop=async()=>{try{await poll()}finally{if(alive)timer=window.setTimeout(loop,current.current?1800:3000)}}
+  const loop=async()=>{try{await poll()}finally{if(alive)timer=window.setTimeout(loop,document.hidden?3000:current.current?1800:750)}}
   const visibility=()=>{if(document.hidden)hide()}
   const onRePair=()=>hide()
   window.addEventListener('folio-pair',onRePair);document.addEventListener('visibilitychange',visibility)
@@ -90,7 +90,7 @@ export function GuestRules(){
   finally{clearTimeout(timeout);if(current.current?.request===original.request){sent.current=false;setBusy(false)}}
  }
  return <dialog ref={dialog} className="rumi-rules" onCancel={e=>e.preventDefault()} aria-modal="true" aria-label={t.title} lang={lang}>
-  <header className="rr-head"><div className="rr-brand">THE RUMI HOTEL <span>· DUSHANBE</span></div><label><select aria-label="Language" value={lang} disabled={busy} onChange={e=>{setLang(e.target.value as Lang);reset()}}><option value="ru">Русский</option><option value="tg">Тоҷикӣ</option><option value="en">English</option></select></label></header>
+  <header className="rr-head"><div className="rr-brand">THE RUMI HOTEL <span>· DUSHANBE</span></div><div className="rr-languages" role="group" aria-label={{ru:'Язык правил',tg:'Забони қоидаҳо',en:'Rules language'}[lang]}>{languages.map(code=><button key={code} type="button" lang={code} aria-pressed={lang===code} disabled={busy} onClick={()=>{if(code!==lang){setLang(code);reset()}}}>{{ru:'Русский',tg:'Тоҷикӣ',en:'English'}[code]}</button>)}</div></header>
   <div className="rr-scroll" ref={scroll}><main><h1>{reviewed?copy.signTitle:t.title}</h1><p className="rr-person"><strong>{packet.name}</strong><span>{t.arrival} · {packet.arrival}</span></p>
   {reviewed?<><p>{copy.wrong}</p><label className="rr-check"><input type="checkbox" checked={ack} disabled={busy} onChange={e=>setAck(e.target.checked)}/><span>{t.confirm}</span></label>
    <p className="rr-label" id="rr-sign-label">{copy.line}</p><svg viewBox="0 0 1000 300" preserveAspectRatio="none" className="rr-ink" role="img" aria-labelledby="rr-sign-label" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={e=>{if(active.current===e.pointerId)active.current=null}}>{ink.map((s,i)=><polyline key={i} points={s.map(p=>p.join(',')).join(' ')} fill="none" stroke="#193e32" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round"/>)}</svg>

@@ -12,11 +12,10 @@ dialog.rumi-rules{margin:0;padding:0;border:0;width:100%;height:100dvh;max-width
 .rr-head { background: #173d33; border-bottom: 2px solid #c2a46b; }
 .rr-head .rr-brand { color: #f4e4bb; font-family: Georgia, serif; }
 .rr-head .rr-brand span { color: #dac9a5; }
-.rr-languages { display: flex; gap: .25rem; padding: .2rem; border: 1px solid #709083; border-radius: .85rem; }
-.rr-languages button { min-height: 44px; padding: .35rem .85rem; border: 0; border-radius: .6rem; background: transparent; color: white; font: inherit; }
-.rr-languages button[aria-pressed=true] { background: #f6e9c7; color: #163b31; font-weight: 650; }
+.rr-language-picker { display:flex; gap:.45rem; align-items:center; color:#f6e9c7; }
+.rr-language-picker select { min-height:46px; padding:.4rem .8rem; border:1px solid #adbbab; border-radius:.65rem; color:#173d33; background:#fff9e9; font-weight:600; }
 .rr-scroll { background: #f3f1ea; }
 .rr-scroll main { background: #fffefa; margin: clamp(.5rem,2vh,1.25rem) auto; padding: clamp(1rem,3vw,2.5rem); border-radius: 1rem; box-shadow: 0 2px 12px #213f3110; }
 .rr-scroll main section + section { border-top: 1px solid #e1e4d9; margin-top: 1rem; }
 .rr-primary { border-radius: .7rem; padding-inline: 1.15rem; min-height: 48px; }
-@media(max-width:620px){.rr-head{flex-wrap:wrap;gap:.4rem}.rr-languages button{padding-inline:.6rem}.rr-scroll main{margin:.4rem}.rr-foot{flex-wrap:wrap}}
+@media(max-width:620px){.rr-head{flex-wrap:wrap;gap:.4rem}.rr-scroll main{margin:.4rem}.rr-foot{flex-wrap:wrap}}

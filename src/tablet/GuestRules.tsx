@@ -6,7 +6,7 @@ type Lang='en'|'ru'|'tg'|'de'|'fr'|'es'|'it'|'tr'|'ar'|'fa'|'ja'|'ko'|'zh-Hans'|
 type Point=[number,number]
 type Text={title:string;intro:string;sections:[string,string][];confirm:string;guest:string;arrival:string}
 type Copy={edition:string;textHash:string;text:Text}
-type Packet={language?:Lang|null;request:string;until:number;name:string;arrival:string;texts:Record<Lang,Copy>}
+type Packet={preview?:boolean;language?:Lang|null;request:string;until:number;name:string;arrival:string;texts:Record<Lang,Copy>}
 const languages:Lang[]=["en","ru","tg","de","fr","es","it","tr","ar","fa","ja","ko","zh-Hans","zh-Hant"]
 const names: Record<Lang,string>={"en":"English","ru":"Русский","tg":"Тоҷикӣ","de":"Deutsch","fr":"Français","es":"Español","it":"Italiano","tr":"Türkçe","ar":"العربية","fa":"فارسی","ja":"日本語","ko":"한국어","zh-Hans":"简体中文","zh-Hant":"繁體中文"}
 const labels={
@@ -226,18 +226,18 @@ export function GuestRules(){
  function move(e:ReactPointer<SVGSVGElement>){if(active.current!==e.pointerId||busy)return;const s=draft.current[draft.current.length-1];if(!s||draft.current.reduce((n,v)=>n+v.length,0)>=2400)return;const p=point(e),last=s[s.length-1];if(Math.hypot(p[0]-last[0],p[1]-last[1])<2)return;draft.current=[...draft.current.slice(0,-1),[...s,p]];setInk(draft.current)}
  function up(e:ReactPointer<SVGSVGElement>){if(active.current===e.pointerId){move(e);active.current=null}}
  const drawable=ink.some(s=>s.length>2&&s.reduce((distance,p,i)=>distance+(i?Math.hypot(p[0]-s[i-1][0],p[1]-s[i-1][1]):0),0)>=12)
- async function submit(){const original=current.current,token=device();if(!original||!token||sent.current||!ack||!drawable)return;sent.current=true;setBusy(true);setError('');const ctrl=new AbortController();signController.current=ctrl;const timeout=setTimeout(()=>ctrl.abort(),8000)
+ async function submit(){const original=current.current,token=device();if(!original||original.preview||!token||sent.current||!ack||!drawable)return;sent.current=true;setBusy(true);setError('');const ctrl=new AbortController();signController.current=ctrl;const timeout=setTimeout(()=>ctrl.abort(),8000)
   try{const r=await call('sign',token,{request:original.request,lang,textHash:local.textHash,ack:true,strokes:draft.current},ctrl.signal);if(current.current?.request===original.request&&token===device()&&r.state==='signed')complete()}
   catch{if(current.current?.request===original.request)setError('retry')}
   finally{clearTimeout(timeout);if(current.current?.request===original.request){sent.current=false;setBusy(false)}}
  }
  return <dialog ref={dialog} className="rumi-rules" onCancel={e=>e.preventDefault()} aria-modal="true" aria-label={t.title} lang={lang} dir={lang==="ar"||lang==="fa"?"rtl":"ltr"}>
   <header className="rr-head"><div className="rr-brand">THE RUMI HOTEL <span>· DUSHANBE</span></div><label className="rr-language-picker"><span aria-hidden="true">◎</span><select aria-label={names[lang]} value={lang} disabled={busy} onChange={e=>{const chosen=e.target.value as Lang;if(chosen!==lang){setLang(chosen);reset()}}}>{languages.filter(code=>packet.texts[code]).map(code=><option key={code} lang={code} value={code}>{names[code]}</option>)}</select></label></header>
-  <div className="rr-scroll" ref={scroll}><main><h1>{reviewed?copy.signTitle:t.title}</h1><p className="rr-person"><strong>{packet.name}</strong><span>{t.arrival} · {packet.arrival}</span></p>
+  <div className="rr-scroll" ref={scroll}><main><h1>{reviewed?copy.signTitle:t.title}</h1>{!packet.preview&&<p className="rr-person"><strong>{packet.name}</strong><span>{t.arrival} · {packet.arrival}</span></p>}
   {reviewed?<><p>{copy.wrong}</p><label className="rr-check"><input type="checkbox" checked={ack} disabled={busy} onChange={e=>setAck(e.target.checked)}/><span>{t.confirm}</span></label>
    <p className="rr-label" id="rr-sign-label">{copy.line}</p><svg viewBox="0 0 1000 300" preserveAspectRatio="none" className="rr-ink" direction="ltr" role="img" aria-labelledby="rr-sign-label" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={e=>{if(active.current===e.pointerId)active.current=null}}>{ink.map((s,i)=><polyline key={i} points={s.map(p=>p.join(',')).join(' ')} fill="none" stroke="#193e32" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round"/>)}</svg>
    <button className="rr-quiet" type="button" disabled={busy||!ink.length} onClick={erase}>{copy.clear}</button></>:<><p>{t.intro}</p>{t.sections.map(([name,body])=><section key={name}><h2>{name}</h2><p>{body}</p></section>)}</>}
   {error&&<p role="alert" className="rr-error">{error==='offline'?copy.offline:copy.retry}</p>}</main></div>
-  <footer className="rr-foot">{reviewed?<><button className="rr-quiet" disabled={busy} onClick={()=>{setReviewed(false);setAck(false);erase();setError('')}}>{copy.back}</button><button className="rr-primary" disabled={busy||!ack||!drawable} onClick={()=>void submit()}>{copy.sign}</button></>:<><span>{local.edition}</span><button className="rr-primary" onClick={()=>setReviewed(true)}>{copy.next}</button></>}</footer>
+  <footer className="rr-foot">{reviewed?<><button className="rr-quiet" disabled={busy} onClick={()=>{setReviewed(false);setAck(false);erase();setError('')}}>{copy.back}</button><button className="rr-primary" disabled={busy||!ack||!drawable} onClick={()=>void submit()}>{copy.sign}</button></>:<><span>{local.edition}</span>{!packet.preview&&<button className="rr-primary" onClick={()=>setReviewed(true)}>{copy.next}</button>}</>}</footer>
  </dialog>
 }

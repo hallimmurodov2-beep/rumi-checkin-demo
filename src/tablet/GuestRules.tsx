@@ -188,6 +188,7 @@ export function GuestRules(){
  const [ink,setInk]=useState<Point[][]>([]),[busy,setBusy]=useState(false),[error,setError]=useState('')
  const current=useRef<Packet|null>(null),version=useRef(''),tokenRef=useRef(''),langRef=useRef(lang),active=useRef<number|null>(null),draft=useRef<Point[][]>([]),sent=useRef(false),signController=useRef<AbortController|null>(null)
  const dismissal=useRef<{token:string;id:string}|null>(null)
+ const wakeReader=useRef<(()=>void)|null>(null)
  const scroll=useRef<HTMLDivElement>(null)
  const dialog=useRef<HTMLDialogElement>(null)
  const showing=Boolean(packet)
@@ -201,17 +202,18 @@ export function GuestRules(){
  useEffect(()=>{if(!thanks)return;const id=setTimeout(()=>setThanks(null),2800);return()=>clearTimeout(id)},[thanks])
  useEffect(()=>{
   let alive=true,timer=0,expiry=0,controller:AbortController|undefined,lastGood=0
+  let running=false,wakePending=false
   const hide=()=>{controller?.abort();clearTimeout(expiry);clear();setThanks(null);tokenRef.current=''}
   async function poll(){
    if(!alive)return
    const token=device()
    if(token!==tokenRef.current){hide();tokenRef.current=token}
    if(token&&!document.hidden){
-    controller=new AbortController();const timeout=setTimeout(()=>controller?.abort(),3500)
+    controller=new AbortController();const timeout=setTimeout(()=>controller?.abort(),8500)
     const requested=version.current
     const dismissed=dismissal.current?.token===token?dismissal.current.id:undefined
     try{
-     const r=await call('read',token,{seen:requested,dismissed},controller.signal)
+     const r=await call('read',token,{seen:requested,dismissed,waitMs:5000},controller.signal)
      if(!alive||document.hidden||token!==device()||requested!==version.current)return
      if(dismissed&&r.request===dismissed)return
      if(dismissed&&dismissal.current?.id===dismissed)dismissal.current=null
@@ -223,16 +225,26 @@ export function GuestRules(){
      }
      clearTimeout(expiry)
      if(r.request)expiry=window.setTimeout(hide,Math.max(0,Math.min(15000,Number(r.remainingMs))))
-    }catch{if(alive&&current.current){if(Date.now()-lastGood>14000)hide();else setError('offline')}}
-    finally{clearTimeout(timeout)}
+     return r.supportsWait===true
+    }catch{if(alive&&!wakePending&&current.current){if(Date.now()-lastGood>14000)hide();else setError('offline')}}
+    finally{clearTimeout(timeout);controller=undefined}
    }
   }
-  const loop=async()=>{try{await poll()}finally{if(alive)timer=window.setTimeout(loop,document.hidden?3000:current.current?1800:750)}}
-  const visibility=()=>{if(document.hidden)hide()}
-  const onRePair=()=>hide()
+  const loop=async()=>{
+   running=true;wakePending=false
+   let waitSupported=false
+   try{waitSupported=await poll()===true}finally{
+    running=false
+    if(alive)timer=window.setTimeout(loop,document.hidden?3000:wakePending?0:waitSupported?40:current.current?1800:750)
+   }
+  }
+  const wake=()=>{clearTimeout(timer);if(running){wakePending=true;controller?.abort()}else void loop()}
+  wakeReader.current=wake
+  const visibility=()=>{if(document.hidden)hide();else wake()}
+  const onRePair=()=>{hide();wake()}
   window.addEventListener('folio-pair',onRePair);document.addEventListener('visibilitychange',visibility)
   void loop()
-  return()=>{alive=false;controller?.abort();signController.current?.abort();clearTimeout(timer);clearTimeout(expiry);window.removeEventListener('folio-pair',onRePair);document.removeEventListener('visibilitychange',visibility)}
+  return()=>{alive=false;wakeReader.current=null;controller?.abort();signController.current?.abort();clearTimeout(timer);clearTimeout(expiry);window.removeEventListener('folio-pair',onRePair);document.removeEventListener('visibilitychange',visibility)}
  },[])
  useEffect(()=>{
   const el=dialog.current
@@ -256,6 +268,7 @@ export function GuestRules(){
    if(count<4||sent.current||!packet||current.current?.request!==packet.request)return
    dismissal.current={token:tokenRef.current,id:packet.request}
    clear()
+   wakeReader.current?.()
   }
   el.addEventListener('pointerdown',down)
   el.addEventListener('pointermove',move)

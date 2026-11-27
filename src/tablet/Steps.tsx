@@ -1,3 +1,4 @@
+import { visitorQr, type VisitorPath, type VisitorVoucher } from '../lib/visitorVoucher'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLang, useT } from '../i18n'
 import { tablet } from '../lib/device'
@@ -6,7 +7,7 @@ import type { Policy, PublicReservation, TabletConfig, WifiInfo } from '../lib/t
 import { Markdown } from '../lib/markdown'
 import { wifiQrText } from '../lib/wifi'
 import { fmtDay, LANGS, LOCALE, type Lang } from '../translations'
-import { dushanbeTime, hasLobbyWifiPairing, useWifiVoucher, wifiVoucherText } from './frontdesk'
+import { dushanbeTime, hasLobbyWifiPairing, useWifiVoucher, VisitorPathPicker, wifiVoucherText } from './frontdesk'
 import { AnimatedCheck, ArrowRight, Button, CarIcon, CheckIcon, CupIcon, ErrorNote, PhoneIcon, QrCode, ReceiptIcon, Spinner, WifiIcon } from '../ui'
 import { Shell } from './Shell'
 import { roomTypePhoto } from './gallery'
@@ -545,10 +546,12 @@ function WifiCard({ wifi }: { wifi: WifiInfo }) {
 }
 
 /** The hotel's Wi-Fi login link (from the front desk server) as a QR code. */
-function VoucherCard({ url, expiresAt }: { url: string; expiresAt: number }) {
+function VoucherCard({ voucher }: { voucher: VisitorVoucher }) {
+  const [path, setPath] = useState<VisitorPath>('mobile')
   const t = useT()
   const lang = useLang()
   const v = wifiVoucherText[lang]
+  const url = visitorQr(voucher, path, lang)
   return (
     <div className="card flex h-full items-center gap-6 p-6">
       <QrCode key={url} text={url} label={t('wifiTitle')} className="h-44 w-44 xl:h-48 xl:w-48" />
@@ -557,13 +560,13 @@ function VoucherCard({ url, expiresAt }: { url: string; expiresAt: number }) {
           <WifiIcon />
           <h3 className="text-3xl">{t('wifiTitle')}</h3>
         </div>
-        <p className="mt-3 text-lg">{v[1]}</p>
+        <VisitorPathPicker path={path} onChange={setPath} />
         <p className="mt-3 flex items-center gap-2 text-sm text-muted">
           <PhoneIcon className="h-4 w-4 shrink-0" />
           {t('wifiScan')}
         </p>
         <p className="mt-1 text-sm text-muted">
-          {v[2]} {dushanbeTime.format(expiresAt)}
+          {v[2]} {dushanbeTime.format(voucher.expiresAt)}
         </p>
       </div>
     </div>
@@ -653,7 +656,7 @@ export function Done({
           <div className="receipt-cards mt-6 grid gap-4 sm:grid-cols-2">
             {showWifi && (
               <div className="rise min-w-0">
-                {wifi ? <WifiCard wifi={wifi} /> : <VoucherCard url={voucher!.url} expiresAt={voucher!.expiresAt} />}
+                {wifi ? <WifiCard wifi={wifi} /> : <VoucherCard voucher={voucher!} />}
               </div>
             )}
             <div className="card flex min-w-0 items-center gap-5 p-6">

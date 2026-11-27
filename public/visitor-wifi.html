@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#153d34">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Visitors Wi-Fi · The Rumi Hotel</title>
+  <style>
+    *{box-sizing:border-box} [hidden]{display:none!important}
+    body{background:#f7f5ee;color:#173e34;margin:0;font:1rem/1.55 system-ui,sans-serif}
+    main{width:min(100%,34rem);margin:0 auto;padding:clamp(1.2rem,5vw,2.3rem)}
+    header{display:flex;align-items:center;justify-content:space-between;gap:1rem;border-bottom:1px solid #cfc6b1;padding:.8rem 0 1.4rem}
+    .brand{font:1.18rem Georgia,serif;letter-spacing:.04em}
+    select{max-width:48%;font:inherit;color:inherit;background:#fff;border:1px solid #b3bbaf;border-radius:.5rem;padding:.5rem}
+    h1{font:normal clamp(2.4rem,9vw,3.45rem)/1.08 Georgia,serif;margin:2.2rem 0 1.1rem}
+    p{margin:0 0 1rem}strong{white-space:nowrap}
+    .action,button{display:block;font:600 1rem/1.35 system-ui,sans-serif;text-align:center;border-radius:.7rem;padding:.95rem 1rem;cursor:pointer}
+    .action{margin:1.6rem 0;background:#174b3e;color:white;text-decoration:none}
+    .pass{padding:1.2rem;border:1px solid #cdc6af;border-radius:1rem;background:#fff}
+    .pass p{margin:0 0 .65rem}.row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+    code{font:600 clamp(1.15rem,5vw,1.55rem)/1.15 ui-monospace,monospace;letter-spacing:.055em;user-select:all}
+    button{background:#f5f5ee;color:#174b3e;border:1px solid #bcc6b9;padding:.65rem 1rem}
+    #until{font-size:.9rem;color:#4c6058;margin:.7rem 0 0}
+    details{margin-top:1.1rem;border-top:1px solid #e2ded0;padding-top:.8rem}summary{cursor:pointer;font-weight:600}details p{margin-top:.7rem!important}details a{color:#174b3e;text-underline-offset:.16em}
+    #problem{padding:1rem;background:#fff;border-left:4px solid #ae8840}
+    a:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid #8b651e;outline-offset:3px}
+  </style>
+</head>
+<body>
+<main>
+  <header><span class="brand">The Rumi Hotel</span><select id="language" aria-label="Language"><option value="en">English</option><option value="ru">Русский</option><option value="tg">Тоҷикӣ</option></select></header>
+  <h1 id="title">Visitors Wi-Fi</h1>
+  <p id="intro">In Wi-Fi settings, choose <strong>The Rumi Hotel</strong>, then return here. You can leave mobile data on.</p>
+  <noscript>Enable JavaScript to use the scanned Wi-Fi code, or ask reception for help.</noscript>
+  <p id="problem" role="status" hidden></p>
+  <div id="pass" hidden>
+    <a id="login" class="action" referrerpolicy="no-referrer">Open Wi-Fi sign-in</a>
+    <section class="pass">
+      <p id="tip"></p>
+      <div class="row"><code id="code" dir="ltr"></code><button id="copy" type="button"></button></div>
+      <p id="until"></p>
+      <span id="copied" role="status"></span>
+      <details><summary id="help"></summary><p id="recovery"></p><a id="router" referrerpolicy="no-referrer"></a></details>
+    </section>
+  </div>
+</main>
+<script>
+  const strings = {
+    en: { title:'Visitors Wi-Fi', before:'In Wi-Fi settings, choose', after:', then return here. You can leave mobile data on.', login:'Open Wi-Fi sign-in', tip:'If your phone opens the sign-in window itself, choose the Wi-Fi code option and enter this code.', help:'Sign-in didn’t open?', recovery:'While connected to The Rumi Hotel, open the local sign-in link or tap the sign-in notification in your Wi-Fi settings. You can use the code above.', router:'Open the local sign-in page', copy:'Copy', copied:'Code copied.', manual:'Press and hold the code to copy it.', until:'Valid until', expired:'This code has expired. Scan the current QR at reception.', missing:'Scan the Visitors Wi-Fi QR on the reception tablet to get your code.' },
+    ru: { title:'Wi-Fi для посетителей', before:'В настройках Wi-Fi выберите сеть', after:', затем вернитесь сюда. Мобильный интернет можно оставить включённым.', login:'Открыть вход в Wi-Fi', tip:'Если телефон сам открыл окно входа, выберите вход по коду Wi-Fi и введите этот код.', help:'Вход не открылся?', recovery:'Подключитесь к The Rumi Hotel и откройте локальную страницу или нажмите уведомление «Войти в сеть Wi-Fi». Там можно ввести код выше.', router:'Открыть по локальному адресу', copy:'Копировать', copied:'Код скопирован.', manual:'Нажмите и удерживайте код, чтобы скопировать его.', until:'Действует до', expired:'Срок действия кода истёк. Отсканируйте новый QR на ресепшене.', missing:'Отсканируйте QR в разделе «Wi-Fi для посетителей» на планшете ресепшена.' },
+    tg: { title:'Wi-Fi барои меҳмонон', before:'Дар танзимоти Wi-Fi шабакаи', after:'-ро интихоб кунед, сипас ба ин саҳифа баргардед. Интернети мобилиро фаъол мондан мумкин аст.', login:'Кушодани саҳифаи вуруд ба Wi-Fi', tip:'Агар телефон саҳифаи вурудро худаш кушояд, вуруд бо рамзи Wi-Fi-ро интихоб карда, ин рамзро ворид кунед.', help:'Саҳифаи вуруд кушода нашуд?', recovery:'Ба шабакаи The Rumi Hotel пайваст шавед ва саҳифаи маҳаллиро кушоед ё дар танзимоти Wi-Fi огоҳии вуруд ба шабакаро пахш кунед. Рамзи болоро истифода баред.', router:'Кушодани саҳифаи маҳаллӣ', copy:'Нусха гирифтан', copied:'Рамз нусхабардорӣ шуд.', manual:'Барои нусхабардорӣ рамзро пахш карда нигоҳ доред.', until:'Эътибор дорад то', expired:'Муҳлати рамз ба охир расид. QR-рамзи навро дар қабулгоҳ скан кунед.', missing:'QR-рамзро аз бахши Wi-Fi барои меҳмонон дар планшети қабулгоҳ скан кунед.' }
+  };
+  const el = id => document.getElementById(id);
+  const params = new URLSearchParams(location.hash.slice(1));
+  const code = params.get('voucher') || '';
+  const expires = Number(params.get('until'));
+  const picker = el('language');
+  function supported(lang) { return Object.hasOwn(strings, lang); }
+  const phoneLanguage = navigator.language.split('-')[0];
+  picker.value = supported(params.get('lang')) ? params.get('lang') : supported(phoneLanguage) ? phoneLanguage : 'en';
+  function valid() { return /^V[0-9A-F]{12}$/.test(code) && /^\d{13}$/.test(params.get('until') || '') && Number.isSafeInteger(expires) && expires > 0; }
+  let timer;
+  function render() {
+    clearTimeout(timer);
+    const lang = picker.value, t = strings[lang];
+    document.documentElement.lang = lang;
+    document.title = t.title + ' · The Rumi Hotel';
+    el('title').textContent = t.title;
+    const ssid = document.createElement('strong');
+    ssid.textContent = 'The Rumi Hotel';
+    el('intro').replaceChildren(t.before + ' ', ssid, t.after);
+    const active = valid() && expires > Date.now();
+    el('pass').hidden = !active;
+    el('problem').hidden = active;
+    el('copied').textContent = '';
+    if (!active) {
+      el('login').removeAttribute('href');
+      el('router').removeAttribute('href');
+      el('code').textContent = '';
+      el('problem').textContent = valid() ? t.expired : t.missing;
+      return;
+    }
+    el('login').href = 'https://menu.therumihotel.com:8844/wifi?connect=1&entry=system#voucher=' + code;
+    el('login').textContent = t.login;
+    el('help').textContent = t.help;
+    el('recovery').textContent = t.recovery;
+    el('router').textContent = t.router;
+    el('router').href = 'http://10.0.0.1/login#voucher=' + code;
+    el('tip').textContent = t.tip;
+    el('code').textContent = code;
+    el('copy').textContent = t.copy;
+    el('until').textContent = t.until + ' ' + new Intl.DateTimeFormat(lang,{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Dushanbe'}).format(expires);
+    timer = setTimeout(render, Math.min(expires - Date.now(), 3600000));
+  }
+  el('copy').onclick = async () => {
+    if (expires <= Date.now()) return render();
+    const t = strings[picker.value];
+    try { await navigator.clipboard.writeText(code); el('copied').textContent = t.copied; }
+    catch { el('copied').textContent = t.manual; }
+  };
+  el('login').onclick = el('router').onclick = event => { if (expires <= Date.now()) { event.preventDefault(); render(); } };
+  picker.onchange = render;
+  window.addEventListener('pageshow', render);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+  render();
+</script>
+</body>
+</html>

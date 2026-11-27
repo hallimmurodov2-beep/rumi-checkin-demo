@@ -7,6 +7,7 @@
 //  - Folio station: the tablet is paired as a "station"; when reception pushes a guest's invoice,
 //    it is shown full screen as page images.
 import { useEffect, useId, useRef, useState } from 'react'
+import { readVisitorVoucher, visitorQr, type VisitorPath, type VisitorVoucher } from '../lib/visitorVoucher'
 import { FolioReader } from './FolioReader'
 import { useLang } from '../i18n'
 import { ArrowRight, Brand, ExpandIcon, QrCode, WifiIcon } from '../ui'
@@ -18,16 +19,27 @@ const FOLIO_TOKEN = 'rumi-folio-station-v1'
 
 const WIFI_TEXT = {
   // 6-8: the one-time pairing form (reception types the code; shown in the guest's language too).
-  en: ['Visitors Wi-Fi', 'Connect to The Rumi Hotel, then scan the code.', 'Code valid until', 'Loading…', 'Wi-Fi code temporarily unavailable', 'Close', 'Pairing code from reception', 'Pair tablet', 'Check the code and the connection to the Rumi network.', 'Full screen'],
-  ru: ['Wi-Fi для посетителей', 'Подключитесь к сети The Rumi Hotel и отсканируйте код.', 'Код действует до', 'Загрузка…', 'Код Wi-Fi временно недоступен', 'Закрыть', 'Код привязки с ресепшена', 'Привязать планшет', 'Проверьте код и связь с сетью Rumi.', 'На весь экран'],
-  tg: ['Wi-Fi барои меҳмонон', 'Ба шабакаи The Rumi Hotel пайваст шавед ва рамзро скан кунед.', 'Рамз амал мекунад то', 'Бор шуда истодааст…', 'Рамзи Wi-Fi муваққатан дастнорас аст', 'Пӯшидан', 'Рамзи пайвасткунӣ аз мизи қабул', 'Планшетро пайваст кунед', 'Рамз ва пайвастшавӣ ба шабакаи Rumi-ро санҷед.', 'Экрани пурра'],
+  en: ['Visitors Wi-Fi', 'Choose how your phone is connected, then scan.', 'Code valid until', 'Loading…', 'Wi-Fi code temporarily unavailable', 'Close', 'Pairing code from reception', 'Pair tablet', 'Check the code and the connection to the Rumi network.', 'Full screen'],
+  ru: ['Wi-Fi для посетителей', 'Выберите подключение телефона и отсканируйте QR-код.', 'Код действует до', 'Загрузка…', 'Код Wi-Fi временно недоступен', 'Закрыть', 'Код привязки с ресепшена', 'Привязать планшет', 'Проверьте код и связь с сетью Rumi.', 'На весь экран'],
+  tg: ['Wi-Fi барои меҳмонон', 'Навъи пайвасти телефонро интихоб кунед ва QR-рамзро скан кунед.', 'Рамз амал мекунад то', 'Бор шуда истодааст…', 'Рамзи Wi-Fi муваққатан дастнорас аст', 'Пӯшидан', 'Рамзи пайвасткунӣ аз мизи қабул', 'Планшетро пайваст кунед', 'Рамз ва пайвастшавӣ ба шабакаи Rumi-ро санҷед.', 'Экрани пурра'],
 } as const
 
 export const dushanbeTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dushanbe', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
-export interface WifiVoucher {
-  url: string
-  expiresAt: number
+const NETWORK_LABELS = {
+  en: { mobile: 'Mobile data', hotel: 'Hotel Wi-Fi' },
+  ru: { mobile: 'Мобильный интернет', hotel: 'Wi-Fi отеля' },
+  tg: { mobile: 'Интернати мобилӣ', hotel: 'Wi-Fi-и меҳмонхона' },
+}
+
+export function VisitorPathPicker({ path, onChange }: { path: VisitorPath; onChange: (path: VisitorPath) => void }) {
+  const lang = useLang()
+  return <div className="my-2 flex flex-wrap gap-1 rounded-xl bg-stone-100 p-1" role="group" aria-label={WIFI_TEXT[lang][0]}>
+    {(['mobile', 'hotel'] as const).map(item => <button key={item} type="button" aria-pressed={item === path}
+      onClick={() => onChange(item)} className={`min-h-11 flex-1 cursor-pointer rounded-lg px-2 text-sm font-semibold ${item === path ? 'bg-forest text-white' : 'text-forest'}`}>
+      {NETWORK_LABELS[lang][item]}
+    </button>)}
+  </div>
 }
 
 export function hasLobbyWifiPairing(): boolean {
@@ -39,7 +51,7 @@ export function hasLobbyWifiPairing(): boolean {
 }
 
 /** Fetches the current Wi-Fi login link. Returns 'unpaired' when the tablet has no (valid) pairing. */
-export async function fetchWifiVoucher(signal?: AbortSignal): Promise<WifiVoucher | 'unpaired'> {
+export async function fetchWifiVoucher(signal?: AbortSignal): Promise<VisitorVoucher | 'unpaired'> {
   const reader = localStorage.getItem(FOLIO_TOKEN)
   let res: Response | undefined
   if (reader) {
@@ -68,22 +80,16 @@ export async function fetchWifiVoucher(signal?: AbortSignal): Promise<WifiVouche
     }
   }
   if (!res.ok) throw new Error(String(res.status))
-  const v = (await res.json()) as WifiVoucher
-  const url = new URL(v.url)
-  const left = v.expiresAt - Date.now()
-  // Only ever show a login link on the hotel's own Wi-Fi portal.
-  if (url.hostname !== 'login.therumihotel.com' || !['http:', 'https:'].includes(url.protocol) || !Number.isFinite(left) || left <= 0 || left > 14_460_000)
-    throw new Error('bad voucher')
-  return v
+  return readVisitorVoucher(await res.json())
 }
 
 /** Keeps a fresh voucher while mounted (renewed when it expires, retried every 5 s on errors). */
 export function useWifiVoucher(enabled = true) {
-  const [voucher, setVoucher] = useState<WifiVoucher | null>(null)
+  const [voucher, setVoucher] = useState<VisitorVoucher | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'error' | 'unpaired'>('loading')
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) { setVoucher(null); setState('loading'); return }
     const ac = new AbortController()
     let timer: number | undefined
     const load = async () => {
@@ -97,7 +103,7 @@ export function useWifiVoucher(enabled = true) {
         }
         setVoucher(v)
         setState('ok')
-        timer = window.setTimeout(load, v.expiresAt - Date.now())
+        timer = window.setTimeout(() => { setVoucher(null); load() }, Math.max(0, v.expiresAt - Date.now()))
       } catch {
         if (ac.signal.aborted) return
         setState('error')
@@ -123,10 +129,12 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
   // The code shown as large as the screen allows. It stays up until closed, or until the screensaver
   // takes over after 5 idle minutes (see WIFI_QR_OPEN_SECONDS in pages/Tablet.tsx).
   const [big, setBig] = useState(false)
+  const [path, setPath] = useState<VisitorPath>('mobile')
   const [pin, setPin] = useState('')
   const [pairError, setPairError] = useState(false)
   const busy = useRef(false)
   const { voucher, state, reload } = useWifiVoucher(open)
+  const qr = voucher ? visitorQr(voucher, path, lang) : ''
 
   const pair = async () => {
     if (busy.current || !/^\d{8}$/.test(pin)) return
@@ -168,6 +176,7 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
         onClose={() => {
           setOpen(false)
           setBig(false)
+          setPath('mobile')
           setPin('')
         }}
         className={
@@ -178,13 +187,14 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
       >
         {big && voucher ? (
           <div className="wf-wrap fade-in">
-            <QrCode key={voucher.url} text={voucher.url} label={t[0]} className="wf-qr" />
+            <QrCode key={qr} text={qr} label={t[0]} className="wf-qr" />
             <div className="wf-text">
               <div className="wf-brand">
                 <Brand tone="light" />
               </div>
               <h2 id={titleId} className="mt-10 font-serif text-5xl font-semibold leading-tight">{t[0]}</h2>
               <p className="mt-4 text-2xl leading-snug text-gold-light">{t[1]}</p>
+              <VisitorPathPicker path={path} onChange={setPath} />
               <p className="mt-6 text-lg text-cream/80">
                 {t[2]} {dushanbeTime.format(voucher.expiresAt)}
               </p>
@@ -217,7 +227,8 @@ export function VisitorWifi({ endpoint = LOBBY_WIFI_ENDPOINT }: { endpoint?: str
           </form>
         ) : voucher ? (
           <>
-            <QrCode key={voucher.url} text={voucher.url} label={t[0]} className="mx-auto h-52 w-52" />
+            <VisitorPathPicker path={path} onChange={setPath} />
+            <QrCode key={qr} text={qr} label={t[0]} className="mx-auto h-52 w-52" />
             <p className="text-center text-sm">
               {t[2]} {dushanbeTime.format(voucher.expiresAt)}
             </p>

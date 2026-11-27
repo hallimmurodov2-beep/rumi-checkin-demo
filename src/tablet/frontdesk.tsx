@@ -32,7 +32,7 @@ export interface WifiVoucher {
 
 export function hasLobbyWifiPairing(): boolean {
   try {
-    return !!localStorage.getItem(LOBBY_WIFI_TOKEN)
+    return !!(localStorage.getItem(FOLIO_TOKEN) || localStorage.getItem(LOBBY_WIFI_TOKEN))
   } catch {
     return false
   }
@@ -40,18 +40,32 @@ export function hasLobbyWifiPairing(): boolean {
 
 /** Fetches the current Wi-Fi login link. Returns 'unpaired' when the tablet has no (valid) pairing. */
 export async function fetchWifiVoucher(signal?: AbortSignal): Promise<WifiVoucher | 'unpaired'> {
-  const token = localStorage.getItem(LOBBY_WIFI_TOKEN)
-  if (!token) return 'unpaired'
-  const res = await fetch(LOBBY_WIFI_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-    cache: 'no-store',
-    signal,
-  })
-  if (res.status === 401) {
-    localStorage.removeItem(LOBBY_WIFI_TOKEN)
-    return 'unpaired'
+  const reader = localStorage.getItem(FOLIO_TOKEN)
+  let res: Response | undefined
+  if (reader) {
+    res = await fetch(FOLIO_BASE + 'visitor-wifi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + reader },
+      body: '{}',
+      cache: 'no-store',
+      signal,
+    })
+    if (res.status === 401) res = undefined
+  }
+  if (!res) {
+    const token = localStorage.getItem(LOBBY_WIFI_TOKEN)
+    if (!token) return 'unpaired'
+    res = await fetch(LOBBY_WIFI_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+      cache: 'no-store',
+      signal,
+    })
+    if (res.status === 401) {
+      if (localStorage.getItem(LOBBY_WIFI_TOKEN) === token) localStorage.removeItem(LOBBY_WIFI_TOKEN)
+      return 'unpaired'
+    }
   }
   if (!res.ok) throw new Error(String(res.status))
   const v = (await res.json()) as WifiVoucher

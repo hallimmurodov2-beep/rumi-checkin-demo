@@ -187,6 +187,7 @@ export function GuestRules(){
  const [lang,setLang]=useState<Lang>("en"),[reviewed,setReviewed]=useState(false),[ack,setAck]=useState(false)
  const [ink,setInk]=useState<Point[][]>([]),[busy,setBusy]=useState(false),[error,setError]=useState('')
  const current=useRef<Packet|null>(null),version=useRef(''),tokenRef=useRef(''),langRef=useRef(lang),active=useRef<number|null>(null),draft=useRef<Point[][]>([]),sent=useRef(false),signController=useRef<AbortController|null>(null)
+ const dismissal=useRef<{token:string;id:string}|null>(null)
  const scroll=useRef<HTMLDivElement>(null)
  const dialog=useRef<HTMLDialogElement>(null)
  const showing=Boolean(packet)
@@ -208,9 +209,12 @@ export function GuestRules(){
    if(token&&!document.hidden){
     controller=new AbortController();const timeout=setTimeout(()=>controller?.abort(),3500)
     const requested=version.current
+    const dismissed=dismissal.current?.token===token?dismissal.current.id:undefined
     try{
-     const r=await call('read',token,{seen:requested},controller.signal)
+     const r=await call('read',token,{seen:requested,dismissed},controller.signal)
      if(!alive||document.hidden||token!==device()||requested!==version.current)return
+     if(dismissed&&r.request===dismissed)return
+     if(dismissed&&dismissal.current?.id===dismissed)dismissal.current=null
      lastGood=Date.now();setError(prev=>prev==='offline'?'':prev)
      if(!r.request){if(requested&&r.confirmed===requested)complete();else if(current.current)clear()}
      else if(r.request!==requested){
@@ -230,6 +234,42 @@ export function GuestRules(){
   void loop()
   return()=>{alive=false;controller?.abort();signController.current?.abort();clearTimeout(timer);clearTimeout(expiry);window.removeEventListener('folio-pair',onRePair);document.removeEventListener('visibilitychange',visibility)}
  },[])
+ useEffect(()=>{
+  const el=dialog.current
+  if(!el||!packet)return
+  let count=0,lastTap=0,press:{id:number;x:number;y:number;at:number}|null=null
+  const resetTaps=()=>{count=0;press=null}
+  function down(e:PointerEvent){
+   const target=e.target
+   if(!e.isPrimary||e.button!==0||sent.current||!(target instanceof Element)||target.closest('button,select,input,label,a,.rr-ink')){resetTaps();return}
+   press={id:e.pointerId,x:e.clientX,y:e.clientY,at:e.timeStamp}
+  }
+  function move(e:PointerEvent){
+   if(press&&press.id===e.pointerId&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>12)resetTaps()
+  }
+  function up(e:PointerEvent){
+   move(e)
+   if(!press||press.id!==e.pointerId||e.timeStamp-press.at>350){resetTaps();return}
+   press=null
+   count=e.timeStamp-lastTap<=500?count+1:1
+   lastTap=e.timeStamp
+   if(count<4||sent.current||!packet||current.current?.request!==packet.request)return
+   dismissal.current={token:tokenRef.current,id:packet.request}
+   clear()
+  }
+  el.addEventListener('pointerdown',down)
+  el.addEventListener('pointermove',move)
+  el.addEventListener('pointerup',up)
+  el.addEventListener('pointercancel',resetTaps)
+  el.addEventListener('scroll',resetTaps,true)
+  return ()=>{
+   el.removeEventListener('pointerdown',down)
+   el.removeEventListener('pointermove',move)
+   el.removeEventListener('pointerup',up)
+   el.removeEventListener('pointercancel',resetTaps)
+   el.removeEventListener('scroll',resetTaps,true)
+  }
+ },[packet])
  if(!packet&&!thanks)return null
  const copy=labels[thanks||lang]
  if(!packet)return <section className="rumi-rules rumi-rules-thanks" role="status" lang={thanks || lang} dir={thanks==="ar"||thanks==="fa"?"rtl":"ltr"}><div><div className="rr-brand">THE RUMI HOTEL</div><h1>{copy.sent}</h1><p>{copy.signedHint}</p></div></section>

@@ -8,6 +8,22 @@ type Text={title:string;intro:string;sections:[string,string][];confirm:string;g
 type Copy={edition:string;textHash:string;text:Text}
 type Packet={preview?:boolean;language?:Lang|null;request:string;until:number;name:string;arrival:string;texts:Record<Lang,Copy>}
 const languages:Lang[]=["en","ru","tg","de","fr","es","it","tr","ar","fa","ja","ko","zh-Hans","zh-Hant"]
+const awaitingName:Record<Lang,string>={
+  "en": "You can sign here as soon as reception confirms your name.",
+  "ru": "Здесь можно будет подписать правила, как только на стойке подтвердят ваше имя.",
+  "tg": "Пас аз тасдиқи номи шумо дар қабулгоҳ, метавонед дар ин ҷо имзо гузоред.",
+  "de": "Sobald die Rezeption Ihren Namen bestätigt, können Sie hier unterschreiben.",
+  "fr": "Vous pourrez signer ici dès que la réception aura confirmé votre nom.",
+  "es": "Podrá firmar aquí cuando recepción confirme su nombre.",
+  "it": "Potrà firmare qui quando la reception avrà confermato il suo nome.",
+  "tr": "Resepsiyon adınızı doğruladığında burada imza atabilirsiniz.",
+  "ar": "يمكنك التوقيع هنا بعد أن يؤكد موظف الاستقبال اسمك.",
+  "fa": "پس از تأیید نام شما در پذیرش، می‌توانید اینجا امضا کنید.",
+  "ja": "フロントでお名前の確認ができましたら、こちらで署名できます。",
+  "ko": "프런트에서 성함을 확인하면 여기에서 서명하실 수 있습니다.",
+  "zh-Hans": "前台确认您的姓名后，您就可以在此签名。",
+  "zh-Hant": "櫃檯確認您的姓名後，您就可以在此簽名。"
+}
 const names: Record<Lang,string>={"en":"English","ru":"Русский","tg":"Тоҷикӣ","de":"Deutsch","fr":"Français","es":"Español","it":"Italiano","tr":"Türkçe","ar":"العربية","fa":"فارسی","ja":"日本語","ko":"한국어","zh-Hans":"简体中文","zh-Hant":"繁體中文"}
 const labels={
  ...{
@@ -238,6 +254,6 @@ export function GuestRules(){
    <p className="rr-label" id="rr-sign-label">{copy.line}</p><svg viewBox="0 0 1000 300" preserveAspectRatio="none" className="rr-ink" direction="ltr" role="img" aria-labelledby="rr-sign-label" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={e=>{if(active.current===e.pointerId)active.current=null}}>{ink.map((s,i)=><polyline key={i} points={s.map(p=>p.join(',')).join(' ')} fill="none" stroke="#193e32" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round"/>)}</svg>
    <button className="rr-quiet" type="button" disabled={busy||!ink.length} onClick={erase}>{copy.clear}</button></>:<><p>{t.intro}</p>{t.sections.map(([name,body])=><section key={name}><h2>{name}</h2><p>{body}</p></section>)}</>}
   {error&&<p role="alert" className="rr-error">{error==='offline'?copy.offline:copy.retry}</p>}</main></div>
-  <footer className="rr-foot">{reviewed?<><button className="rr-quiet" disabled={busy} onClick={()=>{setReviewed(false);setAck(false);erase();setError('')}}>{copy.back}</button><button className="rr-primary" disabled={busy||!ack||!drawable} onClick={()=>void submit()}>{copy.sign}</button></>:<><span>{local.edition}</span>{!packet.preview&&<button className="rr-primary" onClick={()=>setReviewed(true)}>{copy.next}</button>}</>}</footer>
+  <footer className="rr-foot">{reviewed?<><button className="rr-quiet" disabled={busy} onClick={()=>{setReviewed(false);setAck(false);erase();setError('')}}>{copy.back}</button><button className="rr-primary" disabled={busy||!ack||!drawable} onClick={()=>void submit()}>{copy.sign}</button></>:<><span role="status">{packet.preview?awaitingName[lang]:local.edition}</span><button className="rr-primary" disabled={packet.preview} onClick={()=>setReviewed(true)}>{copy.next}</button></>}</footer>
  </dialog>
 }

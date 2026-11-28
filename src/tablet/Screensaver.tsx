@@ -4,6 +4,7 @@ import type { Lang } from '../translations'
 import { Brand } from '../ui'
 import { SLIDES } from './gallery'
 import { SlideImage } from './SlideImage'
+import { HOTEL_ZONE, hotelDate, isDay, useMinute, versusHotel, wallClock } from './clock'
 import './screensaver.css'
 
 const SLIDE_MS = 7500
@@ -16,25 +17,47 @@ const WORLD_CLOCKS = [
   { zone: 'Asia/Tokyo', en: 'Tokyo', ru: 'Токио', tg: 'Токио' },
 ] as const
 const HOME_CITY: Record<Lang, string> = { en: 'Dushanbe', ru: 'Душанбе', tg: 'Душанбе' }
-const LOCALE: Record<Lang, string> = { en: 'en-GB', ru: 'ru-RU', tg: 'tg-TJ' }
 
-const timeIn = (zone: string) => new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-const HOME_TIME = timeIn('Asia/Dushanbe')
-const CLOCKS = WORLD_CLOCKS.map((c) => ({ ...c, format: timeIn(c.zone) }))
 
-function homeDate(d: Date, lang: Lang) {
-  return d.toLocaleDateString(LOCALE[lang], { timeZone: 'Asia/Dushanbe', weekday: 'long', day: 'numeric', month: 'long' })
-}
 
-/** A small analog dial for "HH:MM". */
-function Dial({ time }: { time: string }) {
-  const [h, m] = time.split(':').map(Number)
+/** An analog dial with hour marks: a light face by day, a dark one by night. */
+function Dial({ h, m }: { h: number; m: number }) {
   return (
-    <span className="ss-dial" aria-hidden="true">
+    <span className={`ss-dial ${isDay(h) ? 'ss-day' : 'ss-night'}`} aria-hidden="true">
+      {Array.from({ length: 12 }, (_, i) => (
+        <b key={i} className={i % 3 === 0 ? 'ss-mark ss-mark-q' : 'ss-mark'} style={{ transform: `rotate(${i * 30}deg)` }} />
+      ))}
       <i className="ss-hour-hand" style={{ transform: `rotate(${(h % 12) * 30 + m / 2}deg)` }} />
       <i className="ss-minute-hand" style={{ transform: `rotate(${m * 6}deg)` }} />
     </span>
   )
+}
+
+/** A small sun by day, a crescent moon by night. */
+function DayNight({ h }: { h: number }) {
+  return isDay(h) ? (
+    <svg viewBox="0 0 16 16" className="ss-sky" aria-hidden="true">
+      <circle cx="8" cy="8" r="3.2" fill="currentColor" />
+      <g stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+        <path d="M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1" />
+      </g>
+    </svg>
+  ) : (
+    <svg viewBox="0 0 16 16" className="ss-sky" aria-hidden="true">
+      <path d="M13.6 10.2A6 6 0 015.8 2.4a6 6 0 107.8 7.8z" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** "4 h ahead · Tomorrow" compared with Dushanbe. */
+function useVersus() {
+  const t = useT()
+  return (d: Date, zone: string) => {
+    const { hours, days } = versusHotel(d, zone)
+    const n = String(Math.abs(hours)).replace('.5', '½')
+    const diff = hours === 0 ? t('clockSame') : t(hours > 0 ? 'clockAhead' : 'clockBehind', { n })
+    return { diff, day: days > 0 ? t('clockTomorrow') : days < 0 ? t('clockYesterday') : null }
+  }
 }
 
 /**
@@ -45,9 +68,9 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
   const [index, setIndex] = useState(0)
   const [prev, setPrev] = useState<number | null>(null)
   const [leaving, setLeaving] = useState(false)
-  const [now, setNow] = useState(() => new Date())
+  const now = useMinute()
   const lang = useLang()
-  const t = useT()
+  const versus = useVersus()
   const woke = useRef(false)
 
   useEffect(() => {
@@ -57,20 +80,7 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
         return (i + 1) % SLIDES.length
       })
     }, SLIDE_MS)
-    // Tick exactly on the minute.
-    let t: number | undefined
-    const tick = () => {
-      window.clearTimeout(t)
-      setNow(new Date())
-      t = window.setTimeout(tick, 60_000 - (Date.now() % 60_000))
-    }
-    tick()
-    document.addEventListener('visibilitychange', tick)
-    return () => {
-      window.clearInterval(id)
-      window.clearTimeout(t)
-      document.removeEventListener('visibilitychange', tick)
-    }
+    return () => window.clearInterval(id)
   }, [])
 
   // Warm the cache for the next photo so cross-fades never show a half-loaded image.
@@ -95,6 +105,7 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
   }
 
   const slide = SLIDES[index]
+  const home = wallClock(now, HOTEL_ZONE)
   return (
     <div
       className={`ss-root fixed inset-0 z-[55] cursor-pointer select-none overflow-hidden bg-forest-deep ${leaving ? 'ss-out' : 'ss-in'}`}
@@ -120,9 +131,15 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
           <Brand tone="light" />
         </div>
         <div className="ss-home-clock">
-          <div className="ss-home-city">{HOME_CITY[lang]}</div>
-          <time className="ss-home-time">{HOME_TIME.format(now)}</time>
-          <div className="ss-home-date">{homeDate(now, lang)}</div>
+          <Dial h={home.h} m={home.m} />
+          <div>
+            <div className="ss-home-city">
+              <DayNight h={home.h} />
+              {HOME_CITY[lang]}
+            </div>
+            <time className="ss-home-time">{home.text}</time>
+            <div className="ss-home-date">{hotelDate(now, lang)}</div>
+          </div>
         </div>
       </div>
 
@@ -140,14 +157,22 @@ export function Screensaver({ onWake }: { onWake: () => void }) {
           </div>
         </div>
         <div className="ss-clock-rail">
-          {CLOCKS.map((c) => {
-            const time = c.format.format(now)
+          {WORLD_CLOCKS.map((c) => {
+            const w = wallClock(now, c.zone)
+            const v = versus(now, c.zone)
             return (
               <div key={c.zone} className="ss-world-clock">
-                <Dial time={time} />
-                <div>
-                  <div className="ss-city">{c[lang]}</div>
-                  <time className="ss-time">{time}</time>
+                <Dial h={w.h} m={w.m} />
+                <div className="min-w-0">
+                  <div className="ss-city">
+                    <DayNight h={w.h} />
+                    {c[lang]}
+                  </div>
+                  <time className="ss-time">{w.text}</time>
+                  <div className="ss-diff">
+                    {v.diff}
+                    {v.day && <span className="ss-day-tag">{v.day}</span>}
+                  </div>
                 </div>
               </div>
             )

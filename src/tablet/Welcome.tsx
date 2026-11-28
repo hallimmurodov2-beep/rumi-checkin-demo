@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { useT } from '../i18n'
+import { useLang, useT } from '../i18n'
 import { LANGS, type Lang } from '../translations'
 import { inKioskApp } from '../lib/kiosk'
-import { dushanbeTime, VisitorWifi } from './frontdesk'
+import { VisitorWifi } from './frontdesk'
+import { HOTEL_ZONE, hotelDate, useMinute, wallClock } from './clock'
 import { GalleryTile } from './PhotoGallery'
 import './welcome.css'
 import { CheckIcon, COLORS, Emblem, ExpandIcon } from '../ui'
@@ -36,14 +37,24 @@ function enterFullscreen() {
   else el.webkitRequestFullscreen?.()
 }
 
+/** Hotel time in the photo's top-right corner: city, a large gold time and today's date in the guest's language. */
 function HotelTime() {
-  const [now, setNow] = useState(() => new Date())
+  const now = useMinute()
   const t = useT()
-  useEffect(() => {
-    const interval = window.setInterval(() => setNow(new Date()), 15_000)
-    return () => window.clearInterval(interval)
-  }, [])
-  return <div className="wl-local"><span>{t('hotelCity')}</span><time dateTime={now.toISOString()}>{dushanbeTime.format(now)}</time></div>
+  const lang = useLang()
+  const w = wallClock(now, HOTEL_ZONE)
+  const date = hotelDate(now, lang)
+  return (
+    <div className="wl-local">
+      <span className="wl-local-city">{t('hotelCity')}</span>
+      <time className="wl-local-time" dateTime={now.toISOString()}>
+        {w.text.slice(0, 2)}
+        <span className="wl-local-colon">:</span>
+        {w.text.slice(3)}
+      </time>
+      <span className="wl-local-date">{date}</span>
+    </div>
+  )
 }
 
 export function Welcome({
@@ -74,24 +85,32 @@ export function Welcome({
     <main className="wl-root" lang={lang}>
       <section className="wl-brand" aria-label={hotelName}>
         <img src="/gallery/lobby-atrium.webp" alt="" className="wl-photo" fetchPriority="high" draggable={false} />
-        <div className="wl-brandbar">
-          <div
-            data-no-tap
-            onPointerDown={startHold}
-            onPointerUp={endHold}
-            onPointerLeave={endHold}
-            onPointerCancel={endHold}
-          >
-            <Emblem color={COLORS.goldLight} className="wl-emblem" />
+        <div className="wl-topbar">
+          <div className="wl-brandbar">
+            <div
+              data-no-tap
+              onPointerDown={startHold}
+              onPointerUp={endHold}
+              onPointerLeave={endHold}
+              onPointerCancel={endHold}
+            >
+              <Emblem color={COLORS.goldLight} className="wl-emblem" />
+            </div>
+            <div className="wl-wordmark" lang="en">
+              <p>THE RUMI</p>
+              <p>HOTEL AND RESIDENCES</p>
+            </div>
           </div>
-          <div className="wl-wordmark" lang="en">
-            <p>THE RUMI</p>
-            <p>HOTEL AND RESIDENCES</p>
-          </div>
+          <HotelTime />
         </div>
         <div className="wl-hello">
+          <span className="wl-ornament" aria-hidden="true">
+            <i />
+            <b />
+            <i />
+          </span>
           <h1>{t('hotelWelcome')}</h1>
-          <HotelTime />
+          <p className="wl-tagline">{t('hotelTagline')}</p>
         </div>
       </section>
 
